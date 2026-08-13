@@ -22,6 +22,23 @@ na barra superior.
 
 ---
 
+## Publicação (GitHub Pages)
+
+O protótipo é inteiramente estático, então o deploy é o próprio repositório: em
+**Settings ▸ Pages**, origem `Deploy from a branch`, branch `main`, pasta `/ (root)`.
+Cada `git push` para `main` republica o site.
+
+Duas escolhas do protótipo tornam isso possível sem nenhuma configuração extra:
+
+- **Roteamento por hash** (`#/processos/:id`) — funciona em subdiretório
+  (`usuario.github.io/repo/`) sem regras de rewrite no servidor.
+- **Caminhos relativos** em todos os `<script>` e `<link>` do `index.html`.
+
+O arquivo `.nojekyll` desliga o processamento Jekyll do Pages, que serve os
+arquivos como estão.
+
+---
+
 ## Telas
 
 | Rota | Tela |

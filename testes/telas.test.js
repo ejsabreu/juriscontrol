@@ -467,8 +467,31 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
      window.location.hash === '#/entrar', window.location.hash);
   ok('a casca some de novo', !doc.querySelector('.topbar'));
 
+  /* Regressão: a tela de entrada é um módulo singleton remontado a cada
+     visita, e o login anterior deixa `entrando` ligada ao navegar para
+     dentro do sistema. Sem zerar no render, o botão volta em "Entrando…"
+     e desabilitado — dava para sair, mas não para entrar de novo sem F5.
+     O re-login abaixo é pela INTERFACE de propósito: entrar chamando o
+     serviço direto era o ponto cego que escondia isto. */
+  const btnEntrar = doc.querySelector('[data-action="entrar"]');
+  ok('o botão de entrar volta habilitado depois de sair',
+     !!btnEntrar && !btnEntrar.disabled,
+     btnEntrar ? 'disabled=' + btnEntrar.disabled : 'botão ausente');
+  ok('o botão não ficou preso em "Entrando…"',
+     !!btnEntrar && !/Entrando/.test(btnEntrar.textContent),
+     btnEntrar ? btnEntrar.textContent.trim() : 'botão ausente');
+
   // Volta a entrar para os testes seguintes usarem a casca.
-  await window.App.services.sessaoService.entrar(usuarioAdmin.id);
+  doc.querySelector('[data-value="' + usuarioAdmin.id + '"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(120);
+  doc.querySelector('[data-action="entrar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('dá para entrar de novo pela tela, sem recarregar a página',
+     window.location.hash === '#/' && !!window.App.store.getState().usuarioAtual,
+     window.location.hash);
+
   await irPara('#/', 700);
 
   console.log('\nTema');

@@ -25,6 +25,17 @@
 
   function render(elemento) {
     container = elemento;
+
+    /* O módulo é um singleton, mas a TELA é remontada a cada visita — e sair
+       do sistema traz o usuário de volta para cá. A `entrando` do login
+       anterior ficou ligada (o sucesso navega para dentro do sistema e nunca
+       a desliga), então sem zerar aqui a tela renasce com o botão em
+       "Entrando…" e desabilitado, e a guarda de `entrar()` recusa o clique:
+       só o F5 destravava. Montagem zera estado de montagem. */
+    usuarios = [];
+    selecionado = null;
+    entrando = false;
+
     container.innerHTML = App.components.ui.Skeleton({ linhas: 4 });
     ligarEventos();
     carregar();

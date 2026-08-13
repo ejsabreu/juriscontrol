@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Protótipo de software de controle de processos judiciais para escritório de advocacia.">
+  <title>JurisControl · Controle de Processos Judiciais</title>
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23b8873f'/><text y='72' x='50' text-anchor='middle' font-size='58' font-family='sans-serif' font-weight='bold' fill='%230b1522'>JC</text></svg>">
+
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/layout.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+</head>
+<body>
+
+  <div id="app"></div>
+
+  <!-- ======================================================================
+       Scripts clássicos (sem type="module") de propósito: ES Modules são
+       bloqueados por CORS sob file://, e o protótipo precisa abrir com
+       duplo clique. Cada arquivo é uma IIFE que registra seu módulo em
+       window.App — a conversão para import/export na migração é mecânica.
+
+       A ordem abaixo é a de dependência conceitual. Nenhum arquivo depende
+       de outro em tempo de DEFINIÇÃO (só em tempo de chamada), então a
+       ordem é uma conveniência de leitura, não uma exigência frágil.
+       ====================================================================== -->
+
+  <!-- Utilitários -->
+  <script src="src/utils/dom.js"></script>
+  <script src="src/utils/format.js"></script>
+  <script src="src/utils/mask.js"></script>
+  <script src="src/utils/exportar.js"></script>
+  <script src="src/utils/moeda.js"></script>
+  <script src="src/utils/csv.js"></script>
+  <script src="src/utils/token.js"></script>
+
+  <!-- Domínio (lógica pura — migra 100% para o React) -->
+  <script src="src/domain/enums.js"></script>
+  <script src="src/domain/feriados.js"></script>
+  <script src="src/domain/prazos.js"></script>
+  <script src="src/domain/cnj.js"></script>
+  <script src="src/domain/validators.js"></script>
+  <script src="src/domain/permissoes.js"></script>
+  <script src="src/domain/alertas.js"></script>
+
+  <!-- Dados fictícios -->
+  <script src="data/seed.js"></script>
+
+  <!-- Camada de dados (trocada por fetch na migração) -->
+  <script src="src/services/http.js"></script>
+  <script src="src/services/db.js"></script>
+  <script src="src/services/processoService.js"></script>
+  <script src="src/services/prazoService.js"></script>
+  <script src="src/services/clienteService.js"></script>
+  <script src="src/services/andamentoService.js"></script>
+  <script src="src/services/agendaService.js"></script>
+  <script src="src/services/tarefaService.js"></script>
+  <script src="src/services/documentoService.js"></script>
+  <script src="src/services/pastaDocumentoService.js"></script>
+  <script src="src/services/arquivoService.js"></script>
+  <script src="src/services/conteudoService.js"></script>
+  <!-- F2.1 — segurança, auditoria e LGPD -->
+  <script src="src/services/sessaoService.js"></script>
+  <script src="src/services/auditoriaService.js"></script>
+  <script src="src/services/privacidadeService.js"></script>
+  <!-- F2.2 — alertas e notificações -->
+  <script src="src/services/notificacaoService.js"></script>
+  <script src="src/services/regraAlertaService.js"></script>
+  <script src="src/services/simulado/emailService.js"></script>
+
+  <!-- Estado -->
+  <script src="src/store/store.js"></script>
+  <script src="src/store/selectors.js"></script>
+
+  <!-- Componentes -->
+  <script src="src/components/ui.js"></script>
+  <script src="src/components/SeloSimulado.js"></script>
+  <script src="src/components/Chart.js"></script>
+  <script src="src/components/Stepper.js"></script>
+  <script src="src/components/DateRangePicker.js"></script>
+  <script src="src/components/NotificationCenter.js"></script>
+  <script src="src/components/Modal.js"></script>
+  <script src="src/components/Toast.js"></script>
+  <script src="src/components/DataTable.js"></script>
+  <script src="src/components/FilterBar.js"></script>
+  <script src="src/components/KanbanBoard.js"></script>
+  <script src="src/components/DocumentExplorer.js"></script>
+  <script src="src/components/DocumentViewer.js"></script>
+  <script src="src/components/DocumentEditor.js"></script>
+  <script src="src/components/ProcessoCard.js"></script>
+  <script src="src/components/PrazoCard.js"></script>
+  <script src="src/components/Timeline.js"></script>
+  <script src="src/components/Calendar.js"></script>
+
+  <!-- Layout -->
+  <script src="src/layout/Sidebar.js"></script>
+  <script src="src/layout/Topbar.js"></script>
+  <script src="src/layout/AppShell.js"></script>
+
+  <!-- Páginas -->
+  <script src="src/pages/DashboardPage.js"></script>
+  <script src="src/pages/ProcessosListPage.js"></script>
+  <script src="src/pages/ProcessoDetalhePage.js"></script>
+  <script src="src/pages/ProcessoFormPage.js"></script>
+  <script src="src/pages/AgendaPage.js"></script>
+  <script src="src/pages/ClientesPage.js"></script>
+  <script src="src/pages/ClienteDetalhePage.js"></script>
+  <script src="src/pages/TarefasPage.js"></script>
+  <script src="src/pages/SimuladorPage.js"></script>
+  <script src="src/pages/DocumentoEditorPage.js"></script>
+  <!-- F2.1 — entrada e administração -->
+  <script src="src/pages/LoginPage.js"></script>
+  <script src="src/pages/ConfiguracoesPage.js"></script>
+  <script src="src/pages/AuditoriaPage.js"></script>
+  <script src="src/pages/PrivacidadePage.js"></script>
+  <!-- F2.2 — notificações -->
+  <script src="src/pages/NotificacoesPage.js"></script>
+  <script src="src/pages/CaixaSaidaPage.js"></script>
+
+  <!-- Roteador e bootstrap -->
+  <script src="src/router.js"></script>
+  <script src="src/main.js"></script>
+
+</body>
+</html>

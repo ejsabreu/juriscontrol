@@ -1,0 +1,17 @@
+{
+  "name": "juriscontrol-prototipo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Protótipo de software de controle de processos judiciais — HTML, CSS e JavaScript puro, estruturado para migração a React.",
+  "scripts": {
+    "test": "node testes/executar.js",
+    "test:dominio": "node testes/dominio.test.js",
+    "test:fundacoes": "node testes/fundacoes.test.js",
+    "test:telas": "node testes/telas.test.js",
+    "test:interacoes": "node testes/interacoes.test.js",
+    "test:listeners": "node testes/listeners.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

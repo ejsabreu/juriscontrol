@@ -1,0 +1,210 @@
+/* ==========================================================================
+   Design Tokens
+   Na migração para React estes tokens viram o theme do Tailwind
+   (tailwind.config.js) ou o tema do design system. Nenhum componente
+   referencia cor literal — sempre via var().
+   ========================================================================== */
+
+:root {
+  /* --- Marca: sóbrio, institucional -------------------------------------- */
+  --color-primary-50:  #eef2f7;
+  --color-primary-100: #d6e0eb;
+  --color-primary-200: #adc1d7;
+  --color-primary-300: #7f9dbf;
+  --color-primary-400: #4f74a0;
+  --color-primary-500: #2d5580;
+  --color-primary-600: #1e3a5f;
+  --color-primary-700: #172d4a;
+  --color-primary-800: #112035;
+  --color-primary-900: #0b1522;
+
+  --color-accent-300: #dcc08a;
+  --color-accent-400: #cba45f;
+  --color-accent-500: #b8873f;
+  --color-accent-600: #96692c;
+
+  /* --- Semânticas de prazo (semáforo) ------------------------------------ */
+  --color-prazo-ok:          #2f855a;
+  --color-prazo-ok-bg:       #e6f4ec;
+  --color-prazo-atencao:     #b45309;
+  --color-prazo-atencao-bg:  #fdf1e0;
+  --color-prazo-critico:     #c53030;
+  --color-prazo-critico-bg:  #fdecec;
+  --color-prazo-vencido:     #742a2a;
+  --color-prazo-vencido-bg:  #f5dcdc;
+
+  /* --- Feedback ---------------------------------------------------------- */
+  --color-success: #2f855a;
+  --color-warning: #b45309;
+  --color-danger:  #c53030;
+  --color-info:    #2b6cb0;
+
+  /* --- Superfícies e texto ----------------------------------------------- */
+  --color-bg:            #f4f6f9;
+  --color-surface:       #ffffff;
+  --color-surface-alt:   #f8fafc;
+  --color-surface-hover: #eef2f7;
+  --color-sidebar:       #172d4a;
+  --color-sidebar-hover: #1e3a5f;
+  --color-sidebar-text:  #b9c8da;
+
+  --color-text:         #1a2433;
+  --color-text-muted:   #5c6b7f;
+  --color-text-subtle:  #8b98a9;
+  --color-text-invert:  #ffffff;
+
+  --color-border:       #dde3ea;
+  --color-border-strong:#c3ccd7;
+
+  /* --- Espaçamento (escala 4px) ------------------------------------------ */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* --- Tipografia -------------------------------------------------------- */
+  --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+
+  --text-xs:   0.6875rem;
+  --text-sm:   0.8125rem;
+  --text-base: 0.875rem;
+  --text-md:   1rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.375rem;
+  --text-2xl:  1.75rem;
+  --text-3xl:  2.125rem;
+
+  --leading-tight:  1.25;
+  --leading-normal: 1.5;
+
+  /* --- Raios, sombras, transições ---------------------------------------- */
+  --radius-sm:   3px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(16, 30, 48, 0.06);
+  --shadow-md: 0 2px 6px rgba(16, 30, 48, 0.08), 0 1px 2px rgba(16, 30, 48, 0.04);
+  --shadow-lg: 0 8px 24px rgba(16, 30, 48, 0.12);
+  --shadow-xl: 0 16px 48px rgba(16, 30, 48, 0.18);
+
+  --transition: 140ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- Gráficos (F2.0) ----------------------------------------------------
+     Paleta CATEGÓRICA de 8 slots, em ordem FIXA. A ordem é o mecanismo de
+     segurança para daltonismo, não escolha estética: foi validada com
+     simulação de protanopia e deuteranopia contra a superfície do sistema
+     (#ffffff no claro, #17212f no escuro). Pior par adjacente ΔE 9,1 no
+     claro e 8,4 no escuro (alvo ≥ 8); pior par em visão normal 19,6 e 19,3
+     (piso ≥ 15).
+
+     NÃO reordene e NÃO acrescente um 9º slot: a 9ª série vira "Outros".
+     Trocar um valor exige rodar a validação de novo nos dois temas.
+
+     No tema claro, os slots 3, 4 e 5 ficam abaixo de 3:1 de contraste — por
+     isso todo gráfico do sistema traz rótulo direto ou a visão de tabela
+     (Chart.js já faz isso). Ver PLANEJAMENTO-FASE2.md § F2.0.              */
+  --chart-1: #2a78d6;   /* azul     */
+  --chart-2: #eb6834;   /* laranja  */
+  --chart-3: #1baf7a;   /* água     */
+  --chart-4: #eda100;   /* amarelo  */
+  --chart-5: #e87ba4;   /* magenta  */
+  --chart-6: #008300;   /* verde    */
+  --chart-7: #4a3aa7;   /* violeta  */
+  --chart-8: #e34948;   /* vermelho */
+
+  /* Rampa ORDINAL/sequencial — um único matiz, claro→escuro. Usada onde a
+     ordem é o significado (fases do processo, etapas do funil, faixas de
+     aging), nunca para identidade. */
+  --chart-seq-1: #cde2fb;
+  --chart-seq-2: #9ec5f4;
+  --chart-seq-3: #6da7ec;
+  --chart-seq-4: #3987e5;
+  --chart-seq-5: #256abf;
+  --chart-seq-6: #184f95;
+  --chart-seq-7: #0d366b;
+
+  /* Divergente: dois polos opostos e cinza no meio (nunca um matiz no meio). */
+  --chart-div-pos: #2a78d6;
+  --chart-div-mid: #e8e8e6;
+  --chart-div-neg: #e34948;
+
+  /* Cromo do gráfico — recessivo por definição. */
+  --chart-surface:    #ffffff;
+  --chart-grid:       #e6eaef;
+  --chart-axis:       #c3ccd7;
+  --chart-neutro:     #8b98a9;   /* série "Outros" e traço de referência */
+
+  /* --- Layout ------------------------------------------------------------ */
+  --sidebar-width:   232px;
+  --topbar-height:   56px;
+  --content-max:     1600px;
+  --z-dropdown: 100;
+  --z-sticky:   200;
+  --z-modal:    900;
+  --z-toast:    1000;
+}
+
+/* --- Tema escuro ---------------------------------------------------------- */
+[data-theme="dark"] {
+  --color-bg:            #0f1723;
+  --color-surface:       #17212f;
+  --color-surface-alt:   #1c2836;
+  --color-surface-hover: #223040;
+  --color-sidebar:       #0b1522;
+  --color-sidebar-hover: #17212f;
+  --color-sidebar-text:  #9aabbe;
+
+  --color-text:        #e6ecf3;
+  --color-text-muted:  #9aabbe;
+  --color-text-subtle: #6d7f94;
+
+  --color-border:        #263447;
+  --color-border-strong: #35485f;
+
+  --color-prazo-ok-bg:      #163024;
+  --color-prazo-atencao-bg: #33240f;
+  --color-prazo-critico-bg: #3a1c1c;
+  --color-prazo-vencido-bg: #2c1414;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.55);
+
+  /* Gráficos no escuro: os MESMOS oito matizes, re-escalonados para a
+     superfície escura — não é inversão automática do tema claro. Todos os 8
+     passam de 3:1 sobre #17212f. */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+
+  /* A rampa sequencial inverte a âncora: no escuro o "muito" é o passo claro. */
+  --chart-seq-1: #0d366b;
+  --chart-seq-2: #184f95;
+  --chart-seq-3: #256abf;
+  --chart-seq-4: #3987e5;
+  --chart-seq-5: #6da7ec;
+  --chart-seq-6: #9ec5f4;
+  --chart-seq-7: #cde2fb;
+
+  --chart-div-pos: #3987e5;
+  --chart-div-mid: #2c3a4c;
+  --chart-div-neg: #e66767;
+
+  --chart-surface: #17212f;
+  --chart-grid:    #263447;
+  --chart-axis:    #35485f;
+  --chart-neutro:  #6d7f94;
+}

@@ -1,0 +1,17 @@
+# Dependências (só jsdom, usado pelos testes em Node)
+node_modules/
+
+# Logs de gerenciadores de pacote
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema operacional
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+*.swp

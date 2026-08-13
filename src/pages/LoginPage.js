@@ -105,6 +105,14 @@
             }) +
           '</div>' +
 
+          // O selo acima fala da autenticação; este aviso fala dos DADOS.
+          // São coisas diferentes, e quem recebe o link público precisa das
+          // duas antes de confundir o protótipo com um sistema em produção.
+          '<p class="login__aviso">' +
+            'Protótipo de demonstração. Clientes, processos, prazos e documentos são ' +
+            'fictícios, e tudo o que você alterar fica apenas no seu navegador.' +
+          '</p>' +
+
         '</div>' +
       '</div>';
   }

@@ -1,5 +1,8 @@
 # JurisControl — protótipo
 
+**No ar em [ejsabreu.github.io/juriscontrol](https://ejsabreu.github.io/juriscontrol/)** —
+dados fictícios, tudo no `localStorage` do navegador.
+
 Software de controle de processos judiciais para escritório de advocacia.
 HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 

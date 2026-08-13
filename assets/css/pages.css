@@ -950,6 +950,16 @@
 
 .login__actions { margin-top: var(--space-5); }
 
+.login__aviso {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--color-text-subtle);
+  text-align: center;
+}
+
 /* --- Trilha de auditoria ---------------------------------------------------- */
 .audit {
   list-style: none;

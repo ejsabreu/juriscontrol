@@ -9,15 +9,22 @@
 
   var container = null;
   var cliente = null;
+  var interacoes = [];
 
   function esc(v) { return App.dom.esc(v); }
 
   function render(elemento, params) {
     container = elemento;
     container.innerHTML = App.components.ui.Skeleton({ linhas: 6 });
+    ligarEventos();
 
     App.services.clienteService.obter(params.id).then(function (c) {
       cliente = c;
+      /* F2.6: o histórico do cliente começa ANTES de ele ser cliente — o
+         serviço traz junto as interações do lead que virou esta pessoa. */
+      return App.services.interacaoService.listar({ pessoaId: c.id });
+    }).then(function (lista) {
+      interacoes = lista;
       desenhar();
     }).catch(function (erro) {
       container.innerHTML = App.components.ui.EmptyState({
@@ -190,9 +197,94 @@
       '</div>' +
       heroi() +
       kpis() +
-      tabelaProcessos();
+      tabelaProcessos() +
+      cardInteracoes();
 
     App.components.DataTable.mount(container, {});
+  }
+
+  /** Histórico de contato (F2.6) — inclui o que veio da fase de prospecção. */
+  function cardInteracoes() {
+    var ui = App.components.ui;
+
+    if (!interacoes.length) {
+      return ui.Card({
+        titulo: 'Histórico de contato',
+        acoes: ui.Button({ rotulo: 'Registrar', tamanho: 'sm', acao: 'nova-interacao-cliente' }),
+        conteudo: '<p class="u-sm u-muted">Nenhum contato registrado com este cliente.</p>',
+        classe: 'dashboard__section'
+      });
+    }
+
+    var itens = interacoes.slice(0, 20).map(function (i) {
+      return '<li class="inter">' +
+        '<span class="inter__icone" aria-hidden="true">' + i.icone + '</span>' +
+        '<div class="inter__corpo">' +
+          '<div class="inter__topo">' +
+            '<strong>' + esc(i.rotuloTipo) + '</strong>' +
+            '<span class="u-xs u-subtle">' + esc(App.format.dataHora(i.quando)) +
+              (i.leadId ? ' · prospecção' : '') + '</span>' +
+          '</div>' +
+          '<p class="inter__resumo">' + esc(i.resumo || '') + '</p>' +
+          '<div class="u-xs u-subtle">' +
+            esc((i.usuario && i.usuario.nome) || '') + '</div>' +
+        '</div>' +
+      '</li>';
+    }).join('');
+
+    return ui.Card({
+      titulo: 'Histórico de contato',
+      subtitulo: interacoes.length + ' registro(s)',
+      acoes: ui.Button({ rotulo: 'Registrar', tamanho: 'sm', acao: 'nova-interacao-cliente' }),
+      conteudo: '<ul class="inter-list">' + itens + '</ul>',
+      semPadding: false,
+      classe: 'dashboard__section'
+    });
+  }
+
+  function ligarEventos() {
+    App.dom.delegate(container, 'click', '[data-action="nova-interacao-cliente"]', function () {
+      var ui = App.components.ui;
+      var enums = App.domain.enums;
+
+      App.components.Modal.abrir({
+        titulo: 'Registrar contato',
+        conteudo:
+          '<form id="form-inter-cliente">' +
+            '<div class="form-grid">' +
+              ui.Field({ nome: 'tipo', rotulo: 'Tipo', tipo: 'select', largura: 6,
+                         opcoes: enums.opcoes(enums.TIPOS_INTERACAO, 'ligacao') }) +
+              ui.Field({ nome: 'duracaoMin', rotulo: 'Duração (min)', tipo: 'number',
+                         largura: 6, valor: 15 }) +
+            '</div>' +
+            ui.Field({ nome: 'resumo', rotulo: 'O que foi conversado', tipo: 'textarea',
+                       linhas: 3, obrigatorio: true }) +
+            ui.Field({ nome: 'proximoPasso', rotulo: 'Próximo passo' }) +
+          '</form>',
+        acoes: [
+          { rotulo: 'Cancelar', variante: 'secondary', acao: 'cancelar', fechar: true },
+          { rotulo: 'Registrar', variante: 'primary', acao: 'salvar' }
+        ],
+        aoAcao: function (acao, corpo, fecharModal) {
+          if (acao !== 'salvar') return;
+          var d = App.dom.formToObject(App.dom.qs('#form-inter-cliente', corpo));
+
+          App.services.interacaoService.criar({
+            pessoaId: cliente.id,
+            tipo: d.tipo,
+            duracaoMin: parseInt(d.duracaoMin, 10) || 0,
+            resumo: d.resumo,
+            proximoPasso: d.proximoPasso || null
+          }).then(function () {
+            fecharModal();
+            App.components.Toast.sucesso('Contato registrado');
+            render(container, { id: cliente.id });
+          }).catch(function (erro) {
+            App.components.Toast.erro('Não foi possível registrar', erro.message);
+          });
+        }
+      });
+    });
   }
 
   App.pages.ClienteDetalhePage = { render: render };

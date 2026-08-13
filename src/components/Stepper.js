@@ -80,7 +80,11 @@
   }
 
   /**
-   * @param {object} handlers  { onAvancar, onVoltar, onConcluir }
+   * @param {object} handlers  { aoAvancar, aoVoltar, aoConcluir }
+   *
+   * Prefixo `ao`, como todo o resto do projeto (`aoMover`, `aoMudar`,
+   * `aoOrdenar`). A primeira versão usava `on*`, herdado do JSX, e a
+   * divergência custou um handler que nunca disparava.
    */
   Stepper.mount = function (root, handlers) {
     if (!root) return function () {};
@@ -88,13 +92,13 @@
 
     var offs = [
       App.dom.delegate(root, 'click', '[data-action="stepper-avancar"]', function () {
-        if (h.onAvancar) h.onAvancar();
+        if (h.aoAvancar) h.aoAvancar();
       }),
       App.dom.delegate(root, 'click', '[data-action="stepper-voltar"]', function () {
-        if (h.onVoltar) h.onVoltar();
+        if (h.aoVoltar) h.aoVoltar();
       }),
       App.dom.delegate(root, 'click', '[data-action="stepper-concluir"]', function () {
-        if (h.onConcluir) h.onConcluir();
+        if (h.aoConcluir) h.aoConcluir();
       })
     ];
 

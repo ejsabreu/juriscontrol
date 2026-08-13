@@ -301,6 +301,91 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   ok('resultados listados', painel.querySelectorAll('.global-results__item').length > 0,
      String(painel.querySelectorAll('.global-results__item').length));
 
+  console.log('\nProspecção — funil (F2.6)');
+  await irPara('#/crm', 1000);
+  ok('o funil abre', texto().includes('Prospecção'));
+  ok('reusa o kanban', !!doc.querySelector('.kanban'));
+  ok('tem uma coluna por etapa',
+     doc.querySelectorAll('.kanban__column').length ===
+     window.App.domain.enums.ETAPAS_FUNIL.length,
+     String(doc.querySelectorAll('.kanban__column').length));
+  ok('lista os leads do seed', doc.querySelectorAll('.lead-card').length > 0,
+     String(doc.querySelectorAll('.lead-card').length));
+  ok('mostra o pipeline ponderado', texto().includes('Pipeline ponderado'));
+  ok('explica como o ponderado é calculado',
+     doc.body.innerHTML.includes('probabilidade da etapa'));
+  ok('mostra a taxa de conversão', texto().includes('Taxa de conversão'));
+  ok('marca os leads com follow-up vencido',
+     doc.querySelectorAll('.lead-card--atrasado').length > 0,
+     String(doc.querySelectorAll('.lead-card--atrasado').length));
+
+  const cardLead = doc.querySelector('.lead-card');
+  const idLead = cardLead.getAttribute('data-id');
+  await irPara('#/crm/' + idLead, 900);
+  ok('a ficha do interessado abre', !!doc.querySelector('.inter-list') ||
+     texto().includes('Histórico de contato'));
+  ok('mostra os dados do lead', texto().includes('Valor ponderado'));
+  ok('oferece registrar contato', !!doc.querySelector('[data-action="nova-interacao"]'));
+
+  const interAntes = window.App.services.db.get('interacoes').length;
+  doc.querySelector('[data-action="nova-interacao"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(500);
+  ok('o modal de contato abre', !!doc.querySelector('#form-interacao'));
+  doc.querySelector('#form-interacao [name="resumo"]').value = 'Contato de teste automatizado.';
+  doc.querySelector('.modal [data-action="salvar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('o contato foi registrado',
+     window.App.services.db.get('interacoes').length === interAntes + 1);
+
+  console.log('\nConversão de lead em cliente');
+  const leadAberto = window.App.services.db.get('leads')
+    .filter(l => !l.convertidoEm && l.etapa !== 'perdido')[0];
+  await irPara('#/crm/' + leadAberto.id, 900);
+  doc.querySelector('[data-action="converter"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(600);
+  ok('o stepper de conversão abre', !!doc.querySelector('.stepper'));
+  ok('tem quatro etapas', doc.querySelectorAll('.stepper__step').length === 4,
+     String(doc.querySelectorAll('.stepper__step').length));
+  ok('começa pelos dados do cliente', !!doc.querySelector('#form-conv-cliente'));
+
+  doc.querySelector('.modal [data-action="stepper-avancar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(400);
+  ok('avança para o contrato', !!doc.querySelector('#form-conv-contrato'));
+
+  doc.querySelector('.modal [data-action="stepper-avancar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(400);
+  ok('avança para o processo', !!doc.querySelector('#form-conv-processo'));
+  ok('o processo é opcional e explica por quê',
+     texto().includes('ainda não foi distribuída'));
+
+  doc.querySelector('.modal [data-action="stepper-avancar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(400);
+  ok('a revisão resume o que será criado', texto().includes('Parcelas'));
+
+  const pessoasAntes = window.App.services.db.get('pessoas').length;
+  doc.querySelector('.modal [data-action="stepper-concluir"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(1200);
+  ok('a conversão criou o cliente',
+     window.App.services.db.get('pessoas').length === pessoasAntes + 1);
+  ok('o lead ficou marcado como ganho',
+     window.App.services.db.find('leads', leadAberto.id).etapa === 'ganho');
+
+  console.log('\nHistórico na ficha do cliente');
+  const clienteConvertido = window.App.services.db.find('leads', leadAberto.id).pessoaId;
+  await irPara('#/clientes/' + clienteConvertido, 900);
+  ok('a ficha do cliente mostra o histórico de contato',
+     texto().includes('Histórico de contato'));
+  ok('o histórico traz o que veio da prospecção',
+     doc.body.innerHTML.includes('prospecção') ||
+     texto().includes('Nenhum contato registrado'));
+
   console.log('\nFinanceiro (F2.5)');
   await irPara('#/financeiro', 1000);
   ok('o painel abre', texto().includes('Financeiro'));

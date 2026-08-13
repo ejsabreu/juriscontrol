@@ -9,7 +9,7 @@ HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está em
 [PLANEJAMENTO.md](PLANEJAMENTO.md). A fase 2 está em
 [PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md): **concluídos** fundações, segurança/LGPD,
-alertas, portal do cliente, publicações/tribunais e financeiro; **a fazer** CRM, documentos
+alertas, portal do cliente, publicações/tribunais, financeiro e CRM; **a fazer** documentos
 avançados, assistente, relatórios e administração.
 
 ---
@@ -57,6 +57,8 @@ arquivos como estão.
 | `#/agenda` | Calendário forense + prazos e compromissos |
 | `#/clientes` | Lista e ficha de clientes |
 | `#/tarefas` | Kanban de tarefas |
+| `#/crm` | **Funil de prospecção** — kanban de interessados, arrastar muda a etapa |
+| `#/crm/:id` | Ficha do interessado: histórico de contato, propostas e conversão |
 | `#/financeiro` | **Financeiro** — fluxo de caixa, a receber, a pagar, contratos e repasses |
 | `#/financeiro/contratos/novo` | Contrato de honorários, com prévia das parcelas |
 | `#/timesheet` | Apontamento de horas, com cronômetro |
@@ -141,6 +143,12 @@ Não é maquete estática. O que está implementado funciona:
 - **LGPD** — dossiê do titular, portabilidade em JSON/CSV, anonimização que preserva o
   registro, consentimentos com base legal e o prazo de 15 dias do art. 18 à vista.
 - **Backup e restauração em JSON** — a válvula de escape para a ausência de migração.
+- **CRM que fecha o ciclo** — o funil soma o **pipeline ponderado** (valor × probabilidade
+  da etapa), não o valor cheio de todo mundo que ligou uma vez. Perder exige motivo, e a
+  **conversão** cria cliente, contrato e processo numa passagem só, puxando os honorários
+  da proposta aceita — redigitar é onde o desconto some. Cliente com o mesmo CPF/CNPJ é
+  reaproveitado, não duplicado. O histórico de contato do cliente **começa antes de ele ser
+  cliente**: as interações da fase de prospecção continuam alcançáveis pela ficha.
 - **Financeiro com a conta certa** — fluxo de caixa nos dois regimes (caixa e competência,
   com a tela dizendo o que cada um responde), aging de recebíveis, juros **pro rata die**,
   pagamento parcial, repasses travados pelo valor da receita de origem e rentabilidade por
@@ -175,7 +183,7 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-1.332 verificações em 10 suítes. As sete que não precisam de jsdom compartilham o
+1.443 verificações em 11 suítes. As oito que não precisam de jsdom compartilham o
 sandbox de `testes/ambiente.js`, que carrega o núcleo (utils, domínio, seed, store e
 services) na ordem de dependência — assim um módulo novo no seed entra num lugar só.
 
@@ -188,6 +196,7 @@ services) na ordem de dependência — assim um módulo novo no seed entra num l
 | `portal.test.js` | Token do portal, escopo, revogação e — sobretudo — o que **não** pode vazar para o cliente. **Não precisa de jsdom.** |
 | `publicacoes.test.js` | Classificador com textos no formato do diário, extração de CNJ, vínculo, deduplicação e o prazo gerado com a data que o motor do CPC calcula. **Não precisa de jsdom.** |
 | `financeiro.test.js` | Parcelamento que fecha ao centavo, êxito, juros pro rata die, aging, fluxo de caixa nos dois regimes, rentabilidade e a linha digitável FEBRABAN (com dígito trocado em 20 posições). **Não precisa de jsdom.** |
+| `crm.test.js` | Funil, ponderação do pipeline, propostas que expiram na leitura e a conversão íntegra de lead em cliente + contrato + processo. **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |

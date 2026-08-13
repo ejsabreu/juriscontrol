@@ -19,6 +19,7 @@ const SUITES = [
   { arquivo: 'portal.test.js',     titulo: 'Portal do cliente e link compartilhado (F2.3)', precisaJsdom: false },
   { arquivo: 'publicacoes.test.js', titulo: 'Classificador, triagem e captura do diário (F2.4)', precisaJsdom: false },
   { arquivo: 'financeiro.test.js', titulo: 'Financeiro, boleto FEBRABAN e timesheet (F2.5)', precisaJsdom: false },
+  { arquivo: 'crm.test.js',        titulo: 'Funil, propostas e conversão de lead (F2.6)', precisaJsdom: false },
   { arquivo: 'telas.test.js',      titulo: 'Telas e navegação',                     precisaJsdom: true },
   { arquivo: 'interacoes.test.js', titulo: 'Interações (drag & drop, modais)',      precisaJsdom: true },
   { arquivo: 'listeners.test.js',  titulo: 'Regressão de listeners',                precisaJsdom: true }

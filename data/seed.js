@@ -1001,9 +1001,170 @@
         });
       });
 
+    // ----- CRM e prospecção (F2.6) ------------------------------------------
+    /* 30 leads espalhados pelo funil. A distribuição é deliberadamente
+       afunilada — muitos "novo", poucos "negociação" —, senão o quadro
+       pareceria um retângulo e a taxa de conversão não teria sentido. */
+    var leads = [];
+    var interacoes = [];
+    var propostas = [];
+
+    var DISTRIBUICAO_FUNIL = [
+      'novo', 'novo', 'novo', 'novo', 'novo', 'novo', 'novo',
+      'contato', 'contato', 'contato', 'contato', 'contato',
+      'reuniao', 'reuniao', 'reuniao', 'reuniao',
+      'proposta', 'proposta', 'proposta',
+      'negociacao', 'negociacao',
+      'ganho', 'ganho', 'ganho', 'ganho', 'ganho',
+      'perdido', 'perdido', 'perdido', 'perdido'
+    ];
+
+    var MOTIVOS_PERDA = [
+      'Cliente achou o honorário alto.',
+      'Contratou outro escritório.',
+      'Desistiu de ajuizar a ação.',
+      'Não retornou os contatos.',
+      'Caso fora da área de atuação.'
+    ];
+
+    var RESUMOS_CASO = [
+      'Demissão sem justa causa com verbas em aberto',
+      'Cobrança indevida em fatura de cartão',
+      'Rescisão de contrato de prestação de serviços',
+      'Inventário com quatro herdeiros',
+      'Ação de alimentos',
+      'Negativação indevida no SPC',
+      'Execução fiscal de ICMS',
+      'Acidente de trânsito com danos materiais',
+      'Revisão de aposentadoria',
+      'Disputa societária entre dois sócios'
+    ];
+
+    var PROXIMOS_PASSOS = [
+      'Enviar minuta da procuração', 'Agendar reunião presencial',
+      'Levantar documentos com o cliente', 'Retornar ligação',
+      'Preparar proposta de honorários'
+    ];
+
+    for (var iLead = 0; iLead < DISTRIBUICAO_FUNIL.length; iLead++) {
+      var etapaLead = DISTRIBUICAO_FUNIL[iLead];
+      var encerrado = etapaLead === 'ganho' || etapaLead === 'perdido';
+      var criadoEmLead = deslocar(hoje, -f.inteiro(3, 180));
+      var responsavelLead = f.escolher(advogados);
+
+      /* Cerca de um terço dos leads em andamento fica com follow-up
+         vencido: é o que faz o alerta de F2.6 disparar e a fila ter o que
+         mostrar. */
+      var proximoContato = encerrado ? null
+        : iso(deslocar(hoje, f.talvez(0.35) ? -f.inteiro(1, 20) : f.inteiro(1, 25)));
+
+      var nomeLead = f.talvez(0.4)
+        ? f.escolher(EMPRESAS) + ' ' + f.escolher(SUFIXOS_PJ)
+        : f.escolher(NOMES) + ' ' + f.escolher(SOBRENOMES);
+
+      var leadId = proximoId('LED');
+
+      leads.push({
+        id: leadId,
+        nome: nomeLead,
+        pessoaId: null,
+        contato: {
+          telefone: '11' + f.inteiro(900000000, 999999999),
+          email: nomeLead.toLowerCase().replace(/[^a-z]+/g, '.').slice(0, 20) + '@exemplo.com'
+        },
+        origem: f.escolher(['indicacao', 'indicacao', 'site', 'redes', 'evento', 'retorno']),
+        indicadoPorId: null,
+        areaId: f.escolher(App.domain.enums.AREAS).id,
+        resumoCaso: f.escolher(RESUMOS_CASO),
+        etapa: etapaLead,
+        valorEstimadoCentavos: f.inteiro(300000, 8000000),
+        probabilidade: null,
+        responsavelId: responsavelLead.id,
+        proximoContatoEm: proximoContato,
+        motivoPerda: etapaLead === 'perdido' ? f.escolher(MOTIVOS_PERDA) : null,
+        convertidoEm: etapaLead === 'ganho' ? iso(deslocar(hoje, -f.inteiro(1, 60))) : null,
+        ativo: true, criadoEm: agora, atualizadoEm: agora
+      });
+
+      // Interações: quanto mais avançada a etapa, mais conversa houve.
+      var quantasInteracoes = etapaLead === 'novo' ? f.inteiro(0, 1)
+                            : etapaLead === 'contato' ? f.inteiro(1, 3)
+                            : f.inteiro(2, 6);
+
+      for (var iInt = 0; iInt < quantasInteracoes; iInt++) {
+        var quandoInt = deslocar(criadoEmLead, f.inteiro(0, 60));
+        if (quandoInt > hoje) quandoInt = hoje;
+
+        interacoes.push({
+          id: proximoId('INT'),
+          leadId: leadId,
+          pessoaId: null,
+          processoId: null,
+          tipo: f.escolher(['ligacao', 'ligacao', 'email', 'reuniao', 'whatsapp', 'visita']),
+          quando: iso(quandoInt) + 'T' + String(f.inteiro(8, 18)).padStart(2, '0') + ':' +
+                  f.escolher(['00', '15', '30', '45']),
+          duracaoMin: f.escolher([5, 10, 15, 30, 45, 60]),
+          resumo: f.escolher([
+            'Cliente explicou a situação e enviou documentos por e-mail.',
+            'Retornei a ligação; ficou de confirmar os valores.',
+            'Reunião para entender o caso e alinhar expectativas.',
+            'Enviei a relação de documentos necessários.',
+            'Cliente pediu prazo para decidir.',
+            'Conversamos sobre a forma de pagamento dos honorários.'
+          ]),
+          usuarioId: responsavelLead.id,
+          proximoPasso: f.talvez(0.5) ? f.escolher(PROXIMOS_PASSOS) : null,
+          ativo: true, criadoEm: agora, atualizadoEm: agora
+        });
+      }
+
+      // Propostas para quem já chegou à etapa de proposta.
+      var chegouNaProposta = ['proposta', 'negociacao', 'ganho', 'perdido']
+        .indexOf(etapaLead) !== -1;
+
+      if (chegouNaProposta && f.talvez(0.8)) {
+        var enviadaEm = deslocar(criadoEmLead, f.inteiro(5, 40));
+        if (enviadaEm > hoje) enviadaEm = deslocar(hoje, -f.inteiro(1, 10));
+
+        var statusProposta = etapaLead === 'ganho' ? 'aceita'
+                           : etapaLead === 'perdido' ? 'recusada'
+                           : 'enviada';
+
+        var valorProposta = leads[leads.length - 1].valorEstimadoCentavos;
+        var modalidadeProposta = f.escolher(['fixo', 'fixo', 'exito', 'misto']);
+
+        propostas.push({
+          id: proximoId('PRP'),
+          leadId: leadId,
+          numero: String(propostas.length + 1).padStart(3, '0') + '/' + hoje.getFullYear(),
+          dataEnvio: iso(enviadaEm),
+          // Parte das propostas enviadas já venceu — é o que exercita a
+          // expiração calculada na leitura.
+          validadeAte: iso(deslocar(enviadaEm, f.escolher([10, 15, 30, 45]))),
+          escopo: leads[leads.length - 1].resumoCaso,
+          honorarios: {
+            modalidade: modalidadeProposta,
+            valorFixoCentavos: modalidadeProposta === 'exito' ? 0 : Math.round(valorProposta * 0.12),
+            percentualExito: (modalidadeProposta === 'exito' || modalidadeProposta === 'misto')
+              ? f.escolher([10, 15, 20, 30]) : 0,
+            valorHoraCentavos: 0,
+            numParcelas: f.escolher([1, 3, 6])
+          },
+          status: statusProposta,
+          documentoId: null,
+          motivoRecusa: statusProposta === 'recusada'
+            ? leads[leads.length - 1].motivoPerda : null,
+          ativo: true, criadoEm: agora, atualizadoEm: agora
+        });
+      }
+    }
+
     return {
       usuarios: usuarios,
       pessoas: pessoas,
+      leads: leads,
+      interacoes: interacoes,
+      propostas: propostas,
       contratos: contratos,
       lancamentos: lancamentos,
       boletos: boletos,

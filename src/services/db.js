@@ -16,10 +16,10 @@
   // A versão faz parte da chave: subir a versão descarta o banco antigo e
   // regenera o seed. Usado quando o modelo ganha coleção/campo novo
   // (v2 = pastas de documentos; v3 = coleções da fase 2; v4 = publicações e
-  // monitoramentos povoados; v5 = financeiro povoado — contratos, 18 meses de
-  // lançamentos, repasses e horas), já que o protótipo não tem migração.
+  // monitoramentos povoados; v5 = financeiro povoado; v6 = funil de CRM com
+  // leads, interações e propostas), já que o protótipo não tem migração.
   // A válvula de escape é o backup em JSON (F2.1).
-  var CHAVE = 'jurisctrl.db.v5';
+  var CHAVE = 'jurisctrl.db.v6';
   var estado = null;
   var suportaStorage = null;
 

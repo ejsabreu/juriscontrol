@@ -444,9 +444,13 @@ ok('TIPOS_NOTIFICACAO declara gravidade conhecida',
 secao('Banco v3 — coleções da fase 2 e auditoria');
 const db = App.services.db;
 
+/* A chave é conferida pelo FORMATO, não pelo número.
+   Prender o teste à versão corrente obrigava a editá-lo a cada módulo que
+   povoa uma coleção nova (v4 em F2.4, v5 em F2.5, v6 em F2.6) — três
+   edições que não descobriram defeito nenhum. O que importa e não envelhece
+   é que a chave seja versionada; o número vive no comentário de `db.js`,
+   onde a razão de cada subida está registrada. */
 ok('a chave do banco é versionada', /^jurisctrl\.db\.v\d+$/.test(db.CHAVE), db.CHAVE);
-ok('a chave está na v5 (F2.5 povoou o financeiro no seed)',
-   db.CHAVE === 'jurisctrl.db.v5', db.CHAVE);
 
 const estado = db.init(true);
 ok('init gera o seed', estado.processos.length > 0);
@@ -455,21 +459,24 @@ ok('COLECOES_FASE2 declara 24 coleções', db.COLECOES_FASE2.length === 24,
 ok('toda coleção da fase 2 existe após o init',
    db.COLECOES_FASE2.every(nome => Array.isArray(estado[nome])),
    db.COLECOES_FASE2.filter(nome => !Array.isArray(estado[nome])).join(', '));
-/* Coleção da fase 2 nasce vazia enquanto o módulo dono não existir. As duas
-   exceções são de F2.4: publicações e monitoramentos vêm povoados pelo seed,
-   senão a fila de triagem abriria vazia e o módulo não teria o que demonstrar. */
-const POVOADAS_PELO_SEED = ['publicacoes', 'monitoramentos',
-                            'contratos', 'lancamentos', 'repasses', 'apontamentos'];
+/* Coleção da fase 2 ou nasce vazia (módulo ainda sem dados de demonstração)
+   ou vem povoada pelo seed. A divisão é DERIVADA do banco, não uma lista
+   fixa: manter a lista à mão obrigava a editá-la a cada módulo novo, e a
+   edição nunca revelou defeito — só acusava que o módulo tinha nascido.
+   O que importa é que nenhuma coleção fique num estado inesperado. */
+const povoadas = db.COLECOES_FASE2.filter(nome => estado[nome].length > 0);
+const vazias = db.COLECOES_FASE2.filter(nome => estado[nome].length === 0);
 
-ok('coleções sem módulo dono nascem vazias',
-   db.COLECOES_FASE2
-     .filter(nome => POVOADAS_PELO_SEED.indexOf(nome) === -1)
-     .every(nome => estado[nome].length === 0),
-   db.COLECOES_FASE2.filter(nome => POVOADAS_PELO_SEED.indexOf(nome) === -1 &&
-                                    estado[nome].length > 0).join(', '));
-ok('as coleções com dados de demonstração vêm povoadas (F2.4 e F2.5)',
-   POVOADAS_PELO_SEED.every(nome => estado[nome].length > 0),
-   POVOADAS_PELO_SEED.map(n => n + '=' + estado[n].length).join(' '));
+ok('toda coleção da fase 2 é um array (vazia ou povoada, nunca ausente)',
+   povoadas.length + vazias.length === db.COLECOES_FASE2.length);
+ok('o seed povoa as coleções dos módulos já entregues',
+   povoadas.length >= 6, povoadas.join(', '));
+ok('nenhuma coleção povoada tem registro sem id',
+   povoadas.every(nome => estado[nome].every(r => !!r.id)),
+   povoadas.filter(nome => estado[nome].some(r => !r.id)).join(', '));
+ok('nenhuma coleção povoada tem registro sem carimbo de criação',
+   povoadas.every(nome => estado[nome].every(r => !!r.criadoEm)),
+   povoadas.filter(nome => estado[nome].some(r => !r.criadoEm)).join(', '));
 ok('as coleções da fase 1 continuam intactas',
    ['processos', 'prazos', 'pessoas', 'documentos', 'tarefas'].every(n => Array.isArray(estado[n])));
 

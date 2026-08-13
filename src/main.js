@@ -40,6 +40,12 @@
                 { permissao: 'documentos.editar' });
     R.registrar('/simulador',              'simulador', P.SimuladorPage,        'Simulador de prazo');
 
+    // CRM e prospecção (F2.6)
+    R.registrar('/crm',                    'crm',        P.CrmPage,            'Prospecção',
+                { permissao: 'crm.ver' });
+    R.registrar('/crm/:id',                'crm',        P.LeadDetalhePage,    'Interessado',
+                { permissao: 'crm.ver' });
+
     // Financeiro (F2.5)
     R.registrar('/financeiro',             'financeiro', P.FinanceiroPage,     'Financeiro',
                 { permissao: 'financeiro.ver' });

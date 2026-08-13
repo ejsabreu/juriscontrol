@@ -55,7 +55,7 @@ outros módulos.
 | **F2.3** | Portal do cliente e link compartilhado ✅ | F2.0, F2.1 | M |
 | **F2.4** | Publicações e integração com tribunais ✅ | F2.0, F2.2 | G |
 | **F2.5** | Módulo financeiro ✅ | F2.0, F2.1 | G |
-| **F2.6** | CRM e prospecção | F2.0, F2.5 | M |
+| **F2.6** | CRM e prospecção ✅ | F2.0, F2.5 | M |
 | **F2.7** | Documentos avançados (modelos, busca, assinatura) | F2.0 | M |
 | **F2.8** | Assistente (IA) | F2.4, F2.7 | M |
 | **F2.9** | Relatórios e BI | F2.2, F2.5, F2.6 | M |
@@ -813,7 +813,7 @@ houver dados locais a preservar.
 
 ---
 
-## F2.6 — CRM e prospecção
+## F2.6 — CRM e prospecção ✅ concluída
 
 Hoje um cliente só existe **depois** de virar processo. Falta o antes.
 
@@ -863,17 +863,76 @@ Hoje um cliente só existe **depois** de virar processo. Falta o antes.
 Processo (opcional)**. Uma passagem só, com os dados já preenchidos do lead e da proposta
 aceita. Marcar `perdido` exige `motivoPerda` (alimenta o relatório de F2.9).
 
-### Passos
+### Passos — todos executados
 
-1. `leadService`, `interacaoService`, `propostaService`
-2. Seed: 30 leads espalhados nas etapas, ~90 interações, 12 propostas
-3. `CrmPage.js` sobre o `KanbanBoard` existente
-4. `LeadDetalhePage.js` com timeline de interações
-5. Proposta a partir de modelo (depende de F2.7) → PDF por impressão
-6. `Stepper` de conversão
-7. Aba de interações no cliente e registro rápido a partir do processo
-8. Follow-up vencido gera notificação (F2.2)
-9. Testes: transição de etapa, conversão íntegra, proposta expirada
+1. ✅ `leadService`, `interacaoService`, `propostaService`
+2. ✅ Seed com 30 leads, interações proporcionais à etapa e propostas
+3. ✅ `CrmPage.js` sobre o `KanbanBoard` — **zero componente novo**
+4. ✅ `LeadDetalhePage.js` com o histórico de contato
+5. ✅ Proposta com texto e impressão *(modelo embutido — em F2.7 passa a vir
+   da biblioteca de modelos, e a assinatura de `gerarTexto` já prevê isso)*
+6. ✅ `Stepper` de conversão em quatro etapas
+7. ✅ Histórico de contato na ficha do cliente
+8. ✅ Follow-up vencido dispara o aviso escrito em F2.2
+9. ✅ `testes/crm.test.js` — 86 verificações
+
+### O gatilho que estava esperando desde F2.2
+
+`domain/alertas.js` já tinha o avaliador de `follow_up` escrito e testado, ficando quieto
+porque a coleção `leads` estava vazia. Com o funil povoado, **ele passou a disparar sem que
+uma linha de `alertas.js` fosse tocada** — que era exatamente a aposta feita lá atrás. O
+teste de F2.6 confirma o encaixe.
+
+### Decisões tomadas durante a implementação
+
+- **O funil soma o PIPELINE PONDERADO, não o valor cheio.** Somar integralmente todo mundo
+  que ligou uma vez daria um número grande e falso. Cada etapa tem uma probabilidade, e a
+  do lead — quando preenchida — vence a da etapa: a régua é do escritório, a leitura é de
+  quem está conduzindo.
+- **A taxa de conversão só considera o que FECHOU.** Incluir o que está em andamento faria
+  a taxa despencar sem que nada tivesse dado errado.
+- **Perder exige motivo.** Um funil cheio de "perdido" sem justificativa não ensina nada;
+  com o motivo, vira o relatório que diz se o escritório perde por preço, por prazo ou por
+  não ter respondido a tempo.
+- **Marcar "ganho" à mão é recusado.** Ganhar sem converter deixaria um cliente que não
+  existe em lugar nenhum — arrastar para *ganho* abre a conversão.
+- **Enviar a proposta move o lead de etapa.** O envio *é* o fato; obrigar a arrastar o card
+  depois só cria a chance de esquecer.
+- **A proposta expira na leitura**, como os títulos de F2.5. Proposta de 2023 aberta no
+  funil não é oportunidade, é ruído.
+- **Registrar contato reagenda o follow-up.** Sem isso, o lead continuaria marcado como
+  atrasado logo depois de ter sido atendido — e o alerta perderia a credibilidade.
+- **A conversão puxa os honorários da proposta aceita.** Redigitar é onde o desconto some e
+  o contrato deixa de bater com o que foi oferecido. Há teste conferindo justamente isso.
+- **Cliente com o mesmo CPF/CNPJ é reaproveitado, não duplicado** — e o documento passa
+  pelo validador antes.
+- **A interação do lead NÃO é reescrita na conversão.** Ela mantém o `leadId` e passa a ser
+  alcançável também pela pessoa. Reescrever apagaria a fronteira entre prospecção e
+  atendimento, que é o que o funil precisa medir.
+
+### Um defeito de contrato encontrado pelos testes
+
+O `Stepper` de F2.0 expunha `onAvancar`/`onVoltar`/`onConcluir`, herdado do JSX, enquanto
+**todo o resto do projeto usa o prefixo `ao`** (`aoMover`, `aoMudar`, `aoOrdenar`). A
+divergência custou três handlers que nunca disparavam — a conversão abria e não avançava.
+O componente foi uniformizado.
+
+### Dois testes que envelheciam a cada módulo
+
+`fundacoes.test.js` prendia a versão da chave (`=== 'jurisctrl.db.v5'`) e mantinha uma
+lista à mão das coleções povoadas pelo seed. Foram **três edições** — v4 em F2.4, v5 em
+F2.5, v6 em F2.6 — e nenhuma delas descobriu defeito: só acusavam que um módulo tinha
+nascido.
+
+Os dois viraram verificações duráveis: a chave é conferida pelo **formato** (versionada), e
+a divisão vazia/povoada é **derivada do banco**, com asserções que continuam valendo a pena
+— toda coleção é array, nenhum registro sem `id`, nenhum sem carimbo de criação. O número
+da versão vive no comentário de `db.js`, onde a razão de cada subida está registrada.
+
+### Nota sobre o banco
+
+Chave em `jurisctrl.db.v6`: o seed passou a povoar leads, interações e propostas.
+**Exporte o backup em `#/privacidade` antes de atualizar** se houver dados a preservar.
 
 ---
 

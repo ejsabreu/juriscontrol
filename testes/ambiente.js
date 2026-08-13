@@ -79,7 +79,10 @@ const NUCLEO = [
   'src/services/lancamentoService.js',
   'src/services/boletoService.js',
   'src/services/repasseService.js',
-  'src/services/timesheetService.js'
+  'src/services/timesheetService.js',
+  'src/services/leadService.js',
+  'src/services/interacaoService.js',
+  'src/services/propostaService.js'
 ];
 
 /** localStorage de mentira — a sessão e o banco precisam persistir em algum lugar. */

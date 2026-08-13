@@ -25,6 +25,8 @@
     { rota: '#/publicacoes', icone: '📰', rotulo: 'Publicações', chave: 'publicacoes',
       permissao: 'publicacoes.triar', badge: 'publicacoesPendentes' },
     { secao: 'Cadastros' },
+    { rota: '#/crm',       icone: '🤝', rotulo: 'Prospecção', chave: 'crm',
+      permissao: 'crm.ver', badge: 'followUpAtrasado' },
     { rota: '#/clientes',  icone: '👤', rotulo: 'Clientes',   chave: 'clientes' },
     { secao: 'Financeiro' },
     { rota: '#/financeiro', icone: '💰', rotulo: 'Financeiro', chave: 'financeiro',

@@ -12,7 +12,7 @@
   App.layout = App.layout || {};
 
   var raiz = null;
-  var badges = { prazosCriticos: 0, tarefasAtrasadas: 0 };
+  var badges = { prazosCriticos: 0, tarefasAtrasadas: 0, publicacoesPendentes: 0 };
 
   /* Rotas "nuas" — entrada (F2.1) e portal do cliente (F2.3) — se renderizam
      sem sidebar nem topbar. Os slots são esvaziados de verdade, não só
@@ -194,7 +194,9 @@
     ]).then(function (resultados) {
       badges = {
         prazosCriticos: resultados[0].contagem.critico + resultados[0].contagem.vencido,
-        tarefasAtrasadas: resultados[1].atrasadas
+        tarefasAtrasadas: resultados[1].atrasadas,
+        // Síncrono: o resumo é uma contagem local, sem ida ao "servidor".
+        publicacoesPendentes: App.services.publicacaoService.resumo().pendentes
       };
       renderizarCasca();
       return badges;

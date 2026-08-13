@@ -15,9 +15,11 @@
 
   // A versão faz parte da chave: subir a versão descarta o banco antigo e
   // regenera o seed. Usado quando o modelo ganha coleção/campo novo
-  // (v2 = pastas de documentos; v3 = coleções da fase 2), já que o protótipo
-  // não tem migração. A válvula de escape é o backup em JSON (F2.1).
-  var CHAVE = 'jurisctrl.db.v3';
+  // (v2 = pastas de documentos; v3 = coleções da fase 2; v4 = o seed passou a
+  // POVOAR publicações e monitoramentos, e sem regerar a fila de triagem
+  // nasceria vazia para quem já tinha banco), já que o protótipo não tem
+  // migração. A válvula de escape é o backup em JSON (F2.1).
+  var CHAVE = 'jurisctrl.db.v4';
   var estado = null;
   var suportaStorage = null;
 

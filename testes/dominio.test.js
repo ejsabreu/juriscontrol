@@ -21,6 +21,9 @@ const ARQUIVOS = [
   'src/utils/dom.js',
   'src/utils/format.js',
   'src/utils/mask.js',
+  // O seed passou a depender de token.js em F2.4: a publicação nasce com o
+  // hash do conteúdo, que é o que permite deduplicar a captura.
+  'src/utils/token.js',
   'src/domain/enums.js',
   'src/domain/feriados.js',
   'src/domain/prazos.js',

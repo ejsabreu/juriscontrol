@@ -442,7 +442,9 @@ ok('TIPOS_NOTIFICACAO declara gravidade conhecida',
 secao('Banco v3 — coleções da fase 2 e auditoria');
 const db = App.services.db;
 
-ok('a chave subiu para v3', db.CHAVE === 'jurisctrl.db.v3', db.CHAVE);
+ok('a chave do banco é versionada', /^jurisctrl\.db\.v\d+$/.test(db.CHAVE), db.CHAVE);
+ok('a chave está na v4 (F2.4 povoou publicações no seed)',
+   db.CHAVE === 'jurisctrl.db.v4', db.CHAVE);
 
 const estado = db.init(true);
 ok('init gera o seed', estado.processos.length > 0);
@@ -451,8 +453,20 @@ ok('COLECOES_FASE2 declara 24 coleções', db.COLECOES_FASE2.length === 24,
 ok('toda coleção da fase 2 existe após o init',
    db.COLECOES_FASE2.every(nome => Array.isArray(estado[nome])),
    db.COLECOES_FASE2.filter(nome => !Array.isArray(estado[nome])).join(', '));
-ok('coleções da fase 2 nascem vazias',
-   db.COLECOES_FASE2.every(nome => estado[nome].length === 0));
+/* Coleção da fase 2 nasce vazia enquanto o módulo dono não existir. As duas
+   exceções são de F2.4: publicações e monitoramentos vêm povoados pelo seed,
+   senão a fila de triagem abriria vazia e o módulo não teria o que demonstrar. */
+const POVOADAS_PELO_SEED = ['publicacoes', 'monitoramentos'];
+
+ok('coleções sem módulo dono nascem vazias',
+   db.COLECOES_FASE2
+     .filter(nome => POVOADAS_PELO_SEED.indexOf(nome) === -1)
+     .every(nome => estado[nome].length === 0),
+   db.COLECOES_FASE2.filter(nome => POVOADAS_PELO_SEED.indexOf(nome) === -1 &&
+                                    estado[nome].length > 0).join(', '));
+ok('publicações e monitoramentos vêm povoados (F2.4)',
+   POVOADAS_PELO_SEED.every(nome => estado[nome].length > 0),
+   POVOADAS_PELO_SEED.map(n => n + '=' + estado[n].length).join(' '));
 ok('as coleções da fase 1 continuam intactas',
    ['processos', 'prazos', 'pessoas', 'documentos', 'tarefas'].every(n => Array.isArray(estado[n])));
 

@@ -647,6 +647,133 @@
       });
     }
 
+    // ----- Publicações do diário (F2.4) -------------------------------------
+    /* Textos no formato do DJe: cabeçalho de vara, número CNJ, partes,
+       advogados com OAB e o corpo do ato. É por eles que o classificador é
+       exercitado de verdade — texto genérico faria a triagem parecer mais
+       fácil do que é. */
+    var MODELOS_PUBLICACAO = [
+      { tipo: 'contestacao', texto:
+        'Fica a parte requerida CITADA para, querendo, apresentar contestação no prazo ' +
+        'de 15 (quinze) dias úteis, sob pena de revelia e confissão quanto à matéria de ' +
+        'fato, nos termos do art. 344 do CPC. Intime-se.' },
+
+      { tipo: 'manifestacao', texto:
+        'Manifeste-se a parte autora, no prazo de 5 (cinco) dias, sobre o laudo pericial ' +
+        'juntado aos autos. Após, tornem conclusos para deliberação.' },
+
+      { tipo: 'recurso_ape', texto:
+        'Publicada a sentença de improcedência. Intimadas as partes, fluindo o prazo de ' +
+        '15 (quinze) dias úteis para eventual interposição de recurso de apelação.' },
+
+      { tipo: 'embargos', texto:
+        'Intimadas as partes do acórdão, com prazo de 5 (cinco) dias para embargos de ' +
+        'declaração, caso haja omissão, contradição ou obscuridade a sanar.' },
+
+      { tipo: 'reptreplica', texto:
+        'Intime-se a parte autora para apresentar réplica à contestação no prazo de ' +
+        '15 (quinze) dias úteis.' },
+
+      { tipo: 'cumprimento', texto:
+        'Intimado o executado para cumprimento voluntário da obrigação no prazo de ' +
+        '15 (quinze) dias, sob pena de multa de 10% e honorários, nos termos do ' +
+        'art. 523 do CPC.' },
+
+      { tipo: 'contrarrazoes', texto:
+        'Intimada a parte apelada para apresentar contrarrazões ao recurso de apelação ' +
+        'no prazo de 15 (quinze) dias úteis.' },
+
+      { tipo: 'alegacoes', texto:
+        'Encerrada a instrução, ficam as partes intimadas para apresentar alegações ' +
+        'finais por memoriais, no prazo sucessivo de 15 (quinze) dias.' },
+
+      { tipo: 'agravo', texto:
+        'Intimadas as partes da decisão interlocutória de fls., com prazo de 15 (quinze) ' +
+        'dias úteis para eventual agravo de instrumento.' },
+
+      // Sem prazo: o classificador precisa saber reconhecer também o que
+      // NÃO exige ato — publicação de expediente é a maior parte do diário.
+      { tipo: null, texto:
+        'Ciência às partes do desarquivamento dos autos. Cumpra-se, publique-se. ' +
+        'Trata-se de despacho de mero expediente, sem prazo a ser observado.' },
+
+      { tipo: null, texto:
+        'Homologo por sentença, para que produza seus efeitos jurídicos e legais, o ' +
+        'acordo entabulado entre as partes. Transitado em julgado, arquivem-se os autos.' }
+    ];
+
+    var CADERNOS = ['Caderno 1 — Capital', 'Caderno 2 — Interior',
+                    'Caderno 3 — Judicial', 'Caderno Eletrônico'];
+
+    var publicacoes = [];
+    var processosParaPublicar = f.embaralhar(processosAtivos).slice(0, 22);
+
+    processosParaPublicar.forEach(function (proc, indice) {
+      var modelo = MODELOS_PUBLICACAO[indice % MODELOS_PUBLICACAO.length];
+      var advogado = usuarios.filter(function (u) {
+        return u.id === proc.responsavelId;
+      })[0] || advogados[0];
+
+      var cliente = pessoas.filter(function (pp) { return pp.id === proc.clienteId; })[0];
+      var tribunal = App.domain.enums.achar(App.domain.enums.TRIBUNAIS, proc.tribunalId);
+
+      // Disponibilização recente: a fila de triagem precisa estar viva.
+      var disponibilizacao = deslocar(hoje, -f.inteiro(0, 12));
+
+      var texto =
+        proc.vara + ' da Comarca de ' + proc.comarca + '\n' +
+        'Processo n. ' + proc.numeroCnj + ' — ' + proc.classeProcessual + '\n' +
+        'Requerente: ' + (cliente ? cliente.nome.toUpperCase() : 'AUTOR') + '\n' +
+        'Advogado: ' + advogado.nome + ' - OAB/' +
+          (advogado.oab ? advogado.oab.uf + ' ' + advogado.oab.numero : 'SP 000000') + '\n\n' +
+        modelo.texto;
+
+      /* Uma parte da fila já nasce triada e outra descartada: uma fila em
+         que tudo está pendente não mostra como a tela se comporta depois
+         do trabalho feito. */
+      var situacao = indice < 12 ? 'nova'
+                   : indice < 18 ? 'triada'
+                   : 'descartada';
+
+      publicacoes.push({
+        id: proximoId('PUB'),
+        tribunalId: proc.tribunalId,
+        diario: tribunal ? 'DJe ' + tribunal.label : 'DJe',
+        caderno: f.escolher(CADERNOS),
+        pagina: f.inteiro(120, 4800),
+        dataDisponibilizacao: iso(disponibilizacao),
+        textoIntegral: texto,
+        numeroCnjDetectado: proc.numeroCnj,
+        processoId: situacao === 'nova' ? null : proc.id,
+        monitoramentoId: null,
+        status: situacao,
+        prazoGeradoId: null,
+        andamentoGeradoId: null,
+        triadaPorId: situacao === 'nova' ? null : advogado.id,
+        triadaEm: situacao === 'nova' ? null : agora,
+        hashConteudo: App.token.hashLongo(texto),
+        ativo: true, criadoEm: agora, atualizadoEm: agora
+      });
+    });
+
+    // ----- Monitoramentos (F2.4) --------------------------------------------
+    /* Um por advogado com OAB: é assim que escritório se cadastra no
+       serviço de recorte — pela OAB de quem assina as peças. */
+    var monitoramentos = advogados
+      .filter(function (u) { return u.oab && u.oab.numero; })
+      .map(function (u) {
+        return {
+          id: proximoId('MON'),
+          tipo: 'oab',
+          valor: u.oab.numero,
+          uf: u.oab.uf,
+          tribunais: ['tjsp', 'trt2', 'trf3'],
+          usuarioId: u.id,
+          ultimaSincronizacaoEm: null,
+          ativo: true, criadoEm: agora, atualizadoEm: agora
+        };
+      });
+
     return {
       usuarios: usuarios,
       pessoas: pessoas,
@@ -658,6 +785,8 @@
       documentos: documentos,
       pastasDocumento: pastasDocumento,
       tarefas: tarefas,
+      publicacoes: publicacoes,
+      monitoramentos: monitoramentos,
       usuarioAtualId: usuarios[0].id
     };
   }

@@ -9,7 +9,7 @@ HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está em
 [PLANEJAMENTO.md](PLANEJAMENTO.md). A fase 2 está em
 [PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md): **concluídos** fundações, segurança/LGPD,
-alertas e portal do cliente; **a fazer** publicações, financeiro, CRM, documentos
+alertas, portal do cliente e publicações/tribunais; **a fazer** financeiro, CRM, documentos
 avançados, assistente, relatórios e administração.
 
 ---
@@ -57,6 +57,8 @@ arquivos como estão.
 | `#/agenda` | Calendário forense + prazos e compromissos |
 | `#/clientes` | Lista e ficha de clientes |
 | `#/tarefas` | Kanban de tarefas |
+| `#/publicacoes` | **Fila de triagem do diário** — texto, leitura do ato e geração do prazo |
+| `#/integracoes` | Monitoramentos, histórico de captura e integrações previstas |
 | `#/simulador` | Simulador de contagem de prazo com memória de cálculo |
 | `#/notificacoes` | Central de notificações do usuário |
 | `#/configuracoes` | Usuários, matriz de permissões e regras de alerta *(só administrador)* |
@@ -136,6 +138,13 @@ Não é maquete estática. O que está implementado funciona:
 - **LGPD** — dossiê do titular, portabilidade em JSON/CSV, anonimização que preserva o
   registro, consentimentos com base legal e o prazo de 15 dias do art. 18 à vista.
 - **Backup e restauração em JSON** — a válvula de escape para a ausência de migração.
+- **Ciclo publicação → prazo → aviso** — a fila lê o texto do diário, sugere o ato e o
+  prazo **mostrando os termos que sustentaram a conclusão** e o grau de confiança, vincula
+  ao processo pelo número CNJ e entrega a data de disponibilização ao motor do CPC. O prazo
+  criado aponta para o andamento que guarda o texto integral, e o responsável é notificado.
+  Reconhecer o que **não** abre prazo (mero expediente, homologação, trânsito em julgado) é
+  metade do trabalho — prazo fantasma faz o usuário abandonar a fila. Publicação repetida é
+  descartada por hash do conteúdo. A consulta aos tribunais é que é simulada.
 - **Portal do cliente** — a aba *Compartilhamento* do processo gera um link somente leitura
   com escopo e validade. O portal mostra **apenas** o que estiver marcado como visível ao
   cliente, e nunca valor da causa, provisão, risco, equipe interna ou nota interna. Link
@@ -153,7 +162,7 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-1.029 verificações em 8 suítes:
+1.152 verificações em 9 suítes:
 
 | Suíte | O que cobre |
 |-------|-------------|
@@ -162,6 +171,7 @@ npm test
 | `seguranca.test.js` | Matriz de permissões, segredo de justiça, sessão, trilha de auditoria, LGPD e backup. **Não precisa de jsdom.** |
 | `alertas.test.js` | Avaliador de alertas (incluindo idempotência), notificações, e-mail simulado, dupla conferência e prazo perdido. **Não precisa de jsdom.** |
 | `portal.test.js` | Token do portal, escopo, revogação e — sobretudo — o que **não** pode vazar para o cliente. **Não precisa de jsdom.** |
+| `publicacoes.test.js` | Classificador com textos no formato do diário, extração de CNJ, vínculo, deduplicação e o prazo gerado com a data que o motor do CPC calcula. **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |

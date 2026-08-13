@@ -40,6 +40,12 @@
                 { permissao: 'documentos.editar' });
     R.registrar('/simulador',              'simulador', P.SimuladorPage,        'Simulador de prazo');
 
+    // Publicações e captura (F2.4)
+    R.registrar('/publicacoes',            'publicacoes',  P.PublicacoesPage,   'Publicações',
+                { permissao: 'publicacoes.triar' });
+    R.registrar('/integracoes',            'integracoes',  P.IntegracoesPage,   'Integrações',
+                { permissao: 'publicacoes.triar' });
+
     // Notificações (F2.2)
     R.registrar('/notificacoes',           'notificacoes',  P.NotificacoesPage,  'Notificações');
     R.registrar('/caixa-de-saida',         'caixa-de-saida', P.CaixaSaidaPage,   'Caixa de saída',

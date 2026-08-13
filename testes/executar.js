@@ -17,6 +17,7 @@ const SUITES = [
   { arquivo: 'seguranca.test.js',  titulo: 'Segurança, auditoria e LGPD (F2.1)', precisaJsdom: false },
   { arquivo: 'alertas.test.js',    titulo: 'Alertas, notificações e dupla conferência (F2.2)', precisaJsdom: false },
   { arquivo: 'portal.test.js',     titulo: 'Portal do cliente e link compartilhado (F2.3)', precisaJsdom: false },
+  { arquivo: 'publicacoes.test.js', titulo: 'Classificador, triagem e captura do diário (F2.4)', precisaJsdom: false },
   { arquivo: 'telas.test.js',      titulo: 'Telas e navegação',                     precisaJsdom: true },
   { arquivo: 'interacoes.test.js', titulo: 'Interações (drag & drop, modais)',      precisaJsdom: true },
   { arquivo: 'listeners.test.js',  titulo: 'Regressão de listeners',                precisaJsdom: true }

@@ -301,6 +301,77 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   ok('resultados listados', painel.querySelectorAll('.global-results__item').length > 0,
      String(painel.querySelectorAll('.global-results__item').length));
 
+  console.log('\nPublicações — fila de triagem (F2.4)');
+  await irPara('#/publicacoes', 900);
+  ok('a fila abre', texto().includes('Publicações'));
+  ok('lista publicações do seed', doc.querySelectorAll('.pub__item').length > 0,
+     String(doc.querySelectorAll('.pub__item').length));
+  ok('mostra o texto integral do diário', !!doc.querySelector('.pub__texto'));
+  ok('mostra a leitura do ato', texto().includes('Leitura do ato'));
+  ok('mostra os termos que sustentaram a sugestão',
+     doc.querySelectorAll('.pub__termo').length > 0 ||
+     texto().includes('não parece abrir prazo'));
+  ok('a etiqueta carrega o grau de confiança',
+     doc.querySelectorAll('[class*="pub__tag--"]').length > 0);
+  ok('o selo avisa que nenhum tribunal é consultado',
+     texto().includes('dicionário de termos') || texto().includes('não parece abrir prazo'));
+
+  const antesVinculo = window.App.services.publicacaoService.resumo();
+  doc.querySelector('[data-action="vincular-lote"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('o vínculo por CNJ processa a fila',
+     window.App.services.publicacaoService.resumo().novas === 0,
+     String(window.App.services.publicacaoService.resumo().novas));
+  ok('houve publicação vinculada a processo',
+     window.App.services.publicacaoService.resumo().vinculadas > 0,
+     String(window.App.services.publicacaoService.resumo().vinculadas));
+
+  const abaVinculadas = Array.from(doc.querySelectorAll('[data-action="filtrar-status"]'))
+    .find(b => b.textContent.includes('Vinculadas'));
+  abaVinculadas.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(800);
+  ok('a aba de vinculadas mostra a fila', doc.querySelectorAll('.pub__item').length > 0);
+  ok('a publicação vinculada aponta para o processo',
+     texto().includes('Processo vinculado'));
+
+  const prazosAntesTriagem = window.App.services.db.get('prazos').length;
+  doc.querySelector('[data-action="gerar-prazo"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(500);
+  ok('o modal de geração de prazo abre', !!doc.querySelector('#form-gerar-prazo'));
+  ok('o modal explica de onde o motor conta',
+     texto().includes('disponibilização no diário'));
+  doc.querySelector('.modal [data-action="gerar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(1000);
+  ok('o prazo foi criado a partir da publicação',
+     window.App.services.db.get('prazos').length === prazosAntesTriagem + 1,
+     String(window.App.services.db.get('prazos').length - prazosAntesTriagem));
+
+  const ultimoPrazo = window.App.services.db.get('prazos').slice(-1)[0];
+  ok('o prazo criado aponta para o andamento de origem',
+     !!ultimoPrazo.andamentoOrigemId);
+
+  console.log('\nSincronização e integrações (#/integracoes)');
+  const pubsAntes = window.App.services.db.get('publicacoes').length;
+  await irPara('#/publicacoes', 800);
+  doc.querySelector('[data-action="sincronizar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(1200);
+  ok('a sincronização trouxe publicações novas',
+     window.App.services.db.get('publicacoes').length > pubsAntes,
+     window.App.services.db.get('publicacoes').length + ' vs ' + pubsAntes);
+
+  await irPara('#/integracoes', 900);
+  ok('a tela de integrações abre', texto().includes('Integrações e captura'));
+  ok('lista os monitoramentos', doc.querySelectorAll('table.table tbody tr').length > 0);
+  ok('mostra o histórico de sincronizações', texto().includes('Últimas sincronizações'));
+  ok('declara que nenhum tribunal é consultado',
+     texto().includes('nenhum tribunal é consultado'));
+  ok('lista as integrações previstas para a fase 3',
+     texto().includes('Datajud') && texto().includes('e-SAJ'));
+
   console.log('\nPortal do cliente (F2.3)');
   const processoPortal = window.App.services.db.get('processos')
     .filter(p => !p.segredoJustica)[0];

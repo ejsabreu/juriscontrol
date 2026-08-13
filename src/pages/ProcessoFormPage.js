@@ -16,13 +16,17 @@
   var clientes = [];
   var usuarios = [];
   var erros = {};
+  var origem = {};   // query da rota — usada pelo cadastro vindo de publicação
 
   function esc(v) { return App.dom.esc(v); }
   function ehEdicao() { return !!(processo && processo.id); }
 
-  function render(elemento, params) {
+  function render(elemento, params, query) {
     container = elemento;
     erros = {};
+    // F2.4: a fila de publicações manda para cá o número que não casou com
+    // nenhum processo, e o cadastro já abre com ele preenchido.
+    origem = query || {};
     container.innerHTML = App.components.ui.Skeleton({ linhas: 8 });
 
     App.services.db.init();
@@ -49,7 +53,7 @@
 
   function valoresPadrao() {
     return {
-      numeroCnj: '',
+      numeroCnj: origem.cnj || '',
       numeroInterno: 'ADV-' + new Date().getFullYear() + '-' +
                      String(App.services.db.get('processos').length + 1).padStart(4, '0'),
       clienteId: clientes.length ? clientes[0].id : '',
@@ -374,6 +378,24 @@
         ehEdicao() ? 'Processo atualizado' : 'Processo cadastrado',
         salvo.numeroInterno + ' — ' + salvo.clienteNome);
       App.layout.AppShell.atualizarBadges();
+
+      /* Veio da fila de publicações (F2.4): fecha o ciclo vinculando a
+         publicação ao processo recém-criado e devolvendo o usuário à fila,
+         onde ele já pode gerar o prazo. Sem isso, ele teria de achar a
+         publicação de novo à mão. */
+      if (!ehEdicao() && origem.publicacaoId) {
+        var idPublicacao = origem.publicacaoId;
+        origem = {};
+        App.services.publicacaoService.vincular(idPublicacao, salvo.id)
+          .then(function () {
+            App.components.Toast.sucesso('Publicação vinculada',
+              'Volte à fila para gerar o prazo.');
+            App.router.ir('#/publicacoes');
+          })
+          .catch(function () { App.router.ir('#/processos/' + salvo.id); });
+        return;
+      }
+
       App.router.ir('#/processos/' + salvo.id);
     }).catch(function (erro) {
       if (botao) botao.disabled = false;

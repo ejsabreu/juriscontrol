@@ -53,7 +53,7 @@ outros módulos.
 | **F2.1** | Segurança, perfis e LGPD ✅ | F2.0 | G |
 | **F2.2** | Alertas e notificações ✅ | F2.0 | M |
 | **F2.3** | Portal do cliente e link compartilhado ✅ | F2.0, F2.1 | M |
-| **F2.4** | Publicações e integração com tribunais | F2.0, F2.2 | G |
+| **F2.4** | Publicações e integração com tribunais ✅ | F2.0, F2.2 | G |
 | **F2.5** | Módulo financeiro | F2.0, F2.1 | G |
 | **F2.6** | CRM e prospecção | F2.0, F2.5 | M |
 | **F2.7** | Documentos avançados (modelos, busca, assinatura) | F2.0 | M |
@@ -481,7 +481,7 @@ O campo entrou no seed (60% visíveis), junto dos campos de conferência de F2.2
 
 ---
 
-## F2.4 — Publicações e integração com tribunais
+## F2.4 — Publicações e integração com tribunais ✅ concluída
 
 O ciclo que justifica o sistema inteiro: publicação no diário → prazo calculado → tarefa
 atribuída. O motor da ponta final já existe; falta a ponta inicial.
@@ -554,19 +554,87 @@ o encaixe é direto, sem adaptador.
 | `#/publicacoes/:id` | Detalhe com o texto, a sugestão e as ações |
 | `#/integracoes` | Monitoramentos (OAB, nome, CNPJ), tribunais, histórico e status de sincronização |
 
-### Passos
+### Passos — todos executados
 
-1. `domain/classificador.js` + testes com textos reais de publicação
-2. Gerador de publicações no `seed.js` (textos verossímeis por tipo de prazo)
-3. `publicacaoService.js`, `monitoramentoService.js`, `simulado/sincronizacaoService.js`
-   (latência, progresso, falha ocasional)
-4. `PublicacoesPage.js` — fila, filtros, leitura, ações em massa
-5. Vínculo automático por CNJ + deduplicação por `hashConteudo`
-6. Ação "gerar prazo" ligando classificador → motor → prazo → andamento → notificação
-7. "Cadastrar processo a partir da publicação" pré-preenchendo o `ProcessoFormPage`
-8. `IntegracoesPage.js` com o selo e a lista de integrações previstas para a fase 3
-9. Badge de publicações não triadas na sidebar
-10. Testes: classificação, extração de CNJ, deduplicação, prazo gerado com data correta
+1. ✅ `domain/classificador.js` — dicionário ponderado, puro e auditável
+2. ✅ 22 publicações no seed, com texto no formato do DJe
+3. ✅ `publicacaoService.js`, `monitoramentoService.js`, `simulado/sincronizacaoService.js`
+4. ✅ `PublicacoesPage.js` — fila em duas colunas, no formato de caixa de e-mail
+5. ✅ Vínculo automático por CNJ e deduplicação por `hashConteudo`
+6. ✅ "Gerar prazo": classificador → motor do CPC → prazo → andamento → notificação
+7. ✅ "Cadastrar processo a partir da publicação", com o CNJ pré-preenchido e o
+   vínculo refeito ao salvar
+8. ✅ `IntegracoesPage.js` com monitoramentos, histórico e as integrações da fase 3
+9. ✅ Badge de publicações pendentes na sidebar
+10. ✅ `testes/publicacoes.test.js` — 100 verificações, mais o fluxo em `telas.test.js`
+
+### O encaixe que a fase 1 já tinha preparado
+
+Três campos existiam desde o começo e só agora ganharam uso:
+
+- **`dataDisponibilizacao`** é exatamente o campo de entrada de `prazos.calcular()`. O
+  motor já sabia contar a partir da disponibilização no DJe (art. 224 §2º); faltava quem
+  lhe entregasse a data. Não houve adaptador nenhum.
+- **`Prazo.andamentoOrigemId`** era a rastreabilidade prevista na seção 14 do
+  `PLANEJAMENTO.md` e nunca preenchida. Agora todo prazo gerado por publicação aponta
+  para o andamento que traz o texto integral do ato.
+- **`Andamento.origem`** passou a distinguir `'publicacao'` de `'manual'`.
+
+### Decisões tomadas durante a implementação
+
+- **A sugestão nunca decide sozinha.** A tela mostra o tipo sugerido, o prazo, **os termos
+  que sustentaram a conclusão** e o grau de confiança — e o modal de geração vem editável.
+  Um classificador que decide escondido é pior que nenhum: quando erra, ninguém percebe.
+- **Reconhecer o que NÃO abre prazo é metade do trabalho.** Mero expediente, homologação
+  e trânsito em julgado são a maior parte do diário. Sugerir prazo neles encheria a agenda
+  de prazo fantasma, e o usuário passaria a ignorar a fila inteira — que é o pior desfecho
+  possível para um sistema cuja função é lembrar de prazo.
+- **O prazo dito no texto vence a tabela.** O juiz pode fixar prazo diferente do legal
+  ("30 dias, por se tratar da Fazenda Pública"), e é o que ele escreveu que vale.
+- **Deduplicação por hash do conteúdo** — o problema prático nº 1 de quem integra recorte:
+  o mesmo ato sai em dois cadernos e a consulta de hoje se sobrepõe à de ontem.
+- **A sincronização falha de propósito** quando pedida (`forcarErro`), porque na vida real
+  o tribunal cai e a tela precisa saber lidar com isso.
+- **As publicações fabricadas pertencem a processos reais do escritório.** Sem isso, o
+  vínculo automático por CNJ nunca casaria e o passo mais importante do módulo ficaria
+  sem exercício.
+
+### Dois defeitos do classificador encontrados pelos testes
+
+**1. Dupla contagem de termos sobrepostos.** "Contrarrazões ao recurso de apelação" era
+classificado como *apelação*: a regra da apelação somava `apelação` **e** `recurso de
+apelação`, contando a mesma evidência duas vezes. Agora um termo contido em outro termo
+achado não pontua de novo.
+
+**2. Apelação e contrarrazões não eram incompatíveis.** Mesmo sem a dupla contagem, o
+empate persistia. As regras ganharam `exclui`: quem responde ao recurso não o interpõe, e
+ninguém faz as duas coisas na mesma intimação. Sem isso, **o prazo nasceria na pessoa
+errada** — o erro mais caro que este módulo pode cometer.
+
+Um terceiro ajuste veio junto: "apresente contestação" (imperativo) não era reconhecido,
+só "apresentar contestação". A palavra `contestação` sozinha entrou com peso médio,
+sugerindo sem decidir — ela também aparece em "réplica à contestação".
+
+### Três problemas que só a suíte COMPLETA revelou
+
+As suítes individuais passavam; rodar tudo junto expôs o que estava frouxo:
+
+1. **O seed passou a depender de `utils/token.js`** (o hash de conteúdo da publicação) e
+   `dominio.test.js` não o carregava. A dependência é legítima — o hash é dado da
+   publicação —, então o arquivo entrou na lista da suíte.
+2. **Dois testes de F2.0 ficaram desatualizados**: a chave subiu para v4, e "toda coleção
+   da fase 2 nasce vazia" deixou de valer para publicações e monitoramentos.
+3. **Integrações estava na seção errada do menu.** Eu a pus em *Administração*, mas quem
+   cuida dos monitoramentos é quem tria publicação — e o advogado tem essa permissão.
+   O resultado era um advogado vendo uma seção "Administração" inteira com um item só.
+   Foi para *Ferramentas*, ao lado do simulador de prazo. O teste que pegou isso é o que
+   confere que nenhuma seção do menu fica órfã.
+
+### Nota sobre o banco
+
+A chave subiu para `jurisctrl.db.v4`: o seed passou a **povoar** publicações e
+monitoramentos, e sem regerar a fila de triagem nasceria vazia para quem já tinha banco.
+Quem tiver dados a preservar deve exportar o backup em `#/privacidade` antes de atualizar.
 
 ---
 

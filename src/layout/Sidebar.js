@@ -22,10 +22,18 @@
       badge: 'prazosCriticos' },
     { rota: '#/tarefas',   icone: '☑', rotulo: 'Tarefas',    chave: 'tarefas',
       badge: 'tarefasAtrasadas' },
+    { rota: '#/publicacoes', icone: '📰', rotulo: 'Publicações', chave: 'publicacoes',
+      permissao: 'publicacoes.triar', badge: 'publicacoesPendentes' },
     { secao: 'Cadastros' },
     { rota: '#/clientes',  icone: '👤', rotulo: 'Clientes',   chave: 'clientes' },
     { secao: 'Ferramentas' },
     { rota: '#/simulador', icone: '🗓', rotulo: 'Simulador de prazo', chave: 'simulador' },
+    /* Integrações fica em Ferramentas, e não em Administração: quem cuida
+       dos monitoramentos do diário é quem tria publicação, e o advogado tem
+       essa permissão. Sob Administração, ele veria uma seção inteira com um
+       item só — e "Administração" prometeria mais do que entregaria. */
+    { rota: '#/integracoes', icone: '🔌', rotulo: 'Integrações', chave: 'integracoes',
+      permissao: 'publicacoes.triar' },
     { secao: 'Administração' },
     { rota: '#/configuracoes', icone: '⚙', rotulo: 'Configurações', chave: 'configuracoes',
       permissao: 'configuracoes' },

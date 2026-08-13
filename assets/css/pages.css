@@ -1399,6 +1399,122 @@
 }
 
 /* ==========================================================================
+   FASE 2 — F2.5 · financeiro
+   ========================================================================== */
+
+/* Linha de título vencido: o vermelho fica na borda, não no fundo — fundo
+   colorido em tabela longa cansa e deixa o texto pior de ler. */
+.fin__atrasado td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+/* --- Boleto ----------------------------------------------------------------- */
+.bol {
+  margin-top: var(--space-3);
+}
+
+.bol__linha {
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-align: center;
+  word-break: break-all;
+  user-select: all;
+}
+
+.bol-print {
+  font-family: Arial, sans-serif;
+  max-width: 700px;
+  margin: 0 auto;
+  border: 1px solid #333;
+}
+
+.bol-print__topo {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 12px;
+  border-bottom: 2px solid #333;
+}
+
+.bol-print__banco {
+  font-size: 20px;
+  font-weight: bold;
+  border-right: 2px solid #333;
+  padding-right: 16px;
+}
+
+.bol-print__linha {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.bol-print__corpo { padding: 4px 0; }
+
+.bol-print__campo {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #ccc;
+  font-size: 12px;
+}
+
+.bol-print__campo span { color: #555; }
+
+.bol-print__codigo {
+  padding: 12px;
+  font-family: monospace;
+  font-size: 11px;
+  word-break: break-all;
+  border-top: 2px solid #333;
+}
+
+.bol-print__aviso {
+  margin: 0;
+  padding: 10px 12px;
+  background: #f4f4f4;
+  border-top: 1px solid #ccc;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #444;
+}
+
+/* --- Cronômetro do timesheet ------------------------------------------------ */
+.crono { margin-bottom: var(--space-4); }
+
+.crono--ativo {
+  border-color: var(--color-accent-500);
+  box-shadow: inset 0 0 0 1px var(--color-accent-500);
+}
+
+.crono__linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.crono__tempo {
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-accent-600);
+}
+
+.crono__form { margin-bottom: var(--space-3); }
+
+@media (max-width: 700px) {
+  .crono__linha { flex-direction: column; align-items: flex-start; }
+}
+
+/* ==========================================================================
    FASE 2 — F2.4 · fila de triagem do diário
    ========================================================================== */
 

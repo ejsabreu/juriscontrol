@@ -9,7 +9,7 @@ HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está em
 [PLANEJAMENTO.md](PLANEJAMENTO.md). A fase 2 está em
 [PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md): **concluídos** fundações, segurança/LGPD,
-alertas, portal do cliente e publicações/tribunais; **a fazer** financeiro, CRM, documentos
+alertas, portal do cliente, publicações/tribunais e financeiro; **a fazer** CRM, documentos
 avançados, assistente, relatórios e administração.
 
 ---
@@ -57,6 +57,9 @@ arquivos como estão.
 | `#/agenda` | Calendário forense + prazos e compromissos |
 | `#/clientes` | Lista e ficha de clientes |
 | `#/tarefas` | Kanban de tarefas |
+| `#/financeiro` | **Financeiro** — fluxo de caixa, a receber, a pagar, contratos e repasses |
+| `#/financeiro/contratos/novo` | Contrato de honorários, com prévia das parcelas |
+| `#/timesheet` | Apontamento de horas, com cronômetro |
 | `#/publicacoes` | **Fila de triagem do diário** — texto, leitura do ato e geração do prazo |
 | `#/integracoes` | Monitoramentos, histórico de captura e integrações previstas |
 | `#/simulador` | Simulador de contagem de prazo com memória de cálculo |
@@ -138,6 +141,16 @@ Não é maquete estática. O que está implementado funciona:
 - **LGPD** — dossiê do titular, portabilidade em JSON/CSV, anonimização que preserva o
   registro, consentimentos com base legal e o prazo de 15 dias do art. 18 à vista.
 - **Backup e restauração em JSON** — a válvula de escape para a ausência de migração.
+- **Financeiro com a conta certa** — fluxo de caixa nos dois regimes (caixa e competência,
+  com a tela dizendo o que cada um responde), aging de recebíveis, juros **pro rata die**,
+  pagamento parcial, repasses travados pelo valor da receita de origem e rentabilidade por
+  processo. A **linha digitável do boleto é matematicamente válida** no padrão FEBRABAN —
+  os três DVs de campo por módulo 10 e o verificador geral por módulo 11 conferem em
+  qualquer validador. O que não existe é o registro em banco: o código 999 não é
+  instituição real, e a tela diz isso. Linha plausível mas inválida seria a mentira que só
+  se descobre no caixa.
+- **Timesheet com cronômetro** — hora não faturável também é apontada, porque é ela que
+  explica por que um contrato de valor fixo deu prejuízo.
 - **Ciclo publicação → prazo → aviso** — a fila lê o texto do diário, sugere o ato e o
   prazo **mostrando os termos que sustentaram a conclusão** e o grau de confiança, vincula
   ao processo pelo número CNJ e entrega a data de disponibilização ao motor do CPC. O prazo
@@ -162,7 +175,9 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-1.152 verificações em 9 suítes:
+1.332 verificações em 10 suítes. As sete que não precisam de jsdom compartilham o
+sandbox de `testes/ambiente.js`, que carrega o núcleo (utils, domínio, seed, store e
+services) na ordem de dependência — assim um módulo novo no seed entra num lugar só.
 
 | Suíte | O que cobre |
 |-------|-------------|
@@ -172,6 +187,7 @@ npm test
 | `alertas.test.js` | Avaliador de alertas (incluindo idempotência), notificações, e-mail simulado, dupla conferência e prazo perdido. **Não precisa de jsdom.** |
 | `portal.test.js` | Token do portal, escopo, revogação e — sobretudo — o que **não** pode vazar para o cliente. **Não precisa de jsdom.** |
 | `publicacoes.test.js` | Classificador com textos no formato do diário, extração de CNJ, vínculo, deduplicação e o prazo gerado com a data que o motor do CPC calcula. **Não precisa de jsdom.** |
+| `financeiro.test.js` | Parcelamento que fecha ao centavo, êxito, juros pro rata die, aging, fluxo de caixa nos dois regimes, rentabilidade e a linha digitável FEBRABAN (com dígito trocado em 20 posições). **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |

@@ -32,6 +32,8 @@ const ARQUIVOS = [
   'src/domain/prazos.js',
   'src/domain/cnj.js',
   'src/domain/validators.js',
+  // O seed depende de financeiro.js desde F2.5 (parcelas dos contratos).
+  'src/domain/financeiro.js',
   'data/seed.js',
   'src/services/db.js',
   'src/components/ui.js',
@@ -443,8 +445,8 @@ secao('Banco v3 — coleções da fase 2 e auditoria');
 const db = App.services.db;
 
 ok('a chave do banco é versionada', /^jurisctrl\.db\.v\d+$/.test(db.CHAVE), db.CHAVE);
-ok('a chave está na v4 (F2.4 povoou publicações no seed)',
-   db.CHAVE === 'jurisctrl.db.v4', db.CHAVE);
+ok('a chave está na v5 (F2.5 povoou o financeiro no seed)',
+   db.CHAVE === 'jurisctrl.db.v5', db.CHAVE);
 
 const estado = db.init(true);
 ok('init gera o seed', estado.processos.length > 0);
@@ -456,7 +458,8 @@ ok('toda coleção da fase 2 existe após o init',
 /* Coleção da fase 2 nasce vazia enquanto o módulo dono não existir. As duas
    exceções são de F2.4: publicações e monitoramentos vêm povoados pelo seed,
    senão a fila de triagem abriria vazia e o módulo não teria o que demonstrar. */
-const POVOADAS_PELO_SEED = ['publicacoes', 'monitoramentos'];
+const POVOADAS_PELO_SEED = ['publicacoes', 'monitoramentos',
+                            'contratos', 'lancamentos', 'repasses', 'apontamentos'];
 
 ok('coleções sem módulo dono nascem vazias',
    db.COLECOES_FASE2
@@ -464,7 +467,7 @@ ok('coleções sem módulo dono nascem vazias',
      .every(nome => estado[nome].length === 0),
    db.COLECOES_FASE2.filter(nome => POVOADAS_PELO_SEED.indexOf(nome) === -1 &&
                                     estado[nome].length > 0).join(', '));
-ok('publicações e monitoramentos vêm povoados (F2.4)',
+ok('as coleções com dados de demonstração vêm povoadas (F2.4 e F2.5)',
    POVOADAS_PELO_SEED.every(nome => estado[nome].length > 0),
    POVOADAS_PELO_SEED.map(n => n + '=' + estado[n].length).join(' '));
 ok('as coleções da fase 1 continuam intactas',

@@ -4,68 +4,18 @@
    segredo de justiça, link revogado ou expirado, e dado de gestão interna
    (provisão, risco, valor da causa) na tela de quem recebeu o link. */
 
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+const { criarAmbiente, criarPlacar } = require('./ambiente');
 
-const RAIZ = path.resolve(__dirname, '..');
-
-function criarStorage() {
-  const mapa = new Map();
-  return {
-    getItem: (k) => (mapa.has(k) ? mapa.get(k) : null),
-    setItem: (k, v) => mapa.set(k, String(v)),
-    removeItem: (k) => mapa.delete(k)
-  };
-}
-
-const janela = {
-  localStorage: criarStorage(),
-  location: { href: 'https://ejsabreu.github.io/juriscontrol/index.html#/processos' }
-};
-
-const sandbox = {
-  window: janela, console,
-  Date, Math, JSON, Object, Array, String, Number, Boolean, RegExp, Promise, Error, Map, Set,
-  setTimeout, clearTimeout, isNaN, parseInt, parseFloat, isFinite, Uint8Array
-};
-sandbox.globalThis = sandbox;
-vm.createContext(sandbox);
-
-const ARQUIVOS = [
-  'src/utils/dom.js', 'src/utils/format.js', 'src/utils/moeda.js',
-  'src/utils/csv.js', 'src/utils/token.js',
-  'src/domain/enums.js', 'src/domain/feriados.js', 'src/domain/prazos.js',
-  'src/domain/cnj.js', 'src/domain/validators.js', 'src/domain/permissoes.js',
-  'src/domain/alertas.js',
-  'data/seed.js',
-  'src/store/store.js',
-  'src/services/http.js', 'src/services/db.js',
-  'src/services/sessaoService.js', 'src/services/auditoriaService.js',
-  'src/services/compartilhamentoService.js'
-];
-
-for (const arquivo of ARQUIVOS) {
-  const codigo = fs.readFileSync(path.join(RAIZ, arquivo), 'utf8');
-  try {
-    vm.runInContext(codigo, sandbox, { filename: arquivo });
-  } catch (e) {
-    console.error(`✕ FALHA AO CARREGAR ${arquivo}:`, e.message);
-    process.exit(1);
-  }
-}
-
-const App = sandbox.window.App;
-let falhas = 0, testes = 0;
-
-function ok(descricao, condicao, detalhe) {
-  testes++;
-  if (condicao) console.log(`  ✓ ${descricao}`);
-  else { falhas++; console.log(`  ✕ ${descricao}${detalhe !== undefined ? ' → ' + detalhe : ''}`); }
-}
-function secao(t) { console.log(`\n${t}`); }
-
-App.services.http.config.ativarLatencia = false;
+/* O ambiente carrega o núcleo inteiro — utils, domínio, seed, store e
+   services — na ordem de dependência. A lista mora em ambiente.js para
+   que um módulo novo no seed não quebre seis suítes de uma vez. */
+/* O href importa nesta suíte: o link do portal é montado a partir da URL da
+   própria página, e é sob GitHub Pages (em subdiretório) que ele precisa
+   sair certo — não sob file://. */
+const { App, janela } = criarAmbiente({
+  href: 'https://ejsabreu.github.io/juriscontrol/index.html#/processos'
+});
+const { ok, secao, encerrar } = criarPlacar();
 
 (async function () {
   const db = App.services.db;
@@ -308,9 +258,7 @@ App.services.http.config.ativarLatencia = false;
   ok('link de outro processo não aparece',
      lista.every(l => l.processoId === processo.id));
 
-  console.log(`\n${'─'.repeat(56)}`);
-  console.log(`${testes - falhas}/${testes} verificações passaram`);
-  if (falhas) { console.log(`${falhas} FALHA(S)`); process.exit(1); }
+  encerrar();
 })().catch(function (erro) {
   console.error('\n✕ ERRO NÃO TRATADO NA SUÍTE:', erro && (erro.stack || erro.message));
   process.exit(1);

@@ -40,6 +40,13 @@
                 { permissao: 'documentos.editar' });
     R.registrar('/simulador',              'simulador', P.SimuladorPage,        'Simulador de prazo');
 
+    // Financeiro (F2.5)
+    R.registrar('/financeiro',             'financeiro', P.FinanceiroPage,     'Financeiro',
+                { permissao: 'financeiro.ver' });
+    R.registrar('/financeiro/contratos/novo', 'financeiro', P.ContratoFormPage, 'Novo contrato',
+                { permissao: 'financeiro.lancar' });
+    R.registrar('/timesheet',              'timesheet',  P.TimesheetPage,      'Timesheet');
+
     // Publicações e captura (F2.4)
     R.registrar('/publicacoes',            'publicacoes',  P.PublicacoesPage,   'Publicações',
                 { permissao: 'publicacoes.triar' });

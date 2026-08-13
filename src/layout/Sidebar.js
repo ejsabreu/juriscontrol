@@ -26,6 +26,10 @@
       permissao: 'publicacoes.triar', badge: 'publicacoesPendentes' },
     { secao: 'Cadastros' },
     { rota: '#/clientes',  icone: '👤', rotulo: 'Clientes',   chave: 'clientes' },
+    { secao: 'Financeiro' },
+    { rota: '#/financeiro', icone: '💰', rotulo: 'Financeiro', chave: 'financeiro',
+      permissao: 'financeiro.ver' },
+    { rota: '#/timesheet',  icone: '⏱', rotulo: 'Timesheet',  chave: 'timesheet' },
     { secao: 'Ferramentas' },
     { rota: '#/simulador', icone: '🗓', rotulo: 'Simulador de prazo', chave: 'simulador' },
     /* Integrações fica em Ferramentas, e não em Administração: quem cuida

@@ -774,9 +774,241 @@
         };
       });
 
+    // ----- Financeiro (F2.5) ------------------------------------------------
+    /* Contratos para ~60% dos processos e 18 meses de lançamentos. A
+       inadimplência é deliberada e proporcional à realidade: sem título
+       atrasado, o aging e o indicador de inadimplência nasceriam zerados e
+       as telas do módulo não teriam o que mostrar. */
+    var contratos = [];
+    var lancamentos = [];
+    var boletos = [];
+    var repasses = [];
+    var apontamentos = [];
+
+    var VALORES_HORA = [18000, 25000, 32000, 45000];
+    var MODALIDADES = ['fixo', 'fixo', 'exito', 'misto', 'hora', 'mensal'];
+
+    function competencia(data) { return iso(data).slice(0, 7); }
+
+    function diaUtil(data) {
+      return iso(App.domain.prazos.diaUtilOuSeguinte(iso(data)));
+    }
+
+    var processosComContrato = f.embaralhar(processos).slice(0, Math.round(processos.length * 0.6));
+
+    processosComContrato.forEach(function (proc, indice) {
+      var modalidade = MODALIDADES[indice % MODALIDADES.length];
+      var valorHora = f.escolher(VALORES_HORA);
+
+      // Honorário proporcional ao valor da causa, com piso — causa pequena
+      // não significa trabalho pequeno.
+      var valorFixo = Math.max(250000, Math.round((proc.valorCausa || 0) * 0.08));
+      var parcelas = f.escolher([1, 3, 6, 12]);
+      var inicio = deslocar(hoje, -f.inteiro(30, 540));   // até 18 meses atrás
+
+      var contrato = {
+        id: proximoId('CTR'),
+        clienteId: proc.clienteId,
+        processoId: proc.id,
+        modalidade: modalidade,
+        descricao: 'Honorários — ' + proc.assunto,
+        valorFixoCentavos: (modalidade === 'exito' || modalidade === 'hora') ? 0 : valorFixo,
+        percentualExito: (modalidade === 'exito' || modalidade === 'misto')
+          ? f.escolher([10, 15, 20, 30]) : 0,
+        valorHoraCentavos: (modalidade === 'hora') ? valorHora : 0,
+        valorMensalCentavos: (modalidade === 'mensal') ? f.escolher([150000, 250000, 400000]) : 0,
+        numParcelas: (modalidade === 'exito' || modalidade === 'hora') ? 1 : parcelas,
+        diaVencimento: f.escolher([5, 10, 15, 20]),
+        dataInicio: iso(inicio),
+        dataFim: null,
+        status: 'ativo',
+        ativo: true, criadoEm: agora, atualizadoEm: agora
+      };
+      contratos.push(contrato);
+
+      // Parcelas do contrato, pelas mesmas funções puras que o service usa.
+      if (contrato.valorFixoCentavos > 0) {
+        App.domain.financeiro.gerarParcelas(contrato).forEach(function (p, iParcela) {
+          var vencida = p.dataVencimento < iso(hoje);
+          /* 78% dos vencidos pagam. O restante é a inadimplência que faz o
+             aging existir — e uma parte dela é antiga de propósito, para as
+             faixas de 60 e 90 dias não ficarem vazias. */
+          var pagou = vencida ? f.talvez(0.78) : false;
+          var atraso = pagou ? f.inteiro(-3, 12) : 0;
+
+          lancamentos.push({
+            id: proximoId('LAN'),
+            tipo: 'receita',
+            origem: 'honorario',
+            contratoId: contrato.id,
+            processoId: proc.id,
+            clienteId: proc.clienteId,
+            descricao: 'Honorários ' + p.numero + '/' + p.de + ' — ' + proc.numeroInterno,
+            valorCentavos: p.valorCentavos,
+            valorPagoCentavos: pagou ? p.valorCentavos : 0,
+            dataCompetencia: p.dataCompetencia,
+            dataVencimento: p.dataVencimento,
+            dataPagamento: pagou
+              ? iso(deslocar(App.format.parseISO(p.dataVencimento), atraso))
+              : null,
+            status: pagou ? 'pago' : (vencida ? 'em_aberto' : 'previsto'),
+            formaPagamento: pagou ? f.escolher(['pix', 'boleto', 'transferencia']) : null,
+            reembolsavel: false,
+            comprovanteDocumentoId: null,
+            boletoId: null,
+            parcela: { n: p.numero, de: p.de },
+            ativo: true, criadoEm: agora, atualizadoEm: agora
+          });
+        });
+      }
+
+      // Custas e despesas reembolsáveis — todo processo tem.
+      var quantasDespesas = f.inteiro(1, 4);
+      for (var idx = 0; idx < quantasDespesas; idx++) {
+        var dataDespesa = deslocar(inicio, f.inteiro(0, 400));
+        if (dataDespesa > hoje) dataDespesa = deslocar(hoje, -f.inteiro(1, 60));
+
+        lancamentos.push({
+          id: proximoId('LAN'),
+          tipo: 'despesa',
+          origem: f.escolher(['custa', 'custa', 'reembolso']),
+          contratoId: contrato.id,
+          processoId: proc.id,
+          clienteId: proc.clienteId,
+          descricao: f.escolher(['Custas iniciais', 'Guia de preparo', 'Diligência de oficial',
+                                 'Cópias e autenticações', 'Honorários periciais',
+                                 'Deslocamento para audiência']),
+          valorCentavos: f.inteiro(8000, 180000),
+          valorPagoCentavos: 0,
+          dataCompetencia: competencia(dataDespesa),
+          dataVencimento: diaUtil(dataDespesa),
+          dataPagamento: iso(dataDespesa),
+          status: 'pago',
+          formaPagamento: 'transferencia',
+          reembolsavel: f.talvez(0.6),
+          comprovanteDocumentoId: null,
+          boletoId: null,
+          parcela: null,
+          ativo: true, criadoEm: agora, atualizadoEm: agora
+        });
+        // A despesa paga registra o valor de fato desembolsado.
+        lancamentos[lancamentos.length - 1].valorPagoCentavos =
+          lancamentos[lancamentos.length - 1].valorCentavos;
+      }
+
+      // Apontamentos de hora — em todo processo, faturáveis ou não.
+      var quantasHoras = f.inteiro(2, 9);
+      for (var ih = 0; ih < quantasHoras; ih++) {
+        var dataHora = deslocar(hoje, -f.inteiro(0, 180));
+        apontamentos.push({
+          id: proximoId('APT'),
+          processoId: proc.id,
+          tarefaId: null,
+          usuarioId: f.escolher(advogados).id,
+          data: iso(dataHora),
+          minutos: f.escolher([30, 45, 60, 90, 120, 180, 240]),
+          descricao: f.escolher(['Análise de documentos', 'Elaboração de peça',
+                                 'Reunião com cliente', 'Audiência', 'Pesquisa de jurisprudência',
+                                 'Despacho com o juiz', 'Diligência']),
+          faturavel: f.talvez(0.75),
+          valorHoraCentavos: valorHora,
+          lancamentoId: null,
+          aprovadoPorId: null,
+          ativo: true, criadoEm: agora, atualizadoEm: agora
+        });
+      }
+    });
+
+    // Despesas do escritório — não pertencem a processo nenhum.
+    var DESPESAS_FIXAS = [
+      { nome: 'Aluguel do escritório', valor: 850000 },
+      { nome: 'Folha de pagamento', valor: 4200000 },
+      { nome: 'Software jurídico', valor: 89000 },
+      { nome: 'Contabilidade', valor: 180000 },
+      { nome: 'Energia e internet', valor: 120000 }
+    ];
+
+    for (var mes = 17; mes >= 0; mes--) {
+      var refMes = new Date(hoje.getFullYear(), hoje.getMonth() - mes, 10);
+      DESPESAS_FIXAS.forEach(function (d) {
+        var jaVenceu = refMes <= hoje;
+        lancamentos.push({
+          id: proximoId('LAN'),
+          tipo: 'despesa',
+          origem: 'despesa_escritorio',
+          contratoId: null, processoId: null, clienteId: null,
+          descricao: d.nome,
+          valorCentavos: d.valor + f.inteiro(-20000, 20000),
+          valorPagoCentavos: 0,
+          dataCompetencia: competencia(refMes),
+          dataVencimento: diaUtil(refMes),
+          dataPagamento: jaVenceu ? iso(refMes) : null,
+          status: jaVenceu ? 'pago' : 'previsto',
+          formaPagamento: jaVenceu ? 'transferencia' : null,
+          reembolsavel: false,
+          comprovanteDocumentoId: null, boletoId: null, parcela: null,
+          ativo: true, criadoEm: agora, atualizadoEm: agora
+        });
+        var ultimo = lancamentos[lancamentos.length - 1];
+        if (jaVenceu) ultimo.valorPagoCentavos = ultimo.valorCentavos;
+      });
+    }
+
+    // Repasses a correspondentes sobre parte das receitas já pagas.
+    var receitasPagas = lancamentos.filter(function (l) {
+      return l.tipo === 'receita' && l.status === 'pago';
+    });
+    f.embaralhar(receitasPagas).slice(0, Math.min(12, receitasPagas.length))
+      .forEach(function (receita) {
+        var percentual = f.escolher([10, 15, 20]);
+        var valorRepasse = Math.round(receita.valorCentavos * percentual / 100);
+        var repasseId = proximoId('REP');
+        var lancamentoId = proximoId('LAN');
+
+        repasses.push({
+          id: repasseId,
+          lancamentoOrigemId: receita.id,
+          lancamentoId: lancamentoId,
+          beneficiarioId: f.escolher(usuarios).id,
+          tipo: f.escolher(['correspondente', 'parceiro', 'socio']),
+          percentual: percentual,
+          valorCentavos: valorRepasse,
+          dataPrevista: receita.dataVencimento,
+          dataPagamento: receita.dataPagamento,
+          status: 'pago',
+          ativo: true, criadoEm: agora, atualizadoEm: agora
+        });
+
+        lancamentos.push({
+          id: lancamentoId,
+          tipo: 'despesa',
+          origem: 'repasse',
+          contratoId: receita.contratoId,
+          processoId: receita.processoId,
+          clienteId: null,
+          descricao: 'Repasse — ' + receita.descricao,
+          valorCentavos: valorRepasse,
+          valorPagoCentavos: valorRepasse,
+          dataCompetencia: receita.dataCompetencia,
+          dataVencimento: receita.dataVencimento,
+          dataPagamento: receita.dataPagamento,
+          status: 'pago',
+          formaPagamento: 'transferencia',
+          reembolsavel: false,
+          comprovanteDocumentoId: null, boletoId: null,
+          repasseId: repasseId, parcela: null,
+          ativo: true, criadoEm: agora, atualizadoEm: agora
+        });
+      });
+
     return {
       usuarios: usuarios,
       pessoas: pessoas,
+      contratos: contratos,
+      lancamentos: lancamentos,
+      boletos: boletos,
+      repasses: repasses,
+      apontamentos: apontamentos,
       processos: processos,
       partesProcesso: partesProcesso,
       andamentos: andamentos,

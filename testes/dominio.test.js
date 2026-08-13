@@ -21,14 +21,18 @@ const ARQUIVOS = [
   'src/utils/dom.js',
   'src/utils/format.js',
   'src/utils/mask.js',
-  // O seed passou a depender de token.js em F2.4: a publicação nasce com o
-  // hash do conteúdo, que é o que permite deduplicar a captura.
+  // O seed acumulou dependências ao longo da fase 2: `token.js` para o hash
+  // da publicação (F2.4), `moeda.js` e `financeiro.js` para as parcelas do
+  // contrato (F2.5). Esta suíte mantém lista própria porque exercita o
+  // domínio isolado — as demais usam o núcleo de `ambiente.js`.
   'src/utils/token.js',
+  'src/utils/moeda.js',
   'src/domain/enums.js',
   'src/domain/feriados.js',
   'src/domain/prazos.js',
   'src/domain/cnj.js',
   'src/domain/validators.js',
+  'src/domain/financeiro.js',
   'data/seed.js',
   'src/store/selectors.js'
 ];

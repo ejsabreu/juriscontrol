@@ -54,7 +54,7 @@ outros módulos.
 | **F2.2** | Alertas e notificações ✅ | F2.0 | M |
 | **F2.3** | Portal do cliente e link compartilhado ✅ | F2.0, F2.1 | M |
 | **F2.4** | Publicações e integração com tribunais ✅ | F2.0, F2.2 | G |
-| **F2.5** | Módulo financeiro | F2.0, F2.1 | G |
+| **F2.5** | Módulo financeiro ✅ | F2.0, F2.1 | G |
 | **F2.6** | CRM e prospecção | F2.0, F2.5 | M |
 | **F2.7** | Documentos avançados (modelos, busca, assinatura) | F2.0 | M |
 | **F2.8** | Assistente (IA) | F2.4, F2.7 | M |
@@ -638,7 +638,7 @@ Quem tiver dados a preservar deve exportar o backup em `#/privacidade` antes de 
 
 ---
 
-## F2.5 — Módulo financeiro
+## F2.5 — Módulo financeiro ✅ concluída
 
 Nada existe hoje. O perfil `financeiro` está em `PERFIS` e não leva a lugar nenhum.
 
@@ -711,21 +711,105 @@ real e testável; só não existe banco que o receba.
 | `#/timesheet` | Apontamento de horas — semanal, com cronômetro |
 | aba **Financeiro** no processo e no cliente | Contrato, lançamentos, despesas, rentabilidade |
 
-### Passos
+### Passos — executados
 
-1. `utils/moeda.js` já veio de F2.0 — verificar cobertura de testes
-2. `domain/financeiro.js` + `domain/boleto.js` com testes (DV do boleto é o teste-âncora)
-3. Seed financeiro: contratos para ~60% dos processos, 18 meses de lançamentos com
-   inadimplência realista
-4. `contratoService`, `lancamentoService`, `boletoService`, `repasseService`,
+1. ✅ `utils/moeda.js` de F2.0 reusado (`ratear` é a base do parcelamento)
+2. ✅ `domain/financeiro.js` e `domain/boleto.js`, ambos puros
+3. ✅ Seed com contratos em 60% dos processos e 18 meses de lançamentos
+4. ✅ `contratoService`, `lancamentoService`, `boletoService`, `repasseService`,
    `timesheetService`
-5. `FinanceiroPage.js` com as abas e o gráfico de fluxo de caixa
-6. `ContratoFormPage.js` com geração automática das parcelas ao salvar
-7. Emissão de boleto: modal → linha digitável → PDF por impressão → selo de simulação
-8. `TimesheetPage.js` + botão de cronômetro na tarefa e no processo
-9. Abas financeiras no processo e no cliente
-10. Permissões: perfil `advogado` não vê o financeiro do escritório, só o do processo dele
-11. Testes: parcelas, êxito, juros, aging, DV do boleto, rentabilidade
+5. ✅ `FinanceiroPage.js` — painel, a receber, a pagar, contratos e repasses
+6. ✅ `ContratoFormPage.js` com prévia das parcelas em tempo real
+7. ✅ Emissão de boleto com linha digitável válida e impressão
+8. ✅ `TimesheetPage.js` com cronômetro
+9. ⏳ **Abas financeiras no processo e no cliente ficaram para depois** — ver abaixo
+10. ✅ Permissões aplicadas (o advogado não vê o financeiro do escritório)
+11. ✅ `testes/financeiro.test.js` — 151 verificações
+
+### O que é real e o que é simulado, com precisão
+
+**A linha digitável é real.** Código de barras de 44 posições, três DVs de campo por
+módulo 10, DV geral por módulo 11 e fator de vencimento — tudo no padrão FEBRABAN. O teste
+confere com um caso documentado (`341910900` → 8) e ainda troca um dígito em 20 posições
+diferentes para provar que todas são detectadas.
+
+**O registro no banco é que não existe.** O código 999 não é instituição real e nenhum
+título é registrado — registrar exige convênio bancário e troca por CNAB ou API. O modal e
+a impressão dizem isso.
+
+Fazer a conta certa e o registro não é a escolha honesta: uma linha digitável **plausível
+mas inválida** seria a mentira que só se descobre no caixa.
+
+### Decisões tomadas durante a implementação
+
+- **O painel lidera com o FLUXO DE CAIXA, não com o faturamento.** A pergunta de segunda-
+  feira é "dá para pagar a folha?", não "quanto vendemos". Faturamento sem caixa é o que
+  quebra escritório. Os dois regimes estão lado a lado, com uma frase explicando o que cada
+  um responde.
+- **A situação do título envelhece na leitura**, em `financeiro.situacao()`. Um "em aberto"
+  cujo vencimento passou está atrasado — e depender de um job noturno para atualizar isso
+  significaria que o sistema mente durante o dia inteiro em que o job falhar.
+- **Juros pro rata die.** Cobrar o mês cheio por três dias de atraso é prática que não se
+  sustenta em discussão. A multa, essa sim, incide uma vez só.
+- **Pagamento parcial é aceito.** Na vida real o cliente paga metade e combina o resto; um
+  sistema que só admite "pago" ou "em aberto" força o usuário a mentir num dos dois lados.
+- **O tipo do lançamento vem do enum, não do formulário.** Custa é despesa por natureza —
+  deixar a tela decidir permitiria lançar custa como receita e inverter o sinal do caixa.
+- **Repasse nasce de uma receita e vira despesa vinculada a ela**, com trava para a soma
+  não passar do que entrou. Repasse solto quebraria a conta: o dinheiro sairia sem se saber
+  de qual entrada.
+- **Hora não faturável também é apontada.** É ela que explica por que um contrato de valor
+  fixo deu prejuízo, e um sistema que só registra o que pode cobrar esconde justamente o
+  que interessa saber.
+- **O faturamento de horas cria UM lançamento**, não um por apontamento — dezenas de
+  títulos de R$ 80 entupiriam o contas a receber.
+- **Contrato de êxito e por hora não geram parcela prevista**, e a tela explica por quê:
+  lançar previsão de dinheiro que talvez nunca entre poluiria o fluxo de caixa.
+- **Vencimento sempre em dia útil.** Boleto que vence no domingo é boleto pago na segunda
+  com multa indevida.
+- **Custo de hora com valor de referência** quando o contrato não define: valor-hora zero
+  faria todo processo parecer lucrativo, e o relatório de rentabilidade serviria para nada.
+
+### Duas correções de expectativa nos testes
+
+Ambas minhas, e a segunda revelou um comportamento que vale registrar: **estornar uma baixa
+não devolve o título para "em aberto"** — devolve para o que a data mandar. Parcela cujo
+vencimento já passou volta como **atrasada**. O estorno desfaz o pagamento, não o
+calendário.
+
+### O que ficou de fora
+
+As **abas financeiras dentro do processo e do cliente** não entraram. A informação existe e
+está acessível (`rentabilidadeDoProcesso` está implementado e testado), mas a tela de
+detalhe do processo já tem sete abas, e enfiar a oitava sem repensar a navegação deixaria
+a tela pior. Fica para F2.10, junto do resto do trabalho de navegação.
+
+### O mesmo defeito de F2.4, e a correção definitiva
+
+Em F2.4 o `seed.js` passou a depender de `utils/token.js` e quebrou uma suíte. Em F2.5
+passou a depender de `domain/financeiro.js` e quebrou **seis** — todas as que não conheciam
+o arquivo novo. E, nas duas vezes, as suítes individuais passavam: o defeito só aparecia
+ao rodar o conjunto.
+
+Acrescentar o arquivo em seis listas resolveria o sintoma e garantiria a repetição em
+F2.6. A correção foi extrair **`testes/ambiente.js`**, com a ordem canônica de carregamento
+de tudo que não depende de DOM, mais um placar compartilhado. Cada suíte passou de ~50
+linhas de andaime a três:
+
+```js
+const { App, janela } = criarAmbiente();
+const { ok, secao, encerrar } = criarPlacar();
+```
+
+Quando um módulo novo entrar no seed, ele entra **em um lugar só** e nenhuma suíte quebra.
+`dominio.test.js` mantém lista própria de propósito: ela existe para exercitar o domínio
+isolado, e herdar o núcleo inteiro apagaria essa distinção.
+
+### Nota sobre o banco
+
+A chave subiu para `jurisctrl.db.v5`: o seed passou a povoar contratos, lançamentos,
+repasses e apontamentos. **Exporte o backup em `#/privacidade` antes de atualizar** se
+houver dados locais a preservar.
 
 ---
 

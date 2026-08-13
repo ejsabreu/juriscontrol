@@ -301,6 +301,111 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   ok('resultados listados', painel.querySelectorAll('.global-results__item').length > 0,
      String(painel.querySelectorAll('.global-results__item').length));
 
+  console.log('\nFinanceiro (F2.5)');
+  await irPara('#/financeiro', 1000);
+  ok('o painel abre', texto().includes('Financeiro'));
+  ok('mostra os KPIs do caixa', doc.querySelectorAll('.kpi').length >= 4,
+     String(doc.querySelectorAll('.kpi').length));
+  ok('desenha o fluxo de caixa', !!doc.querySelector('#gr-fluxo'));
+  ok('o gráfico traz a visão de tabela (acessibilidade)',
+     !!doc.querySelector('.chart__table'));
+  ok('mostra o aging de recebíveis', texto().includes('Aging de recebíveis'));
+  ok('explica a diferença entre caixa e competência',
+     texto().includes('dá para pagar a folha'));
+
+  const btnCompetencia = Array.from(doc.querySelectorAll('[data-action="trocar-regime"]'))
+    .find(b => b.textContent.includes('Competência'));
+  btnCompetencia.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('alternar para competência muda a leitura',
+     texto().includes('o escritório deu lucro'));
+
+  const abaReceber = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('A receber'));
+  abaReceber.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('a aba de contas a receber lista títulos',
+     doc.querySelectorAll('table.table tbody tr').length > 0,
+     String(doc.querySelectorAll('table.table tbody tr').length));
+  ok('há título marcado como atrasado', !!doc.querySelector('.fin__atrasado'));
+
+  const btnBoleto = doc.querySelector('[data-action="boleto"]');
+  ok('oferece emitir boleto', !!btnBoleto);
+  const boletosAntes = window.App.services.db.get('boletos').length;
+  btnBoleto.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('o boleto foi emitido',
+     window.App.services.db.get('boletos').length === boletosAntes + 1);
+  ok('o modal mostra a linha digitável', !!doc.querySelector('.bol__linha'));
+  ok('o modal declara que o título não está registrado',
+     texto().includes('NÃO está registrado em banco nenhum'));
+
+  const linhaGerada = doc.querySelector('.bol__linha').textContent;
+  ok('a linha exibida é matematicamente válida',
+     window.App.domain.boleto.validarLinha(linhaGerada).valida, linhaGerada);
+  doc.querySelector('.modal [data-action="fechar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(400);
+
+  const btnBaixar = doc.querySelector('[data-action="baixar"]');
+  btnBaixar.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(500);
+  ok('o modal de baixa abre', !!doc.querySelector('#form-baixa'));
+  doc.querySelector('.modal [data-action="confirmar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('a baixa foi registrada', !doc.querySelector('#form-baixa'));
+
+  const abaContratos = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Contratos'));
+  abaContratos.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('a aba de contratos lista os honorários',
+     doc.querySelectorAll('table.table tbody tr').length > 0);
+
+  console.log('\nContrato de honorários (#/financeiro/contratos/novo)');
+  await irPara('#/financeiro/contratos/novo', 900);
+  ok('o formulário abre', !!doc.querySelector('#form-contrato'));
+  ok('mostra a prévia das parcelas', texto().includes('Parcelas'));
+
+  const campoValor = doc.querySelector('[name="valorFixo"]');
+  campoValor.value = '3.000,00';
+  campoValor.dispatchEvent(new window.Event('input', { bubbles: true }));
+  await esperar(400);
+  ok('a prévia acompanha a digitação',
+     texto().includes('3 parcela(s)') || texto().includes('parcela(s)'));
+
+  const seletorModalidade = doc.querySelector('[name="modalidade"]');
+  seletorModalidade.value = 'exito';
+  seletorModalidade.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await esperar(400);
+  ok('modalidade de êxito explica por que não há parcela',
+     texto().includes('não gera parcela prevista'));
+  ok('modalidade de êxito mostra o campo de percentual',
+     !!doc.querySelector('[name="percentualExito"]'));
+
+  console.log('\nTimesheet (#/timesheet)');
+  await irPara('#/timesheet', 900);
+  ok('a tela abre', texto().includes('Timesheet'));
+  ok('oferece o cronômetro', !!doc.querySelector('[data-action="iniciar-crono"]'));
+  ok('lista apontamentos', doc.querySelectorAll('table.table tbody tr').length > 0);
+  ok('mostra horas por pessoa', texto().includes('Horas por pessoa'));
+
+  const seletorProcesso = doc.querySelector('#form-crono [name="processoId"]');
+  seletorProcesso.value = window.App.services.db.get('processos')
+    .filter(p => p.status === 'ativo')[0].id;
+  seletorProcesso.dispatchEvent(new window.Event('change', { bubbles: true }));
+  doc.querySelector('[data-action="iniciar-crono"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(500);
+  ok('o cronômetro inicia', !!doc.querySelector('.crono--ativo'));
+  ok('o cronômetro mostra o tempo', !!doc.querySelector('.crono__tempo'));
+  doc.querySelector('[data-action="descartar-crono"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(400);
+  ok('descartar o cronômetro volta ao início',
+     !doc.querySelector('.crono--ativo') && !!doc.querySelector('[data-action="iniciar-crono"]'));
+
   console.log('\nPublicações — fila de triagem (F2.4)');
   await irPara('#/publicacoes', 900);
   ok('a fila abre', texto().includes('Publicações'));

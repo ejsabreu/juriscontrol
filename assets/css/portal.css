@@ -1,0 +1,314 @@
+/* ==========================================================================
+   portal.css — o processo visto pelo cliente (F2.3)
+
+   Folha própria porque o portal é outro produto: quem abre é leigo, não
+   opera nada e vê a página uma vez a cada duas semanas. Tipografia maior,
+   respiro maior, nenhuma densidade de painel de trabalho.
+
+   Herda os tokens do sistema (marca e tema), mas nada do layout: o portal
+   não tem sidebar, topbar, tabela nem kanban.
+   ========================================================================== */
+
+.portal {
+  min-height: 100vh;
+  background: var(--color-bg);
+  padding-bottom: var(--space-12);
+}
+
+.portal--centro {
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+}
+
+/* --- Cabeçalho -------------------------------------------------------------- */
+.portal__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-sidebar);
+  color: var(--color-text-invert);
+}
+
+.portal__marca {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.portal__logo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-500);
+  color: var(--color-primary-900);
+  font-weight: 700;
+}
+
+.portal__escritorio {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.portal__subtitulo {
+  font-size: var(--text-xs);
+  opacity: 0.75;
+}
+
+.portal__validade {
+  font-size: var(--text-xs);
+  opacity: 0.8;
+}
+
+/* --- Corpo ------------------------------------------------------------------ */
+.portal__conteudo {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) 0;
+}
+
+.portal__bloco {
+  margin-bottom: var(--space-5);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.portal__card {
+  padding: var(--space-8);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.portal__card--estreito {
+  max-width: 420px;
+  text-align: center;
+}
+
+.portal__card--estreito .portal__logo { margin: 0 auto var(--space-4); }
+
+.portal__capa {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.portal__numero {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-subtle);
+}
+
+.portal__titulo {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+}
+
+.portal__texto {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
+}
+
+.portal__secao {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-md);
+  color: var(--color-text);
+}
+
+/* --- Ficha do processo ------------------------------------------------------ */
+.portal__dados {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.portal__dado dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+  margin-bottom: 2px;
+}
+
+.portal__dado dd {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-text);
+}
+
+/* --- Compromissos ----------------------------------------------------------- */
+.portal__agenda,
+.portal__prazos,
+.portal__docs,
+.portal__linha-tempo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portal__agenda-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.portal__agenda-item:last-child { border-bottom: 0; }
+
+.portal__agenda-icone {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-alt);
+}
+
+.portal__agenda-titulo {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.portal__agenda-quando {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* --- Prazos ----------------------------------------------------------------- */
+.portal__prazo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.portal__prazo:last-child { border-bottom: 0; }
+
+.portal__prazo-titulo {
+  font-size: var(--text-base);
+  color: var(--color-text);
+}
+
+.portal__prazo-data {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-primary-500);
+}
+
+/* --- Linha do tempo --------------------------------------------------------- */
+.portal__evento {
+  display: flex;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+  position: relative;
+}
+
+.portal__evento:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 18px;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border);
+}
+
+.portal__evento-marca {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  margin-top: 5px;
+  border-radius: var(--radius-full);
+  position: relative;
+  z-index: 1;
+}
+
+.portal__evento-data {
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+}
+
+.portal__evento-titulo {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 2px;
+}
+
+.portal__evento-texto {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
+}
+
+/* --- Documentos ------------------------------------------------------------- */
+.portal__doc {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.portal__doc:last-child { border-bottom: 0; }
+
+.portal__doc-icone { font-size: var(--text-lg); flex: none; }
+
+.portal__doc-nome {
+  font-size: var(--text-base);
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.portal__doc-meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+}
+
+.portal__nota {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+}
+
+/* --- Rodapé ----------------------------------------------------------------- */
+.portal__rodape {
+  padding: var(--space-4) var(--space-2) 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+  line-height: var(--leading-normal);
+}
+
+.portal__rodape p { margin: 0 0 var(--space-3); }
+
+@media (max-width: 600px) {
+  .portal__conteudo { padding: var(--space-4) var(--space-3) 0; }
+  .portal__bloco { padding: var(--space-4); }
+  .portal__capa { flex-direction: column; }
+}

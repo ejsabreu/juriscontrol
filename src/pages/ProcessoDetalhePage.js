@@ -56,17 +56,30 @@
   }
 
   function carregar(id) {
-    App.services.processoService.obter(id).then(function (p) {
-      processo = p;
-      desenhar();
-    }).catch(function (erro) {
-      container.innerHTML = App.components.ui.EmptyState({
-        icone: '⚠',
-        titulo: 'Processo não encontrado',
-        texto: erro.message,
-        acao: App.components.ui.Button({ rotulo: 'Voltar para a lista', variante: 'primary', href: '#/processos' })
+    // Os links do portal (F2.3) entram no mesmo carregamento: o contador da
+    // aba depende deles.
+    App.services.processoService.obter(id)
+      .then(function (p) {
+        processo = p;
+        return carregarLinks();
+      })
+      .catch(function (erro) {
+        processo = null;
+        container.innerHTML = App.components.ui.EmptyState({
+          icone: '⚠',
+          titulo: 'Processo não encontrado',
+          texto: erro.message,
+          acao: App.components.ui.Button({
+            rotulo: 'Voltar para a lista', variante: 'primary', href: '#/processos'
+          })
+        });
+      })
+      // O desenho fica DEPOIS do catch, e não dentro do encadeamento acima,
+      // para que uma falha de renderização não vire um enganoso "processo
+      // não encontrado" — o erro real apareceria mascarado.
+      .then(function () {
+        if (processo) desenhar();
       });
-    });
   }
 
   // --- Cabeçalho ------------------------------------------------------------
@@ -175,7 +188,9 @@
         { id: 'andamentos', label: 'Andamentos',  contador: processo.andamentos.length },
         { id: 'prazos',     label: 'Prazos',      contador: abertos },
         { id: 'documentos', label: 'Documentos',  contador: processo.documentos.length },
-        { id: 'tarefas',    label: 'Tarefas',     contador: processo.tarefas.length }
+        { id: 'tarefas',    label: 'Tarefas',     contador: processo.tarefas.length },
+        { id: 'portal',     label: 'Compartilhamento',
+          contador: linksAtivos.length || null }
       ]
     });
   }
@@ -389,13 +404,124 @@
     return html + '</div>';
   }
 
+  // --- Aba Compartilhamento (F2.3) -------------------------------------------
+
+  var links = [];
+  var linksAtivos = [];
+
+  function carregarLinks() {
+    if (!processo) return Promise.resolve();
+    return App.services.compartilhamentoService.listarDoProcesso(processo.id)
+      .then(function (lista) {
+        links = lista;
+        linksAtivos = lista.filter(function (l) { return l.valido; });
+      })
+      .catch(function () { links = []; linksAtivos = []; });
+  }
+
+  function linhaLink(link) {
+    var ui = App.components.ui;
+    var situacao = link.revogadoEm ? ui.Badge({ rotulo: 'Revogado', variante: 'neutral' })
+                 : link.expirado   ? ui.Badge({ rotulo: 'Expirado', variante: 'warning' })
+                                   : ui.Badge({ rotulo: 'Ativo', variante: 'success' });
+
+    var secoes = App.services.compartilhamentoService.CHAVES_ESCOPO
+      .filter(function (c) { return link.escopo[c]; })
+      .join(', ');
+
+    return '<tr>' +
+      '<td>' +
+        '<div class="u-row" style="gap:var(--space-2)">' +
+          '<input class="input input--sm u-mono" style="flex:1;min-width:0" readonly' +
+            ' value="' + esc(link.url) + '" data-link-url="' + esc(link.id) + '">' +
+          App.components.ui.Button({
+            rotulo: 'Copiar', tamanho: 'sm', acao: 'copiar-link', valor: link.id
+          }) +
+        '</div>' +
+        '<div class="u-xs u-subtle" style="margin-top:2px">' + esc(secoes) + '</div>' +
+      '</td>' +
+      '<td class="u-sm">' + esc(App.format.data(link.expiraEm)) + '</td>' +
+      '<td class="u-sm u-tabular">' + (link.totalAcessos || 0) +
+        (link.ultimoAcessoEm
+          ? '<div class="u-xs u-subtle">último ' + esc(App.format.dataHora(link.ultimoAcessoEm)) + '</div>'
+          : '') +
+      '</td>' +
+      '<td>' + situacao + '</td>' +
+      '<td class="u-right">' +
+        (link.revogadoEm || link.expirado ? '' : ui.Button({
+          rotulo: 'Revogar', tamanho: 'sm', variante: 'ghost',
+          acao: 'revogar-link', valor: link.id
+        })) +
+      '</td>' +
+    '</tr>';
+  }
+
+  function painelPortal() {
+    var ui = App.components.ui;
+    var podeCompartilhar = App.services.sessaoService.pode('portal.compartilhar');
+
+    if (processo.segredoJustica) {
+      return '<div class="tab-panel">' +
+        ui.EmptyState({
+          icone: '🔒',
+          titulo: 'Processo em segredo de justiça',
+          texto: 'Processo em segredo não pode ser compartilhado por link. ' +
+                 'É a regra do processo, não uma preferência do escritório.'
+        }) +
+      '</div>';
+    }
+
+    var visiveis = {
+      andamentos: processo.andamentos.filter(function (a) { return a.visivelCliente; }).length,
+      documentos: processo.documentos.filter(function (d) { return d.visivelCliente; }).length,
+      prazos: processo.prazos.filter(function (pz) { return pz.visivelCliente; }).length
+    };
+
+    var tabela = links.length
+      ? '<div class="table-wrap"><table class="table"><thead><tr>' +
+          '<th>Link</th><th>Validade</th><th>Acessos</th><th>Situação</th><th></th>' +
+        '</tr></thead><tbody>' + links.map(linhaLink).join('') + '</tbody></table></div>'
+      : ui.EmptyState({
+          icone: '🔗',
+          titulo: 'Nenhum link gerado',
+          texto: 'Gere um link para o cliente acompanhar o processo sem precisar ligar.'
+        });
+
+    return '<div class="tab-panel">' +
+      '<div class="u-row" style="justify-content:space-between;margin-bottom:var(--space-4)">' +
+        '<div>' +
+          '<h3 class="u-bold">Acompanhamento pelo cliente</h3>' +
+          '<p class="u-sm u-muted" style="margin:2px 0 0">' +
+            'O portal mostra apenas o que estiver marcado como visível ao cliente: ' +
+            visiveis.andamentos + ' andamento(s), ' + visiveis.documentos +
+            ' documento(s) e ' + visiveis.prazos + ' prazo(s).' +
+          '</p>' +
+        '</div>' +
+        '<div class="u-row" style="gap:var(--space-2)">' +
+          ui.Button({ rotulo: 'Revisar visibilidade', acao: 'revisar-visibilidade' }) +
+          ui.Button({
+            rotulo: 'Gerar link', variante: 'primary', icone: '🔗', acao: 'novo-link',
+            desabilitado: !podeCompartilhar,
+            titulo: podeCompartilhar ? '' : 'Seu perfil não compartilha processo com cliente'
+          }) +
+        '</div>' +
+      '</div>' +
+      tabela +
+      '<p class="u-xs u-subtle" style="margin-top:var(--space-4)">' +
+        'O que o cliente NÃO vê: valor da causa, provisão, risco, equipe interna, ' +
+        'notas internas e qualquer prazo ou documento não marcado como visível.' +
+      '</p>' +
+    '</div>';
+  }
+
   var PAINEIS = {
     dados: painelDados,
     partes: painelPartes,
     andamentos: painelAndamentos,
     prazos: painelPrazos,
     documentos: painelDocumentos,
-    tarefas: painelTarefas
+    tarefas: painelTarefas,
+    portal: painelPortal
   };
 
   function desenhar() {
@@ -452,6 +578,33 @@
 
     App.dom.delegate(container, 'click', '[data-action="novo-andamento"]', abrirNovoAndamento);
     App.dom.delegate(container, 'click', '[data-action="novo-prazo"]', abrirNovoPrazo);
+
+    // --- Compartilhamento com o cliente (F2.3) ---
+    App.dom.delegate(container, 'click', '[data-action="novo-link"]', abrirNovoLink);
+    App.dom.delegate(container, 'click', '[data-action="revisar-visibilidade"]',
+                     abrirRevisaoVisibilidade);
+
+    App.dom.delegate(container, 'click', '[data-action="copiar-link"]', function (evento, botao) {
+      var campo = App.dom.qs('[data-link-url="' + botao.dataset.value + '"]', container);
+      if (!campo) return;
+      copiarTexto(campo.value, campo);
+    });
+
+    App.dom.delegate(container, 'click', '[data-action="revogar-link"]', function (evento, botao) {
+      App.components.Modal.confirmar({
+        titulo: 'Revogar link',
+        mensagem: 'Quem tiver o link deixa de conseguir abrir o acompanhamento.',
+        detalhe: 'O histórico de acessos é preservado. Você pode gerar um link novo depois.',
+        rotuloConfirmar: 'Revogar',
+        variante: 'danger'
+      }).then(function (confirmado) {
+        if (!confirmado) return;
+        App.services.compartilhamentoService.revogar(botao.dataset.value).then(function () {
+          Toast.sucesso('Link revogado');
+          carregarLinks().then(desenhar);
+        });
+      });
+    });
 
     ligarEventosDocumentos();
   }
@@ -1282,6 +1435,185 @@
    * Formulário de prazo com PRÉVIA AO VIVO do cálculo: o advogado vê a data
    * fatal e a memória do art. 224 antes de salvar.
    */
+  /**
+   * Copia texto sem depender do Clipboard API — que exige contexto seguro e
+   * não existe sob `file://`, justamente onde este protótipo roda.
+   */
+  function copiarTexto(texto, campo) {
+    function porSelecao() {
+      try {
+        campo.removeAttribute('readonly');
+        campo.select();
+        campo.setSelectionRange(0, 99999);
+        var ok = document.execCommand && document.execCommand('copy');
+        campo.setAttribute('readonly', 'readonly');
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(function () {
+        App.components.Toast.sucesso('Link copiado');
+      }).catch(function () {
+        if (porSelecao()) App.components.Toast.sucesso('Link copiado');
+        else App.components.Toast.aviso('Copie manualmente', 'Selecione o link e use Ctrl+C.');
+      });
+      return;
+    }
+
+    if (porSelecao()) App.components.Toast.sucesso('Link copiado');
+    else App.components.Toast.aviso('Copie manualmente', 'Selecione o link e use Ctrl+C.');
+  }
+
+  /**
+   * Revisão da visibilidade, em um lugar só.
+   *
+   * A alternativa seria um botão "liberar tudo para o cliente", e ele seria
+   * perigoso: o processo tem nota interna, estratégia e documento que não
+   * pode sair. Aqui o advogado VÊ item a item o que está exposto antes de
+   * mandar o link — a ação em massa acontece com a lista à vista.
+   */
+  function abrirRevisaoVisibilidade() {
+    var enums = App.domain.enums;
+
+    function grupo(titulo, itens, colecao, rotuloDe, subDe) {
+      if (!itens.length) {
+        return '<h4 class="u-sm u-bold" style="margin-top:var(--space-4)">' + esc(titulo) + '</h4>' +
+               '<p class="u-xs u-subtle">Nada nesta seção.</p>';
+      }
+
+      var linhas = itens.map(function (it) {
+        return '<label class="visib__linha">' +
+                 '<input type="checkbox" data-action="visib" data-colecao="' + colecao + '"' +
+                   ' data-id="' + esc(it.id) + '"' + (it.visivelCliente ? ' checked' : '') + '>' +
+                 '<span class="visib__corpo">' +
+                   '<span class="visib__titulo">' + esc(rotuloDe(it)) + '</span>' +
+                   '<span class="visib__sub">' + esc(subDe(it)) + '</span>' +
+                 '</span>' +
+               '</label>';
+      }).join('');
+
+      return '<h4 class="u-sm u-bold" style="margin-top:var(--space-4)">' + esc(titulo) +
+               ' <span class="u-xs u-subtle">(' +
+               itens.filter(function (i) { return i.visivelCliente; }).length +
+               ' de ' + itens.length + ' visíveis)</span></h4>' +
+             '<div class="visib">' + linhas + '</div>';
+    }
+
+    App.components.Modal.abrir({
+      titulo: 'O que o cliente enxerga',
+      conteudo:
+        '<p class="u-sm u-muted">Marque o que pode aparecer no portal. Nota interna, ' +
+        'estratégia e documento sigiloso devem ficar desmarcados.</p>' +
+
+        grupo('Andamentos', processo.andamentos, 'andamentos',
+              function (a) { return a.titulo; },
+              function (a) {
+                return App.format.data(a.data) + ' · ' +
+                       enums.rotulo(enums.TIPOS_ANDAMENTO, a.tipo);
+              }) +
+
+        grupo('Documentos', processo.documentos, 'documentos',
+              function (d) { return d.nome; },
+              function (d) { return enums.rotulo(enums.CATEGORIAS_DOCUMENTO, d.categoria); }) +
+
+        grupo('Prazos', processo.prazos.filter(function (pz) {
+                return pz.status === 'pendente' || pz.status === 'em_andamento';
+              }), 'prazos',
+              function (pz) { return pz.titulo; },
+              function (pz) { return 'até ' + App.format.data(pz.dataFatal); }),
+
+      acoes: [
+        { rotulo: 'Fechar', variante: 'primary', acao: 'fechar', fechar: true }
+      ],
+      aoAbrir: function (corpo) {
+        // Grava a cada clique: a lista pode ser longa, e obrigar a confirmar
+        // no fim faria perder tudo em um fechamento acidental.
+        App.dom.delegate(corpo, 'change', '[data-action="visib"]', function (evento, campo) {
+          var colecao = campo.getAttribute('data-colecao');
+          var id = campo.getAttribute('data-id');
+          App.services.db.update(colecao, id, { visivelCliente: campo.checked });
+
+          var item = (processo[colecao] || []).filter(function (x) { return x.id === id; })[0];
+          if (item) item.visivelCliente = campo.checked;
+        });
+      },
+      aoFechar: function () {
+        carregar(processo.id);
+      }
+    });
+  }
+
+  /** Geração do link do portal. */
+  function abrirNovoLink() {
+    var ui = App.components.ui;
+    var svc = App.services.compartilhamentoService;
+
+    var rotulos = {
+      andamentos: 'Andamentos publicados',
+      documentos: 'Documentos liberados',
+      prazos: 'Prazos aguardando manifestação',
+      compromissos: 'Próximas audiências'
+    };
+
+    var camposEscopo = svc.CHAVES_ESCOPO.map(function (chave) {
+      return ui.Field({
+        nome: chave, tipo: 'checkbox', rotulo: rotulos[chave], valor: true
+      });
+    }).join('');
+
+    App.components.Modal.abrir({
+      titulo: 'Compartilhar com o cliente',
+      conteudo:
+        '<form id="form-link">' +
+          '<p class="u-sm u-muted">O que o cliente vai ver:</p>' +
+          camposEscopo +
+          ui.Field({
+            nome: 'validadeDias', rotulo: 'Validade do link', tipo: 'select',
+            opcoes: App.domain.enums.opcoes([
+              { id: '7',  label: '7 dias' },
+              { id: '30', label: '30 dias' },
+              { id: '90', label: '90 dias' }
+            ], String(svc.VALIDADE_PADRAO_DIAS))
+          }) +
+        '</form>' +
+        App.components.SeloSimulado({
+          forma: 'linha',
+          oque: 'o link carrega os dados do compartilhamento e abre em qualquer ' +
+                'navegador, mas a soma de verificação NÃO é assinatura — sem servidor ' +
+                'não há segredo para assinar.',
+          naFase3: 'token assinado com HMAC e conferido no servidor, com lista de revogação.'
+        }),
+      acoes: [
+        { rotulo: 'Cancelar', variante: 'secondary', acao: 'cancelar', fechar: true },
+        { rotulo: 'Gerar link', variante: 'primary', acao: 'gerar' }
+      ],
+      aoAcao: function (acao, corpo, fecharModal) {
+        if (acao !== 'gerar') return;
+        var dados = App.dom.formToObject(App.dom.qs('#form-link', corpo));
+
+        var escopo = {};
+        svc.CHAVES_ESCOPO.forEach(function (c) { escopo[c] = !!dados[c]; });
+
+        svc.criar({
+          processoId: processo.id,
+          escopo: escopo,
+          validadeDias: parseInt(dados.validadeDias, 10)
+        }).then(function (link) {
+          fecharModal();
+          App.components.Toast.sucesso('Link gerado',
+            'Válido até ' + App.format.data(link.expiraEm) + '.');
+          abaAtiva = 'portal';
+          carregarLinks().then(desenhar);
+        }).catch(function (erro) {
+          App.components.Toast.erro('Não foi possível gerar o link', erro.message);
+        });
+      }
+    });
+  }
+
   /**
    * Registro da perda de um prazo.
    *

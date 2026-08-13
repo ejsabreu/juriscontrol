@@ -16,7 +16,10 @@
 
     // Única rota pública e sem casca em F2.1 (o portal do cliente, em F2.3,
     // será a segunda).
+    // As duas rotas públicas e sem casca do sistema.
     R.registrar('/entrar',                 'entrar',    P.LoginPage,            'Entrar',
+                { publica: true, semCasca: true });
+    R.registrar('/portal/:token',          'portal',    P.PortalClientePage,    'Acompanhamento',
                 { publica: true, semCasca: true });
 
     R.registrar('/',                       'dashboard', P.DashboardPage,        'Dashboard');
@@ -62,7 +65,9 @@
       var logado = sessao.ativa();
 
       if (rota.publica) {
-        // Quem já entrou não fica preso na tela de entrada.
+        /* Quem já entrou não fica preso na tela de entrada. O portal é
+           exceção: um advogado logado precisa poder conferir o link que
+           acabou de mandar ao cliente, e ver exatamente o que ele vê. */
         return logado && rota.chave === 'entrar' ? '#/' : null;
       }
 

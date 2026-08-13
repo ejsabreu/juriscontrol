@@ -52,7 +52,7 @@ outros módulos.
 | **F2.0** | Fundações (banco v3, enums, auditoria, selo, gráficos) ✅ | — | P |
 | **F2.1** | Segurança, perfis e LGPD ✅ | F2.0 | G |
 | **F2.2** | Alertas e notificações ✅ | F2.0 | M |
-| **F2.3** | Portal do cliente e link compartilhado | F2.0, F2.1 | M |
+| **F2.3** | Portal do cliente e link compartilhado ✅ | F2.0, F2.1 | M |
 | **F2.4** | Publicações e integração com tribunais | F2.0, F2.2 | G |
 | **F2.5** | Módulo financeiro | F2.0, F2.1 | G |
 | **F2.6** | CRM e prospecção | F2.0, F2.5 | M |
@@ -378,7 +378,7 @@ caminho real; se incomodar, o gancho de rota pode ganhar um intervalo mínimo.
 
 ---
 
-## F2.3 — Portal do cliente e link compartilhado
+## F2.3 — Portal do cliente e link compartilhado ✅ concluída
 
 Metade já existe: `visivelCliente` é editável em documentos, andamentos e prazos. Falta o
 outro lado do link.
@@ -423,18 +423,61 @@ Sem nada editável. Nenhuma rota do sistema é alcançável de dentro dele.
 revogado ou de processo arquivado cai numa tela de link inválido que não revela se o
 processo existe.
 
-### Passos
+### Passos — todos executados
 
-1. `compartilhamentoService.js` (criar, validar token, revogar, registrar acesso)
-2. Rota `#/portal/:token` registrada **antes** do guard de sessão em `main.js` — o portal é
-   a única rota pública
-3. `PortalClientePage.js` + `assets/css/portal.css`
-4. Modal de compartilhamento no `ProcessoDetalhePage` (escopo, validade, senha, copiar link)
-5. Aba de gestão dos links com histórico de acessos
-6. Ação em massa "marcar como visível ao cliente" no explorador de documentos e na timeline
-7. Envio do link para a caixa de saída simulada
-8. Testes: token válido/expirado/revogado, vazamento de item não-visível, segredo de
-   justiça bloqueado, portal sem casca
+1. ✅ `compartilhamentoService.js` (criar, decodificar, abrir, revogar, registrar acesso)
+2. ✅ Rota `#/portal/:token` pública e sem casca, usando o mecanismo criado em F2.1
+3. ✅ `PortalClientePage.js` + `assets/css/portal.css`
+4. ✅ Modal de compartilhamento com escopo e validade — **sem senha**, ver abaixo
+5. ✅ Aba **Compartilhamento** no processo, com acessos e revogação
+6. ✅ **"Revisar visibilidade"** em vez de ação em massa cega, ver abaixo
+7. ✅ `testes/portal.test.js` — 62 verificações, mais o fluxo completo em `telas.test.js`
+   (gerar link → abrir o portal pelo link → conferir o que não aparece → revogar)
+
+### Duas decisões que mudaram em relação ao plano
+
+**1. O token passou a ser autocontido.** O plano previa token opaco, com o servidor
+consultando a tabela de links. Só que o protótipo está publicado no GitHub Pages e o
+"banco" é o `localStorage` de cada navegador: um token opaco produziria um link que **só
+abre na máquina de quem gerou** — um recurso de compartilhamento que não compartilha. O
+token virou `processo.escopo.validade.nonce.verificação`, a mesma forma de um JWT, e o
+portal se monta sozinho em qualquer navegador contra o seed determinístico.
+
+O que se perde, e está escrito no código e no modal:
+- o token revela o id interno do processo (o opaco não revelaria);
+- a soma de verificação **não é assinatura** — sem servidor não há segredo para assinar.
+  Ela detecta link truncado, não falsificação. Na fase 3 vira HMAC conferido no servidor;
+- revogação só vale onde existe o registro local. É o problema real de JWT, resolvido na
+  fase 3 com lista de revogação no servidor.
+
+**2. Não há senha de portal.** O plano previa o campo. Ao implementar ficou claro que uma
+senha conferida no cliente, com o banco visível no mesmo navegador, não protege nada —
+seria teatro. A proteção honesta possível é o token longo e a validade curta.
+
+**3. "Revisar visibilidade" no lugar da ação em massa.** O plano pedia "marcar todos como
+visíveis". Um botão desses é perigoso num processo que tem nota interna, estratégia e
+documento sigiloso. A tela mostra andamento por andamento, documento por documento, com o
+que já está exposto — a ação em massa acontece com a lista à vista, e grava a cada clique.
+
+### Decisões de conteúdo
+
+- **A capa do portal é deliberadamente reduzida.** Sem valor da causa, provisão, risco,
+  equipe interna, tags ou número interno. A provisão, em especial, seria constrangedora na
+  tela do cliente. Há teste conferindo que nenhum desses campos sai do service.
+- **O prazo vira "aguardando manifestação até X"** — sem semáforo, dias restantes,
+  responsável ou prazo interno. Para o cliente é uma data-limite, não um indicador de
+  gestão do escritório.
+- **Link inválido, expirado e revogado caem todos na MESMA tela.** Distinguir os casos já
+  contaria ao visitante que o processo existe.
+- **O filtro de visibilidade mora no service.** Se ficasse na tela, bastaria um `desenhar()`
+  novo para vazar.
+- **O advogado logado consegue abrir o portal** para conferir exatamente o que o cliente vê
+  — a guarda deixa a rota pública passar mesmo com sessão ativa.
+
+### Ajuste no seed
+
+Os prazos não tinham `visivelCliente`, então a seção do portal nasceria sempre vazia.
+O campo entrou no seed (60% visíveis), junto dos campos de conferência de F2.2.
 
 ---
 
@@ -933,8 +976,10 @@ depende de outro em tempo de definição).
 
 Registrados aqui para não serem redescobertos como defeito no meio da implementação:
 
-1. **O link do portal não sai da máquina.** O banco é o `localStorage`. O modal diz isso
-   antes de o usuário mandar o link.
+1. ~~**O link do portal não sai da máquina.**~~ **Resolvido em F2.3** com token
+   autocontido: o link abre em qualquer navegador. O que continua valendo é que a soma de
+   verificação **não é assinatura**, e que a revogação só surte efeito onde existe o
+   registro local.
 2. **Não há autenticação.** Trocar de usuário é escolher da lista. As permissões são
    aplicadas de verdade, mas a identidade não é provada — e a checagem roda só no
    navegador. Permissão conferida apenas no cliente não é permissão; na fase 3 a mesma

@@ -600,6 +600,14 @@
         dataCumprimento: status === 'cumprido' ? calculo.dataFatal : null,
         observacoes: '',
         andamentoOrigemId: null,
+        // F2.3: o portal do cliente mostra o prazo como "aguardando
+        // manifestação até X". Nem todo prazo é do interesse do cliente —
+        // parte é movimentação interna do escritório.
+        visivelCliente: f.talvez(0.6),
+        conferidoPorId: null,
+        conferidoEm: null,
+        cumpridoPorId: null,
+        motivoPerda: null,
         ativo: true, criadoEm: agora, atualizadoEm: agora
       });
     }

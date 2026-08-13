@@ -179,7 +179,8 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   const primeiro = window.App.services.db.get('processos')[0];
   await irPara('#/processos/' + primeiro.id, 900);
   ok('número CNJ exibido', texto().includes(primeiro.numeroCnj));
-  ok('abas renderizadas', doc.querySelectorAll('.tabs__tab').length === 6,
+  // 6 abas da fase 1 + Compartilhamento (F2.3)
+  ok('abas renderizadas', doc.querySelectorAll('.tabs__tab').length === 7,
      String(doc.querySelectorAll('.tabs__tab').length));
   ok('decomposição do CNJ presente', texto().includes('Decomposição do número CNJ'));
   ok('segmento identificado', /Justiça (Estadual|Federal|do Trabalho)/.test(texto()));
@@ -299,6 +300,92 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   ok('painel de resultados aberto', !painel.classList.contains('u-hidden'));
   ok('resultados listados', painel.querySelectorAll('.global-results__item').length > 0,
      String(painel.querySelectorAll('.global-results__item').length));
+
+  console.log('\nPortal do cliente (F2.3)');
+  const processoPortal = window.App.services.db.get('processos')
+    .filter(p => !p.segredoJustica)[0];
+  await irPara('#/processos/' + processoPortal.id, 900);
+
+  const abaPortal = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Compartilhamento'));
+  ok('a aba de compartilhamento existe', !!abaPortal);
+  abaPortal.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(400);
+  ok('a aba diz o que o cliente NÃO vê', texto().includes('O que o cliente NÃO vê'));
+  ok('oferece gerar link', !!doc.querySelector('[data-action="novo-link"]'));
+  ok('oferece revisar visibilidade', !!doc.querySelector('[data-action="revisar-visibilidade"]'));
+
+  doc.querySelector('[data-action="revisar-visibilidade"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(400);
+  ok('a revisão lista os itens com caixa de seleção',
+     doc.querySelectorAll('[data-action="visib"]').length > 0,
+     String(doc.querySelectorAll('[data-action="visib"]').length));
+  const caixaVisib = doc.querySelector('[data-action="visib"]');
+  const idVisib = caixaVisib.getAttribute('data-id');
+  const colecaoVisib = caixaVisib.getAttribute('data-colecao');
+  const antesVisib = window.App.services.db.find(colecaoVisib, idVisib).visivelCliente;
+  caixaVisib.checked = !antesVisib;
+  caixaVisib.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await esperar(200);
+  ok('marcar na revisão grava na hora',
+     window.App.services.db.find(colecaoVisib, idVisib).visivelCliente === !antesVisib);
+  caixaVisib.checked = antesVisib;
+  caixaVisib.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await esperar(200);
+  doc.querySelector('.modal [data-action="fechar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(700);
+
+  doc.querySelector('[data-action="novo-link"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(400);
+  ok('o modal de compartilhamento abre', !!doc.querySelector('#form-link'));
+  ok('o modal avisa que a verificação não é assinatura',
+     texto().includes('NÃO é assinatura'));
+  doc.querySelector('.modal [data-action="gerar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+
+  ok('o link aparece na lista', !!doc.querySelector('[data-action="copiar-link"]'));
+  const campoLink = doc.querySelector('[data-link-url]');
+  ok('o campo traz a URL do portal', campoLink.value.includes('#/portal/'),
+     campoLink.value.slice(0, 60));
+
+  const tokenGerado = campoLink.value.split('#/portal/')[1];
+  await irPara('#/portal/' + tokenGerado, 900);
+  ok('o portal abre pelo link gerado', !!doc.querySelector('.portal'));
+  ok('o portal NÃO tem sidebar', !doc.querySelector('.sidebar'));
+  ok('o portal NÃO tem topbar', !doc.querySelector('.topbar'));
+  ok('o portal mostra o número do processo', texto().includes(processoPortal.numeroCnj));
+  ok('o portal identifica que é acompanhamento',
+     texto().includes('Acompanhamento processual'));
+  ok('o portal diz até quando o link vale', texto().includes('Link válido até'));
+  ok('o portal avisa que não substitui a consulta oficial',
+     texto().includes('não substitui a consulta processual oficial'));
+
+  const textoPortal = texto();
+  ok('o portal NÃO mostra o valor da causa',
+     !textoPortal.includes('Valor da causa'));
+  ok('o portal NÃO mostra provisão nem risco',
+     !textoPortal.includes('Provisão') && !textoPortal.includes('Risco'));
+  ok('o portal NÃO mostra o número interno do escritório',
+     !textoPortal.includes(processoPortal.numeroInterno));
+
+  await irPara('#/portal/token-invalido-qualquer', 800);
+  ok('token inválido cai na tela de link indisponível',
+     texto().includes('Link indisponível'));
+  ok('a tela de recusa não revela nada do processo',
+     !texto().includes(processoPortal.numeroCnj));
+
+  await irPara('#/processos/' + processoPortal.id, 900);
+  const abaPortal2 = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Compartilhamento'));
+  abaPortal2.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(500);
+  ok('o acesso do cliente foi contabilizado',
+     Array.from(doc.querySelectorAll('table.table tbody tr'))
+       .some(tr => /último/.test(tr.textContent)));
 
   console.log('\nCentral de notificações (F2.2)');
   await irPara('#/', 800);

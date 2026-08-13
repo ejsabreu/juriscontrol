@@ -7,9 +7,10 @@ Software de controle de processos judiciais para escritório de advocacia.
 HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 
 O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está em
-[PLANEJAMENTO.md](PLANEJAMENTO.md). O plano dos módulos que ainda faltam — financeiro,
-portal do cliente, publicações, CRM, BI, segurança/LGPD e assistente — está em
-[PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md).
+[PLANEJAMENTO.md](PLANEJAMENTO.md). A fase 2 está em
+[PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md): **concluídos** fundações, segurança/LGPD,
+alertas e portal do cliente; **a fazer** publicações, financeiro, CRM, documentos
+avançados, assistente, relatórios e administração.
 
 ---
 
@@ -47,10 +48,12 @@ arquivos como estão.
 | Rota | Tela |
 |------|------|
 | `#/entrar` | Entrada — escolha do usuário (sem casca, sem senha) |
+| `#/portal/:token` | **Portal do cliente** — acompanhamento somente leitura, rota pública |
 | `#/` | Dashboard — prazos críticos, compromissos, distribuição da carteira |
 | `#/processos` | Lista de processos em **tabela** ou **kanban** |
 | `#/processos/novo` | Cadastro com validação do número CNJ |
 | `#/processos/:id` | Detalhe — Dados · Partes · Andamentos · Prazos · Documentos · Tarefas |
+| `#/processos/:id` → aba Compartilhamento | Links do portal, acessos e revogação |
 | `#/agenda` | Calendário forense + prazos e compromissos |
 | `#/clientes` | Lista e ficha de clientes |
 | `#/tarefas` | Kanban de tarefas |
@@ -133,6 +136,13 @@ Não é maquete estática. O que está implementado funciona:
 - **LGPD** — dossiê do titular, portabilidade em JSON/CSV, anonimização que preserva o
   registro, consentimentos com base legal e o prazo de 15 dias do art. 18 à vista.
 - **Backup e restauração em JSON** — a válvula de escape para a ausência de migração.
+- **Portal do cliente** — a aba *Compartilhamento* do processo gera um link somente leitura
+  com escopo e validade. O portal mostra **apenas** o que estiver marcado como visível ao
+  cliente, e nunca valor da causa, provisão, risco, equipe interna ou nota interna. Link
+  inválido, expirado e revogado caem todos na mesma tela, porque distinguir os casos já
+  contaria que o processo existe. **O link abre em qualquer navegador** — o token carrega
+  os dados do compartilhamento, como um JWT; a soma de verificação detecta link truncado,
+  mas não é assinatura (sem servidor não há segredo para assinar).
 
 ---
 
@@ -143,7 +153,7 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-941 verificações em 7 suítes:
+1.029 verificações em 8 suítes:
 
 | Suíte | O que cobre |
 |-------|-------------|
@@ -151,6 +161,7 @@ npm test
 | `fundacoes.test.js` | Fase 2: aritmética de centavos, CSV, tokens/anonimização, escala e paleta dos gráficos, enums novos e banco v3. **Não precisa de jsdom.** |
 | `seguranca.test.js` | Matriz de permissões, segredo de justiça, sessão, trilha de auditoria, LGPD e backup. **Não precisa de jsdom.** |
 | `alertas.test.js` | Avaliador de alertas (incluindo idempotência), notificações, e-mail simulado, dupla conferência e prazo perdido. **Não precisa de jsdom.** |
+| `portal.test.js` | Token do portal, escopo, revogação e — sobretudo — o que **não** pode vazar para o cliente. **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |
@@ -163,7 +174,7 @@ Sem `jsdom` instalado, `npm test` roda só a suíte de domínio e pula as demais
 
 ```
 index.html              Único HTML — carrega os scripts na ordem de dependência
-assets/css/             tokens · base · layout · components · pages
+assets/css/             tokens · base · layout · components · pages · portal
 data/seed.js            Gerador determinístico dos dados fictícios
 src/
   domain/               ⭐ Lógica pura — migra para o React sem alteração

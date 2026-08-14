@@ -58,7 +58,7 @@ outros módulos.
 | **F2.6** | CRM e prospecção ✅ | F2.0, F2.5 | M |
 | **F2.7** | Documentos avançados (modelos, busca, assinatura) ✅ | F2.0 | M |
 | **F2.8** | Assistente (IA) ✅ | F2.4, F2.7 | M |
-| **F2.9** | Relatórios e BI | F2.2, F2.5, F2.6 | M |
+| **F2.9** | Relatórios e BI ✅ | F2.2, F2.5, F2.6 | M |
 | **F2.10** | Administração e complementos | F2.1 | M |
 
 **Atalho possível:** se a prioridade for demonstrar valor rápido, **F2.3 (portal)** pode
@@ -1152,7 +1152,7 @@ normalizada antes do casamento, com os padrões escritos sem acento.
 
 ---
 
-## F2.9 — Relatórios e BI
+## F2.9 — Relatórios e BI ✅ concluída
 
 Nenhuma entidade nova. Tudo é derivação — e por isso quase tudo já está a um passo dos
 `selectors.js` existentes.
@@ -1190,18 +1190,68 @@ consulta ao store, nenhum DOM. É o módulo mais fácil de testar do projeto int
 Toda tela exporta **CSV** (`utils/csv.js`) e **PDF** (impressão, com `@media print` já
 usada pelo `exportar.js`). O dashboard ganha links "ver relatório completo" nos cartões.
 
-### Passos
+### Passos — todos executados
 
-1. `domain/indicadores.js` — uma função por relatório, com teste cada
-2. `RelatoriosPage.js` (catálogo) e `RelatorioDetalhePage.js` (genérica, dirigida por
-   configuração de relatório)
-3. Ligar `Chart.js` — ao implementar, seguir o guia de visualização de dados para paleta,
-   eixos e acessibilidade; cores vêm de `tokens.css`
-4. Filtros e persistência do filtro no hash (`?de=&ate=&area=`)
-5. Exportação CSV e impressão
-6. Permissões: `advogado` vê só os próprios números; `financeiro` só os financeiros
-7. Links do dashboard para os relatórios
-8. Testes: cada indicador com dados controlados, período vazio, divisão por zero
+1. ✅ `domain/indicadores.js` — dez funções puras, uma por relatório
+2. ✅ `RelatoriosPage.js` (catálogo) e `RelatorioDetalhePage.js` (**uma tela para os dez**)
+3. ✅ `Chart.js` de F2.0 ligado, com a paleta validada desde o começo
+4. ✅ Filtros de período, área e responsável, com o recorte no hash
+5. ✅ Exportação CSV e impressão
+6. ✅ Permissão por relatório + escopo próprio
+7. ✅ Links do dashboard para carteira e contingência
+8. ✅ `testes/relatorios.test.js` — 129 verificações
+
+### Uma tela para dez relatórios
+
+`RelatorioDetalhePage` não sabe o que está desenhando: lê um **contrato** devolvido pelo
+domínio — título, gráfico, tabela, totais, nota — e monta. Acrescentar um relatório novo é
+acrescentar uma função a `indicadores.js` e uma linha ao catálogo; **nenhuma linha da tela
+muda**. O teste percorre o catálogo inteiro conferindo que todos respeitam o contrato — sem
+isso, um relatório fora do padrão só quebraria quando alguém o abrisse.
+
+### As duas famílias de verificação que importam
+
+**Coerência.** Total geral com lista filtrada é o jeito clássico de um relatório mentir. O
+teste confere, relatório a relatório, que a soma da tabela bate com o total exibido: as
+provisões por risco somam o provisionado, as fases somam os ativos, os meses somam o
+recebido, os percentuais somam 100.
+
+**Acesso.** O escopo próprio é aplicado **na coleta**, não na tela — o advogado que abre
+"produtividade" recebe um recorte em que o total e a lista vêm do mesmo lugar. E processo em
+segredo de justiça não entra em conta nenhuma: se sumisse da lista mas continuasse no total,
+**o número denunciaria a existência dele**.
+
+### Decisões tomadas durante a implementação
+
+- **Ordem que é significado usa a rampa ordinal.** Fase do processo, faixa de aging e etapa
+  do funil são ordinais — a rampa de um matiz só mostra a progressão na própria cor.
+  Identidade (advogado, área) usa a paleta categórica validada em F2.0.
+- **Produtividade conta o que foi ENTREGUE**, não o que caiu na mesa: prazo cumprido e
+  tarefa concluída, com a data da entrega — não a da criação.
+- **"Cumprido com folga" é até a data INTERNA**, não a fatal. Cumprir na data fatal é
+  cumprir, mas é o sinal de que o processo está sendo tocado no limite — e o relatório
+  separa os dois.
+- **A taxa de conversão do funil só considera o que fechou**, e a taxa de êxito só considera
+  encerrados. Incluir o que está em andamento derrubaria os números sem nada ter dado errado.
+- **A taxa de êxito é declaradamente uma APROXIMAÇÃO.** O modelo não tem campo de desfecho,
+  então "favorável" é inferido do risco final. A nota do relatório diz isso — um número com
+  ressalva vale mais que um número que finge precisão.
+- **O CSV leva o valor formatado**, não o centavo cru: quem abre no Excel quer ler
+  "R$ 1.250,00".
+- **Todo relatório tem uma nota explicando o critério.** Número sem critério é número que
+  vira discussão na reunião.
+
+### Um defeito real que o teste pegou
+
+`history.replaceState` **lança sob `file://`** em vários navegadores — e abrir com duplo
+clique é decisão do projeto desde a fase 1. O relatório inteiro caía na tela de erro por
+causa da tentativa de escrever o filtro no endereço. A falha passou a ser absorvida:
+perde-se o link compartilhável sob `file://`, nunca a tela. Sob GitHub Pages, o link com o
+recorte funciona normalmente.
+
+### Nota sobre o banco
+
+**Nenhuma coleção nova** — relatório é derivação. A chave continua em `jurisctrl.db.v7`.
 
 ---
 

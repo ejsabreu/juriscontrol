@@ -40,6 +40,12 @@
                 { permissao: 'documentos.editar' });
     R.registrar('/simulador',              'simulador', P.SimuladorPage,        'Simulador de prazo');
 
+    // Relatórios e BI (F2.9)
+    R.registrar('/relatorios',             'relatorios', P.RelatoriosPage,      'Relatórios',
+                { permissao: 'relatorios.ver' });
+    R.registrar('/relatorios/:id',         'relatorios', P.RelatorioDetalhePage, 'Relatório',
+                { permissao: 'relatorios.ver' });
+
     // Modelos de peça (F2.7)
     R.registrar('/modelos',                'modelos',   P.ModelosPage,          'Modelos de peça',
                 { permissao: 'documentos.editar' });

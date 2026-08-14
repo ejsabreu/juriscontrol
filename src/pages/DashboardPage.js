@@ -201,8 +201,9 @@
     var cardFases = ui.Card({
       titulo: 'Processos por fase',
       subtitulo: 'somente ativos',
-      acoes: ui.Button({ rotulo: 'Abrir kanban', variante: 'ghost', tamanho: 'sm',
-                         href: '#/processos?visao=kanban' }),
+      // F2.9: o dashboard mostra o retrato; o relatório mostra o recorte.
+      acoes: ui.Button({ rotulo: 'Relatório completo', variante: 'ghost', tamanho: 'sm',
+                         href: '#/relatorios/carteira' }),
       conteudo: htmlFases
     });
 
@@ -216,6 +217,10 @@
 
     var cardArea = ui.Card({
       titulo: 'Composição da carteira',
+      acoes: App.services.sessaoService.pode('relatorios.todos')
+        ? ui.Button({ rotulo: 'Contingência', variante: 'ghost', tamanho: 'sm',
+                      href: '#/relatorios/contingencia' })
+        : '',
       conteudo:
         '<div class="u-sm u-muted" style="margin-bottom:var(--space-2)">Por área do direito</div>' +
         ui.StackedBar({ segmentos: distArea }) +

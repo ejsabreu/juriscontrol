@@ -9,8 +9,8 @@ HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está em
 [PLANEJAMENTO.md](PLANEJAMENTO.md). A fase 2 está em
 [PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md): **concluídos** fundações, segurança/LGPD,
-alertas, portal do cliente, publicações/tribunais, financeiro, CRM, documentos avançados e
-assistente; **a fazer** relatórios/BI e administração.
+alertas, portal do cliente, publicações/tribunais, financeiro, CRM, documentos avançados,
+assistente e relatórios/BI; **a fazer** administração e complementos.
 
 ---
 
@@ -57,6 +57,8 @@ arquivos como estão.
 | `#/agenda` | Calendário forense + prazos e compromissos |
 | `#/clientes` | Lista e ficha de clientes |
 | `#/tarefas` | Kanban de tarefas |
+| `#/relatorios` | **Relatórios** — catálogo por tema, filtrado pelo perfil |
+| `#/relatorios/:id` | Relatório com gráfico, tabela, exportação e nota de critério |
 | `#/modelos` | **Modelos de peça** — biblioteca com variáveis e catálogo |
 | `#/crm` | **Funil de prospecção** — kanban de interessados, arrastar muda a etapa |
 | `#/crm/:id` | Ficha do interessado: histórico de contato, propostas e conversão |
@@ -144,6 +146,14 @@ Não é maquete estática. O que está implementado funciona:
 - **LGPD** — dossiê do titular, portabilidade em JSON/CSV, anonimização que preserva o
   registro, consentimentos com base legal e o prazo de 15 dias do art. 18 à vista.
 - **Backup e restauração em JSON** — a válvula de escape para a ausência de migração.
+- **Dez relatórios, uma tela** — produtividade, prazos, carteira, contingência, taxa de
+  êxito, faturamento, inadimplência, rentabilidade, funil e captura. A tela é genérica: lê
+  um contrato do domínio e monta, então acrescentar relatório não a altera. Duas garantias
+  que o teste cobre: **o total sempre bate com a soma da tabela** (total geral com lista
+  filtrada é o jeito clássico de um relatório mentir) e **o escopo é aplicado na coleta** —
+  o advogado vê os próprios números, e processo em segredo de justiça não entra em conta
+  nenhuma, porque o total denunciaria a existência dele. Cada relatório traz a **nota do
+  critério**: número sem critério vira discussão na reunião.
 - **Assistente que não inventa** — resumo do processo, próximas ações, risco sugerido,
   revisão da peça antes do protocolo e pergunta livre. **Não há modelo de linguagem**, e a
   tela diz isso: é regra e dicionário auditável. Três garantias sustentam o módulo —
@@ -205,7 +215,7 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-1.677 verificações em 13 suítes. As dez que não precisam de jsdom compartilham o
+1.832 verificações em 14 suítes. As onze que não precisam de jsdom compartilham o
 sandbox de `testes/ambiente.js`, que carrega o núcleo (utils, domínio, seed, store e
 services) na ordem de dependência — assim um módulo novo no seed entra num lugar só.
 
@@ -221,6 +231,7 @@ services) na ordem de dependência — assim um módulo novo no seed entra num l
 | `crm.test.js` | Funil, ponderação do pipeline, propostas que expiram na leitura e a conversão íntegra de lead em cliente + contrato + processo. **Não precisa de jsdom.** |
 | `documentos.test.js` | Preenchimento de modelos (com ênfase na variável sem valor), índice invertido, busca com segredo de justiça aplicado, assinatura que quebra ao alterar o texto e trilha de acesso. **Não precisa de jsdom.** |
 | `assistente.test.js` | Resumo, próxima ação, duplicidade, risco, revisor de peça e gramática de intenções — com ênfase nos casos em que o sistema **precisa admitir que não sabe**. **Não precisa de jsdom.** |
+| `relatorios.test.js` | Contrato de retorno dos dez indicadores, coerência entre total e tabela, escopo próprio e segredo de justiça nas contas. **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |

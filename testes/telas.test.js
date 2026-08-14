@@ -301,6 +301,78 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   ok('resultados listados', painel.querySelectorAll('.global-results__item').length > 0,
      String(painel.querySelectorAll('.global-results__item').length));
 
+  console.log('\nRelatórios (F2.9)');
+  await irPara('#/relatorios', 900);
+  ok('o catálogo abre', texto().includes('Relatórios'));
+  ok('lista os relatórios em cartões',
+     doc.querySelectorAll('.rel-card').length === 10,
+     String(doc.querySelectorAll('.rel-card').length));
+  ok('agrupa por tema', doc.querySelectorAll('.rel-grupo').length >= 4,
+     String(doc.querySelectorAll('.rel-grupo').length));
+
+  await irPara('#/relatorios/carteira', 1000);
+  ok('o relatório abre', texto().includes('Carteira de processos'));
+  ok('mostra os totais', doc.querySelectorAll('.kpi').length > 0);
+  ok('desenha o gráfico', !!doc.querySelector('.chart'));
+  ok('o gráfico traz a visão de tabela (acessibilidade)',
+     !!doc.querySelector('.chart__table'));
+  ok('mostra o detalhamento', texto().includes('Detalhamento'));
+  ok('oferece exportar CSV', !!doc.querySelector('[data-action="exportar-csv"]'));
+  ok('oferece imprimir', !!doc.querySelector('[data-action="imprimir-relatorio"]'));
+  ok('mostra a nota explicativa do indicador', !!doc.querySelector('.rel-nota'));
+  ok('mostra o seletor de período', !!doc.querySelector('.daterange'));
+
+  const btnMes = Array.from(doc.querySelectorAll('[data-action="periodo"]'))
+    .find(b => b.textContent.trim() === 'Mês atual');
+  btnMes.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  /* Sob file:// o navegador recusa reescrever a URL — o link deixa de
+     carregar o recorte, mas o relatório continua filtrado. */
+  ok('o cabeçalho reflete o período escolhido', texto().includes('Mês atual'));
+  ok('o relatório continua desenhado após trocar o período',
+     !!doc.querySelector('.chart') && !texto().includes('Erro ao gerar'));
+
+  await irPara('#/relatorios/contingencia', 1000);
+  ok('o relatório de contingência abre', texto().includes('Contingência'));
+  ok('explica o tratamento contábil de cada risco',
+     texto().includes('provisão contábil'));
+  ok('desenha o donut da carteira', !!doc.querySelector('.chart__donut'));
+
+  await irPara('#/relatorios/faturamento', 1000);
+  ok('o relatório financeiro abre', texto().includes('Faturamento'));
+  ok('deixa claro que é regime de caixa', texto().includes('regime de caixa'));
+
+  console.log('\nRelatórios — escopo por perfil');
+  const advogadoTeste = window.App.services.db.get('usuarios')
+    .filter(u => u.perfil === 'advogado')[0];
+  await window.App.services.sessaoService.entrar(advogadoTeste.id);
+  await irPara('#/relatorios', 900);
+  ok('o advogado vê menos relatórios que o admin',
+     doc.querySelectorAll('.rel-card').length < 10,
+     String(doc.querySelectorAll('.rel-card').length));
+  ok('e o cartão avisa que o escopo é restrito',
+     doc.querySelectorAll('.rel-card__escopo').length > 0);
+
+  await irPara('#/relatorios/produtividade', 1000);
+  ok('o relatório restrito avisa antes do número',
+     !!doc.querySelector('.rel-escopo'));
+  ok('e diz de quem são os números',
+     doc.querySelector('.rel-escopo').textContent.includes('seus números'));
+
+  await irPara('#/relatorios/contingencia', 900);
+  ok('relatório sem permissão é bloqueado pela guarda de rota ou pela tela',
+     window.location.hash === '#/' || texto().includes('Sem acesso'),
+     window.location.hash);
+
+  await window.App.services.sessaoService.entrar(usuarioAdmin.id);
+
+  console.log('\nDashboard liga aos relatórios (F2.9)');
+  await irPara('#/', 900);
+  ok('o dashboard leva ao relatório da carteira',
+     !!doc.querySelector('a[href="#/relatorios/carteira"]'));
+  ok('e ao de contingência, para quem pode',
+     !!doc.querySelector('a[href="#/relatorios/contingencia"]'));
+
   console.log('\nAssistente (F2.8)');
   const processoIa = window.App.services.db.get('processos')
     .filter(p => !p.segredoJustica)[0];

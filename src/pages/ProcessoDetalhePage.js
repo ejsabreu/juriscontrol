@@ -653,6 +653,11 @@
       abrirNovoDocumento(botao.dataset.value || null);
     });
 
+    App.dom.delegate(container, 'click', '[data-action="documento-de-modelo"]',
+      function (evento, botao) {
+        abrirDocumentoDeModelo(botao.dataset.value || null);
+      });
+
     App.dom.delegate(container, 'click', '[data-action="abrir-documento"]', function (evento, botao) {
       abrirDocumento(botao.dataset.value);
     });
@@ -968,9 +973,13 @@
 
     var modoEdicao = Visor.modoEdicao(doc);
 
+    // F2.7: abrir o documento É um acesso, e fica registrado.
+    App.services.assinaturaService.registrarAcesso(documentoId, 'ver');
+
     var acoes = [
       { rotulo: 'Baixar', variante: 'secondary', acao: 'baixar' },
-      { rotulo: 'Mover', variante: 'secondary', acao: 'mover' }
+      { rotulo: 'Mover', variante: 'secondary', acao: 'mover' },
+      { rotulo: 'Assinar', variante: 'secondary', acao: 'assinar' }
     ];
 
     // O botão só existe onde a edição é possível — nada de oferecer e falhar.
@@ -982,10 +991,11 @@
     App.components.Modal.abrir({
       titulo: doc.nome,
       tamanho: 'lg',
-      conteudo: Visor(props),
+      conteudo: Visor(props) + '<div id="painel-assinaturas"></div>',
       acoes: acoes,
       aoAbrir: function (corpo) {
         Visor.mount(corpo, props);
+        desenharAssinaturas(documentoId, corpo);
       },
       aoAcao: function (acao, corpo, fechar) {
         // Baixar não fecha: o usuário costuma querer continuar olhando.
@@ -995,7 +1005,181 @@
         // Editar leva para outra aba: deixar o modal aberto atrás não faz
         // sentido — o usuário volta para o processo, não para o visor.
         if (acao === 'editar') { fechar(); abrirEditor(documentoId); }
+        if (acao === 'assinar') assinarDocumento(documentoId, corpo);
       }
+    });
+  }
+
+  /**
+   * Gera documento a partir de modelo, dentro do processo (F2.7).
+   *
+   * A prévia da contagem aparece ANTES de criar: quantas variáveis o
+   * processo resolve e quantas ficarão pendentes. Descobrir isso depois, no
+   * editor, é descobrir tarde.
+   */
+  function abrirDocumentoDeModelo(pastaId) {
+    var ui = App.components.ui;
+
+    App.services.modeloPecaService.listar({}).then(function (lista) {
+      if (!lista.length) {
+        App.components.Toast.aviso('Nenhum modelo cadastrado',
+          'Crie modelos em Modelos de peça.');
+        return;
+      }
+
+      var opcoes = lista.map(function (m) {
+        return { id: m.id, label: m.nome + ' (' + m.totalVariaveis + ' variáveis)' };
+      });
+
+      App.components.Modal.abrir({
+        titulo: 'Novo documento a partir de modelo',
+        conteudo:
+          '<form id="form-doc-modelo">' +
+            ui.Field({ nome: 'modeloId', rotulo: 'Modelo', tipo: 'select',
+                       opcoes: App.domain.enums.opcoes(opcoes, opcoes[0].id) }) +
+            ui.Field({ nome: 'nome', rotulo: 'Nome do documento',
+                       valor: lista[0].nome }) +
+          '</form>' +
+          '<div id="previa-modelo"></div>',
+        acoes: [
+          { rotulo: 'Cancelar', variante: 'secondary', acao: 'cancelar', fechar: true },
+          { rotulo: 'Gerar', variante: 'primary', acao: 'gerar' }
+        ],
+        aoAbrir: function (corpo) {
+          function atualizar() {
+            var d = App.dom.formToObject(App.dom.qs('#form-doc-modelo', corpo));
+            App.services.modeloPecaService.previa(d.modeloId, processo.id)
+              .then(function (r) {
+                var alvo = App.dom.qs('#previa-modelo', corpo);
+                if (!alvo) return;
+                alvo.innerHTML =
+                  '<div class="preench">' +
+                    '<div class="preench__linha">' +
+                      '<span class="preench__ok">✓ ' + r.resolvidas.length +
+                        ' preenchida(s) com os dados deste processo</span>' +
+                      (r.pendentes.length
+                        ? '<span class="preench__pendente">⚠ ' + r.pendentes.length +
+                          ' sem valor</span>' : '') +
+                    '</div>' +
+                    (r.pendentes.length
+                      ? '<p class="u-xs u-subtle">' +
+                        r.pendentes.map(function (v) {
+                          return '<code>' + esc(v) + '</code>';
+                        }).join(', ') +
+                        ' ficarão destacadas no documento para você completar.</p>'
+                      : '') +
+                  '</div>';
+              });
+          }
+
+          App.dom.delegate(corpo, 'change', 'select[name="modeloId"]', function (e, campo) {
+            var m = lista.filter(function (x) { return x.id === campo.value; })[0];
+            var nome = App.dom.qs('input[name="nome"]', corpo);
+            if (m && nome) nome.value = m.nome;
+            atualizar();
+          });
+          atualizar();
+        },
+        aoAcao: function (acao, corpo, fecharModal) {
+          if (acao !== 'gerar') return;
+          var d = App.dom.formToObject(App.dom.qs('#form-doc-modelo', corpo));
+
+          App.services.modeloPecaService.gerarDocumento({
+            modeloId: d.modeloId,
+            processoId: processo.id,
+            pastaId: pastaId,
+            nome: d.nome
+          }).then(function (r) {
+            fecharModal();
+            App.components.Toast.sucesso('Documento gerado',
+              r.pendentes.length
+                ? r.pendentes.length + ' variável(is) destacadas para completar.'
+                : 'Todas as variáveis foram preenchidas.');
+            abrirEditor(r.documento.id);
+          }).catch(function (erro) {
+            App.components.Toast.erro('Não foi possível gerar', erro.message);
+          });
+        }
+      });
+    });
+  }
+
+  /** Painel de assinaturas e trilha de acesso, no rodapé do visor (F2.7). */
+  function desenharAssinaturas(documentoId, corpo) {
+    var alvo = App.dom.qs('#painel-assinaturas', corpo);
+    if (!alvo) return;
+
+    Promise.all([
+      App.services.assinaturaService.conferir(documentoId),
+      App.services.assinaturaService.acessos(documentoId)
+    ]).then(function (r) {
+      var conferencia = r[0];
+      var acessos = r[1];
+
+      var listaAssinaturas = conferencia.assinaturas.map(function (a) {
+        return '<li class="assin' + (a.integra ? '' : ' assin--quebrada') + '">' +
+          '<span class="assin__icone" aria-hidden="true">' +
+            (a.integra ? '✓' : '⚠') + '</span>' +
+          '<div>' +
+            '<div class="u-sm u-bold">' + esc(a.signatarioNome) + '</div>' +
+            '<div class="u-xs u-subtle">' + esc(App.format.dataHora(a.assinadoEm)) +
+              ' · versão ' + a.versaoDocumento +
+              ' · <code>' + esc(a.hash) + '</code></div>' +
+            (a.integra
+              ? ''
+              : '<div class="u-xs" style="color:var(--color-danger)">' +
+                'O documento foi ALTERADO depois desta assinatura.</div>') +
+          '</div>' +
+        '</li>';
+      }).join('');
+
+      var resumo = App.services.assinaturaService.resumoAcessos(documentoId);
+
+      alvo.innerHTML =
+        '<div class="doc-rodape">' +
+          '<div class="doc-rodape__bloco">' +
+            '<h5 class="doc-rodape__titulo">Assinaturas</h5>' +
+            (conferencia.total
+              ? '<ul class="assin-list">' + listaAssinaturas + '</ul>' +
+                (conferencia.alterado
+                  ? '<p class="u-xs" style="color:var(--color-danger)">' +
+                    conferencia.quebradas + ' assinatura(s) não conferem com o texto atual.</p>'
+                  : '')
+              : '<p class="u-xs u-subtle">Nenhuma assinatura.</p>') +
+            App.components.SeloSimulado({
+              forma: 'linha',
+              oque: 'não há ICP-Brasil nem carimbo do tempo. O que é real é o HASH: ' +
+                    'se o texto mudar, a conferência acusa.',
+              naFase3: 'assinatura com certificado A1/A3 e carimbo do tempo.'
+            }) +
+          '</div>' +
+          '<div class="doc-rodape__bloco">' +
+            '<h5 class="doc-rodape__titulo">Quem acessou</h5>' +
+            '<p class="u-xs u-subtle">' +
+              resumo.visualizacoes + ' visualização(ões) · ' +
+              resumo.downloads + ' download(s) · ' +
+              resumo.edicoes + ' edição(ões)' +
+              (resumo.peloPortal ? ' · ' + resumo.peloPortal + ' pelo portal' : '') +
+            '</p>' +
+            (acessos.length
+              ? '<ul class="acesso-list">' + acessos.slice(0, 6).map(function (a) {
+                  return '<li><span>' + esc(a.usuarioNome) + '</span>' +
+                         '<span class="u-xs u-subtle">' + esc(a.acao) + ' · ' +
+                         esc(App.format.dataHora(a.quando)) + '</span></li>';
+                }).join('') + '</ul>'
+              : '') +
+          '</div>' +
+        '</div>';
+    });
+  }
+
+  function assinarDocumento(documentoId, corpo) {
+    App.services.assinaturaService.assinar(documentoId).then(function (a) {
+      App.components.Toast.sucesso('Documento assinado',
+        'Hash registrado: ' + a.hash);
+      desenharAssinaturas(documentoId, corpo);
+    }).catch(function (erro) {
+      App.components.Toast.erro('Não foi possível assinar', erro.message);
     });
   }
 

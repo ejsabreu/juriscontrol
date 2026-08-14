@@ -1159,9 +1159,197 @@
       }
     }
 
+    // ----- Modelos de peça (F2.7) -------------------------------------------
+    /* Os modelos usam as MESMAS variáveis do catálogo de `domain/modelos.js`.
+       Um modelo com variável inventada seria pior que modelo nenhum: o campo
+       nunca resolveria e o advogado descobriria no protocolo. */
+    var MODELOS_BASE = [
+      { nome: 'Procuração ad judicia', tipo: 'procuracao', categoria: 'procuracao',
+        areaId: null, html:
+        '<h1>PROCURAÇÃO AD JUDICIA ET EXTRA</h1>' +
+        '<p><strong>OUTORGANTE:</strong> {{cliente.nome}}, inscrito(a) no CPF/CNPJ sob o ' +
+        'n. {{cliente.cpfCnpj}}, residente e domiciliado(a) em {{cliente.endereco}}.</p>' +
+        '<p><strong>OUTORGADO:</strong> {{advogado.nome}}, advogado(a) inscrito(a) na ' +
+        '{{advogado.oab}}, integrante de {{escritorio.nome}}.</p>' +
+        '<p><strong>PODERES:</strong> os da cláusula ad judicia et extra, para o foro em ' +
+        'geral, podendo propor e acompanhar a presente demanda, receber citação, confessar, ' +
+        'reconhecer a procedência do pedido, transigir, desistir, renunciar ao direito sobre ' +
+        'o qual se funda a ação, receber, dar quitação e firmar compromisso.</p>' +
+        '<p>{{processo.comarca}}, {{data.extenso}}.</p>' +
+        '<p style="margin-top:3em">_______________________________<br>{{cliente.nome}}</p>' },
+
+      { nome: 'Contrato de honorários — valor fixo', tipo: 'contrato', categoria: 'contrato',
+        areaId: null, html:
+        '<h1>CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</h1>' +
+        '<p><strong>CONTRATANTE:</strong> {{cliente.nome}}, CPF/CNPJ {{cliente.cpfCnpj}}.</p>' +
+        '<p><strong>CONTRATADO:</strong> {{escritorio.nome}}, por {{advogado.nome}}, ' +
+        '{{advogado.oab}}.</p>' +
+        '<h2>Cláusula 1ª — Do objeto</h2>' +
+        '<p>Prestação de serviços advocatícios em {{processo.assunto}}, perante a ' +
+        '{{processo.vara}} da comarca de {{processo.comarca}}.</p>' +
+        '<h2>Cláusula 2ª — Dos honorários</h2>' +
+        '<p>Os honorários são fixados em {{honorarios.valor}} ' +
+        '({{honorarios.extenso}}).</p>' +
+        '<h2>Cláusula 3ª — Das despesas</h2>' +
+        '<p>Custas, diligências e demais despesas processuais correm por conta do ' +
+        'CONTRATANTE, mediante prestação de contas.</p>' +
+        '<p>{{processo.comarca}}, {{data.extenso}}.</p>' },
+
+      { nome: 'Petição inicial — cobrança', tipo: 'peticao', categoria: 'inicial',
+        areaId: 'civel', html:
+        '<p>EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {{processo.vara|maiuscula}} DA ' +
+        'COMARCA DE {{processo.comarca|maiuscula}}</p>' +
+        '<p style="margin-top:2em">{{cliente.nome|maiuscula}}, inscrito(a) no CPF/CNPJ sob ' +
+        'o n. {{cliente.cpfCnpj}}, por seu advogado que esta subscreve ({{advogado.oab}}), ' +
+        'vem respeitosamente à presença de Vossa Excelência propor</p>' +
+        '<h1>AÇÃO DE COBRANÇA</h1>' +
+        '<p>em face de {{parte.contraria|maiuscula}}, pelos fatos e fundamentos a seguir.</p>' +
+        '<h2>I — DOS FATOS</h2>' +
+        '<p>[descrever os fatos]</p>' +
+        '<h2>II — DO DIREITO</h2>' +
+        '<p>[fundamentação]</p>' +
+        '<h2>III — DOS PEDIDOS</h2>' +
+        '<p>Requer a citação da parte ré e, ao final, a procedência do pedido.</p>' +
+        '<p>Dá-se à causa o valor de {{processo.valorCausa}}.</p>' +
+        '<p>{{processo.comarca}}, {{data.hoje}}.</p>' +
+        '<p>{{advogado.nome}}<br>{{advogado.oab}}</p>' },
+
+      { nome: 'Contestação', tipo: 'peticao', categoria: 'contestacao',
+        areaId: 'civel', html:
+        '<p>EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {{processo.vara|maiuscula}}</p>' +
+        '<p style="margin-top:2em">Processo n. {{processo.numeroCnj}}</p>' +
+        '<p>{{cliente.nome|maiuscula}}, já qualificado(a) nos autos, vem apresentar</p>' +
+        '<h1>CONTESTAÇÃO</h1>' +
+        '<p>à ação que lhe move {{parte.contraria|maiuscula}}, pelas razões a seguir.</p>' +
+        '<h2>I — DAS PRELIMINARES</h2><p>[preliminares]</p>' +
+        '<h2>II — DO MÉRITO</h2><p>[mérito]</p>' +
+        '<h2>III — DOS PEDIDOS</h2>' +
+        '<p>Requer a improcedência total dos pedidos.</p>' +
+        '<p>{{processo.comarca}}, {{data.hoje}}.</p>' +
+        '<p>{{advogado.nome}} — {{advogado.oab}}</p>' },
+
+      { nome: 'Recurso de apelação', tipo: 'peticao', categoria: 'recurso',
+        areaId: null, html:
+        '<p>EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {{processo.vara|maiuscula}}</p>' +
+        '<p style="margin-top:2em">Processo n. {{processo.numeroCnj}}</p>' +
+        '<p>{{cliente.nome|maiuscula}}, inconformado(a) com a r. sentença, vem interpor</p>' +
+        '<h1>RECURSO DE APELAÇÃO</h1>' +
+        '<p>requerendo o recebimento e a remessa ao {{processo.tribunal}}.</p>' +
+        '<h2>RAZÕES DE APELAÇÃO</h2><p>[razões]</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' },
+
+      { nome: 'Embargos de declaração', tipo: 'peticao', categoria: 'recurso',
+        areaId: null, html:
+        '<p>Processo n. {{processo.numeroCnj}} — {{processo.vara}}</p>' +
+        '<h1>EMBARGOS DE DECLARAÇÃO</h1>' +
+        '<p>{{cliente.nome|maiuscula}} vem opor embargos de declaração, apontando ' +
+        '[omissão / contradição / obscuridade] na decisão de fls.</p>' +
+        '<p>Requer o acolhimento com efeitos infringentes.</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' },
+
+      { nome: 'Réplica', tipo: 'peticao', categoria: 'outro', areaId: 'civel', html:
+        '<p>Processo n. {{processo.numeroCnj}}</p>' +
+        '<h1>RÉPLICA</h1>' +
+        '<p>{{cliente.nome|maiuscula}} vem impugnar a contestação apresentada por ' +
+        '{{parte.contraria|maiuscula}}, reiterando os termos da inicial.</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' },
+
+      { nome: 'Reclamação trabalhista', tipo: 'peticao', categoria: 'inicial',
+        areaId: 'trabalhista', html:
+        '<p>EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DO TRABALHO DA {{processo.vara|maiuscula}} ' +
+        'DE {{processo.comarca|maiuscula}}</p>' +
+        '<p style="margin-top:2em">{{cliente.nome|maiuscula}}, CPF {{cliente.cpfCnpj}}, ' +
+        'vem propor</p>' +
+        '<h1>RECLAMAÇÃO TRABALHISTA</h1>' +
+        '<p>em face de {{parte.contraria|maiuscula}}.</p>' +
+        '<h2>DOS FATOS</h2><p>[período do contrato, função e salário]</p>' +
+        '<h2>DOS PEDIDOS</h2><p>[verbas postuladas]</p>' +
+        '<p>Valor da causa: {{processo.valorCausa}}.</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' },
+
+      { nome: 'Alegações finais por memoriais', tipo: 'peticao', categoria: 'outro',
+        areaId: null, html:
+        '<p>Processo n. {{processo.numeroCnj}} — {{processo.vara}}</p>' +
+        '<h1>ALEGAÇÕES FINAIS</h1>' +
+        '<p>{{cliente.nome|maiuscula}} apresenta suas alegações finais por memoriais.</p>' +
+        '<h2>DA PROVA PRODUZIDA</h2><p>[síntese]</p>' +
+        '<h2>DO PEDIDO</h2><p>[pedido final]</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' },
+
+      { nome: 'Notificação extrajudicial', tipo: 'notificacao', categoria: 'outro',
+        areaId: null, html:
+        '<h1>NOTIFICAÇÃO EXTRAJUDICIAL</h1>' +
+        '<p><strong>De:</strong> {{cliente.nome}}, CPF/CNPJ {{cliente.cpfCnpj}}<br>' +
+        '<strong>Para:</strong> {{parte.contraria}}</p>' +
+        '<p>Por meio desta, o(a) notificante vem constituir o(a) notificado(a) em mora, ' +
+        'concedendo o prazo de [X] dias para regularização, sob pena das medidas judiciais ' +
+        'cabíveis.</p>' +
+        '<p>{{data.extenso}}</p>' +
+        '<p>{{advogado.nome}} — {{advogado.oab}}</p>' },
+
+      { nome: 'Petição de juntada', tipo: 'peticao', categoria: 'outro', areaId: null, html:
+        '<p>Processo n. {{processo.numeroCnj}} — {{processo.vara}}</p>' +
+        '<h1>PETIÇÃO DE JUNTADA</h1>' +
+        '<p>{{cliente.nome|maiuscula}} requer a juntada dos documentos anexos.</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' },
+
+      { nome: 'Manifestação sobre laudo pericial', tipo: 'peticao', categoria: 'outro',
+        areaId: null, html:
+        '<p>Processo n. {{processo.numeroCnj}}</p>' +
+        '<h1>MANIFESTAÇÃO SOBRE O LAUDO</h1>' +
+        '<p>{{cliente.nome|maiuscula}} vem manifestar-se sobre o laudo pericial ' +
+        'apresentado nos autos.</p>' +
+        '<p>[concordância ou impugnação fundamentada]</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' },
+
+      { nome: 'Impugnação ao cumprimento de sentença', tipo: 'peticao',
+        categoria: 'outro', areaId: 'civel', html:
+        '<p>Processo n. {{processo.numeroCnj}}</p>' +
+        '<h1>IMPUGNAÇÃO AO CUMPRIMENTO DE SENTENÇA</h1>' +
+        '<p>{{cliente.nome|maiuscula}} apresenta impugnação, nos termos do art. 525 do ' +
+        'CPC, apontando excesso de execução.</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' },
+
+      { nome: 'Proposta de honorários', tipo: 'proposta', categoria: 'outro',
+        areaId: null, html:
+        '<h1>PROPOSTA DE HONORÁRIOS</h1>' +
+        '<p><strong>Interessado:</strong> {{cliente.nome}}</p>' +
+        '<p><strong>Objeto:</strong> {{processo.assunto}}</p>' +
+        '<h2>Honorários</h2>' +
+        '<p>Valor de {{honorarios.valor}} ({{honorarios.extenso}}), acrescido de ' +
+        '{{honorarios.exito}} sobre o proveito econômico.</p>' +
+        '<h2>Despesas</h2>' +
+        '<p>Custas e diligências por conta do contratante.</p>' +
+        '<p>{{data.extenso}} — {{escritorio.nome}}</p>' },
+
+      { nome: 'Requerimento de gratuidade de justiça', tipo: 'peticao',
+        categoria: 'outro', areaId: null, html:
+        '<p>Processo n. {{processo.numeroCnj}}</p>' +
+        '<h1>REQUERIMENTO DE GRATUIDADE DE JUSTIÇA</h1>' +
+        '<p>{{cliente.nome|maiuscula}}, CPF/CNPJ {{cliente.cpfCnpj}}, requer os ' +
+        'benefícios da gratuidade da justiça, declarando não ter condições de arcar com ' +
+        'as custas processuais sem prejuízo do próprio sustento.</p>' +
+        '<p>{{data.hoje}} — {{advogado.nome}}, {{advogado.oab}}</p>' }
+    ];
+
+    var modelosPeca = MODELOS_BASE.map(function (m) {
+      return {
+        id: proximoId('MOD'),
+        nome: m.nome,
+        categoria: m.categoria,
+        areaId: m.areaId,
+        tipo: m.tipo,
+        conteudoHtml: m.html,
+        criadoPorId: usuarios[0].id,
+        publico: true,
+        ativo: true, criadoEm: agora, atualizadoEm: agora
+      };
+    });
+
     return {
       usuarios: usuarios,
       pessoas: pessoas,
+      modelosPeca: modelosPeca,
       leads: leads,
       interacoes: interacoes,
       propostas: propostas,

@@ -1399,6 +1399,254 @@
 }
 
 /* ==========================================================================
+   FASE 2 — F2.7 · modelos de peça, busca e assinatura
+   ========================================================================== */
+
+.mod {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-4);
+  align-items: start;
+  margin-top: var(--space-4);
+}
+
+.mod__lista {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.mod__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-left: 3px solid transparent;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mod__item:last-child { border-bottom: 0; }
+.mod__item:hover { background: var(--color-surface-hover); }
+
+.mod__item--active {
+  border-left-color: var(--color-accent-500);
+  background: var(--color-surface-alt);
+}
+
+.mod__nome {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.mod__meta,
+.mod__aviso { font-size: var(--text-xs); color: var(--color-text-subtle); }
+.mod__aviso { color: var(--color-warning); }
+
+.mod__previa { min-width: 0; }
+
+.mod__cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.mod__titulo { margin: 0; font-size: var(--text-lg); color: var(--color-text); }
+
+.mod__texto {
+  margin: 0;
+  padding: var(--space-4);
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mod__alerta {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-prazo-atencao-bg);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--color-warning);
+}
+
+/* A variável destacada no texto do modelo: o autor precisa ver ONDE ela
+   cai para saber se a peça sai coerente depois de preenchida. */
+.var-marca {
+  padding: 0 3px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-300);
+  color: var(--color-primary-900);
+  font-weight: 600;
+}
+
+/* No documento gerado, a variável SEM valor fica visível — nunca apagada em
+   silêncio, nunca deixada como {{...}} cru. */
+.var-pendente {
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--color-prazo-atencao-bg);
+  color: var(--color-warning);
+  border-bottom: 2px dotted var(--color-warning);
+  font-weight: 600;
+}
+
+.var-grupo { margin-bottom: var(--space-4); }
+
+.var-grupo__titulo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+}
+
+.var-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.var {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+}
+
+.var code { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+.var--usada {
+  border-color: var(--color-success);
+  background: var(--color-prazo-ok-bg);
+  color: var(--color-success);
+}
+
+.var__marca { font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* --- Prévia de preenchimento --------------------------------------------------- */
+.preench {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-md);
+}
+
+.preench__linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-1);
+}
+
+.preench__ok { color: var(--color-success); }
+.preench__pendente { color: var(--color-warning); }
+
+/* --- Assinatura e trilha de acesso ---------------------------------------------- */
+.doc-rodape {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.doc-rodape__titulo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+}
+
+.assin-list,
+.acesso-list {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+
+.assin {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.assin:last-child { border-bottom: 0; }
+
+.assin__icone {
+  color: var(--color-success);
+  flex: none;
+}
+
+.assin--quebrada .assin__icone { color: var(--color-danger); }
+
+.assin code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.acesso-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: var(--text-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.acesso-list li:last-child { border-bottom: 0; }
+
+/* --- Trecho destacado na busca global -------------------------------------------- */
+.global-results__trecho {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: var(--leading-normal);
+}
+
+.global-results__trecho mark {
+  background: var(--color-accent-300);
+  color: var(--color-primary-900);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+@media (max-width: 1000px) {
+  .mod { grid-template-columns: 1fr; }
+  .mod__lista { max-height: 300px; }
+}
+
+/* ==========================================================================
    FASE 2 — F2.6 · CRM e prospecção
    ========================================================================== */
 

@@ -73,7 +73,28 @@
   // listener global de clique não — por isso é registrado uma única vez.
   var listenerGlobalRegistrado = false;
 
-  /** Busca global: consulta processos e clientes em paralelo. */
+  /* Rótulo de cada tipo no painel de resultados. A ordem define a ordem dos
+     grupos: processo antes de andamento, porque quem digita normalmente
+     quer o processo, e o andamento é onde ele estava escondido. */
+  var GRUPOS = [
+    { tipo: 'processo',   label: 'Processos' },
+    { tipo: 'pessoa',     label: 'Pessoas' },
+    { tipo: 'documento',  label: 'Documentos' },
+    { tipo: 'andamento',  label: 'Andamentos' },
+    { tipo: 'publicacao', label: 'Publicações' },
+    { tipo: 'prazo',      label: 'Prazos' },
+    { tipo: 'lead',       label: 'Prospecção' },
+    { tipo: 'modelo',     label: 'Modelos' }
+  ];
+
+  /**
+   * Busca global no CONTEÚDO (F2.7).
+   *
+   * Antes alcançava processos e clientes pelo nome. Agora vai ao texto do
+   * documento, à descrição do andamento e ao corpo da publicação — pelo
+   * índice invertido de `domain/busca.js`, que é o que permite consultar a
+   * cada tecla sem varrer o acervo inteiro.
+   */
   Topbar.mount = function (root) {
     var campo = App.dom.qs('#busca-global', root);
     var painel = App.dom.qs('#resultados-globais', root);
@@ -87,14 +108,8 @@
     var buscar = App.dom.debounce(function (termo) {
       if (!termo || termo.trim().length < 2) return esconder();
 
-      Promise.all([
-        App.services.processoService.listar({ busca: termo, porPagina: 5 }),
-        App.services.clienteService.listar({ busca: termo, porPagina: 4 })
-      ]).then(function (resultados) {
-        var processos = resultados[0].itens;
-        var clientes = resultados[1].itens;
-
-        if (!processos.length && !clientes.length) {
+      App.services.buscaService.buscarAgrupado(termo, 24).then(function (r) {
+        if (!r.total) {
           painel.innerHTML = '<div class="global-results__group-label">Nenhum resultado</div>';
           painel.classList.remove('u-hidden');
           return;
@@ -102,27 +117,24 @@
 
         var html = '';
 
-        if (processos.length) {
-          html += '<div class="global-results__group-label">Processos</div>';
-          processos.forEach(function (proc) {
-            html += '<a class="global-results__item" href="#/processos/' + proc.id + '">' +
-                      '<div class="u-sm u-bold">' + esc(proc.numeroInterno) + ' · ' +
-                        esc(proc.clienteNome) + '</div>' +
-                      '<div class="u-xs u-subtle u-mono">' + esc(proc.numeroCnj) + '</div>' +
-                    '</a>';
-          });
-        }
+        GRUPOS.forEach(function (grupo) {
+          var itens = r.grupos[grupo.tipo];
+          if (!itens || !itens.length) return;
 
-        if (clientes.length) {
-          html += '<div class="global-results__group-label">Clientes</div>';
-          clientes.forEach(function (cliente) {
-            html += '<a class="global-results__item" href="#/clientes/' + cliente.id + '">' +
-                      '<div class="u-sm u-bold">' + esc(cliente.nome) + '</div>' +
-                      '<div class="u-xs u-subtle">' + esc(App.format.documento(cliente.documento)) +
-                        ' · ' + cliente.totalProcessos + ' processo(s)</div>' +
+          html += '<div class="global-results__group-label">' + esc(grupo.label) + '</div>';
+
+          itens.forEach(function (item) {
+            var destino = item.destino || '#/';
+            html += '<a class="global-results__item" href="' + esc(destino) + '">' +
+                      '<div class="u-sm u-bold">' + esc(item.rotulo) + '</div>' +
+                      (item.sublinha
+                        ? '<div class="u-xs u-subtle">' + esc(item.sublinha) + '</div>' : '') +
+                      // O trecho já vem escapado e com <mark> pelo domínio.
+                      (item.trecho
+                        ? '<div class="global-results__trecho">' + item.trecho + '</div>' : '') +
                     '</a>';
           });
-        }
+        });
 
         painel.innerHTML = html;
         painel.classList.remove('u-hidden');

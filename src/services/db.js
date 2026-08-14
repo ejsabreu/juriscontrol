@@ -16,10 +16,10 @@
   // A versão faz parte da chave: subir a versão descarta o banco antigo e
   // regenera o seed. Usado quando o modelo ganha coleção/campo novo
   // (v2 = pastas de documentos; v3 = coleções da fase 2; v4 = publicações e
-  // monitoramentos povoados; v5 = financeiro povoado; v6 = funil de CRM com
-  // leads, interações e propostas), já que o protótipo não tem migração.
-  // A válvula de escape é o backup em JSON (F2.1).
-  var CHAVE = 'jurisctrl.db.v6';
+  // monitoramentos povoados; v5 = financeiro povoado; v6 = funil de CRM;
+  // v7 = biblioteca de modelos de peça), já que o protótipo não tem
+  // migração. A válvula de escape é o backup em JSON (F2.1).
+  var CHAVE = 'jurisctrl.db.v7';
   var estado = null;
   var suportaStorage = null;
 
@@ -37,23 +37,49 @@
     'feriadosEscritorio', 'configuracoes'                                 // F2.10
   ];
 
-  /* Gancho de auditoria — nasce desligado e é plugado em F2.1. Existe agora
-     porque ligá-lo depois significaria refazer 12 services; aqui é uma linha. */
+  /* Gancho de auditoria — nasce desligado e é plugado em F2.1. Existe desde
+     F2.0 porque ligá-lo depois significaria refazer 12 services. */
   var aoEscrever = null;
+
+  /* Observadores de escrita (F2.7). A auditoria tem slot próprio por ser o
+     caso original; daqui em diante quem precisar reagir a escrita se
+     inscreve aqui — o índice de busca é o primeiro, e invalidá-lo a cada
+     gravação é o que impede a busca de mostrar resultado obsoleto logo
+     depois de salvar um documento. */
+  var observadores = [];
 
   /** F2.1 chama isto com (colecao, acao, antes, depois). Passar null desliga. */
   function configurarAuditoria(fn) {
     aoEscrever = typeof fn === 'function' ? fn : null;
   }
 
+  /** @returns {Function} cancela a inscrição */
+  function observarEscrita(fn) {
+    if (typeof fn !== 'function') return function () {};
+    observadores.push(fn);
+    return function () {
+      var i = observadores.indexOf(fn);
+      if (i !== -1) observadores.splice(i, 1);
+    };
+  }
+
   function notificarEscrita(colecao, acao, antes, depois) {
-    if (!aoEscrever) return;
-    // Auditoria nunca derruba a operação auditada.
-    try {
-      aoEscrever(colecao, acao, antes, depois);
-    } catch (e) {
-      console.warn('[db] Falha ao registrar auditoria:', e.message);
+    // Nem auditoria nem observador derrubam a operação observada.
+    if (aoEscrever) {
+      try {
+        aoEscrever(colecao, acao, antes, depois);
+      } catch (e) {
+        console.warn('[db] Falha ao registrar auditoria:', e.message);
+      }
     }
+
+    observadores.slice().forEach(function (fn) {
+      try {
+        fn(colecao, acao, antes, depois);
+      } catch (e) {
+        console.warn('[db] Falha em observador de escrita:', e.message);
+      }
+    });
   }
 
   function testarStorage() {
@@ -297,6 +323,7 @@
     getTodosOsDados: getTodosOsDados,
     substituirTudo: substituirTudo,
     configurarAuditoria: configurarAuditoria,
+    observarEscrita: observarEscrita,
     diagnostico: diagnostico,
     COLECOES_FASE2: COLECOES_FASE2,
     CHAVE: CHAVE

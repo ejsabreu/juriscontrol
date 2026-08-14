@@ -56,7 +56,7 @@ outros módulos.
 | **F2.4** | Publicações e integração com tribunais ✅ | F2.0, F2.2 | G |
 | **F2.5** | Módulo financeiro ✅ | F2.0, F2.1 | G |
 | **F2.6** | CRM e prospecção ✅ | F2.0, F2.5 | M |
-| **F2.7** | Documentos avançados (modelos, busca, assinatura) | F2.0 | M |
+| **F2.7** | Documentos avançados (modelos, busca, assinatura) ✅ | F2.0 | M |
 | **F2.8** | Assistente (IA) | F2.4, F2.7 | M |
 | **F2.9** | Relatórios e BI | F2.2, F2.5, F2.6 | M |
 | **F2.10** | Administração e complementos | F2.1 | M |
@@ -936,7 +936,7 @@ Chave em `jurisctrl.db.v6`: o seed passou a povoar leads, interações e propost
 
 ---
 
-## F2.7 — Documentos avançados
+## F2.7 — Documentos avançados ✅ concluída
 
 O explorador, o visor e o editor já são fortes. Falta o que transforma o editor em
 ferramenta de trabalho.
@@ -974,17 +974,74 @@ ferramenta de trabalho.
 `variaveisNaoResolvidas(html, contexto)` — o editor destaca em amarelo o que não foi
 preenchido em vez de deixar `{{...}}` cru no documento final.
 
-### Passos
+### Passos — todos executados
 
-1. `domain/modelos.js` + testes
-2. `modeloPecaService.js` e seed com ~15 modelos por área
-3. `#/modelos` — biblioteca com prévia
-4. "Novo a partir de modelo" ao lado de "Novo documento em branco"
-5. Painel de variáveis no `DocumentEditor` (lista, valor, destaque do não resolvido)
-6. Busca full-text: índice invertido em `conteudoService`, resultado na busca global
-7. Assinatura simulada: modal, hash do conteúdo, selo visível no visor e no PDF
-8. `AcessoDocumento` gravado no visor, no download e no portal (F2.3)
-9. Testes: preenchimento, variável faltante, busca, log de acesso
+1. ✅ `domain/modelos.js` — catálogo, preenchimento, filtros e detecção de pendências
+2. ✅ `modeloPecaService.js` e 15 modelos no seed
+3. ✅ `#/modelos` — biblioteca com prévia e catálogo de variáveis
+4. ✅ "A partir de modelo" ao lado de "Novo documento" no explorador
+5. ✅ Prévia de preenchimento (quantas resolvem, quais ficam pendentes) **antes** de criar
+6. ✅ `domain/busca.js` + `buscaService.js` — índice invertido ligado à busca global
+7. ✅ Assinatura simulada com hash e conferência na leitura
+8. ✅ `AcessoDocumento` gravado ao abrir o visor
+9. ✅ `testes/documentos.test.js` — 104 verificações
+
+### A decisão central: variável sem valor não some
+
+Um modelo preenchido com dados incompletos tem três destinos possíveis, e dois deles são
+ruins:
+
+- **apagar o campo em silêncio** → petição com lacuna que ninguém percebe;
+- **deixar `{{cliente.nome}}` cru** → constrangimento no protocolo;
+- **marcar visivelmente** → é o que o sistema faz.
+
+A variável sem valor vira `<span class="var-pendente">[cliente.nome]</span>`: destacada em
+âmbar no editor, listada no retorno da geração e contada na prévia **antes** de o documento
+ser criado. Descobrir a lacuna no editor já é tarde; descobrir no protocolo é pior.
+
+### Decisões tomadas durante a implementação
+
+- **Índice invertido, e não `indexOf` no acervo.** Varrer tudo a cada tecla custa
+  proporcionalmente ao tamanho do acervo; o índice é construído uma vez e consultado em
+  tempo proporcional à consulta — que é o que permite buscar enquanto se digita.
+- **Busca com interseção (AND).** Procurar "dano moral" e receber tudo que fala de "dano"
+  tornaria a busca inútil num acervo jurídico, onde as palavras isoladas são frequentes.
+- **O título pesa 3× o corpo.** Quem procura "procuração" quer o documento chamado
+  procuração antes daquele que a menciona de passagem.
+- **O segredo de justiça vale na busca.** O filtro roda no service, com a mesma função de
+  `domain/permissoes.js`. Busca que ignora a regra é o vazamento mais fácil de cometer —
+  basta esquecer. Há teste conferindo que conteúdo de processo em segredo alheio não
+  aparece, e que aparece para quem pode vê-lo.
+- **O índice é invalidado a cada escrita.** Para isso, `db.js` ganhou
+  `observarEscrita(fn)`: a auditoria tinha slot único desde F2.0, e um segundo interessado
+  não cabia. Sem a invalidação, a busca mostraria resultado obsoleto logo depois de salvar.
+- **A assinatura é honesta sobre o que entrega.** Não há ICP-Brasil nem carimbo do tempo —
+  mas o **hash do conteúdo é real**: alterar o texto quebra a conferência, que é
+  exatamente a propriedade que uma assinatura oferece. Falta o que prova QUEM assinou, não
+  o que prova que o texto não mudou. A conferência acontece na leitura, não numa flag.
+- **Modelo com variável fora do catálogo é avisado antes de salvar**, e há teste garantindo
+  que nenhum dos 15 modelos do seed usa variável inventada — um campo que nunca resolve
+  seria descoberto no protocolo.
+
+### Um defeito real encontrado pelo teste
+
+O destaque do trecho na busca procurava o termo **sem acento** dentro do texto **com
+acento**: "negativacao" nunca casava com "negativação", e o resultado saía sem marcação. A
+correção calcula as faixas no texto normalizado e as aplica **por índice** no original —
+`normalizar` preserva o comprimento, então os índices coincidem. O escapamento continua
+sendo feito pedaço a pedaço, antes de virar HTML.
+
+### O que ficou de fora
+
+O **painel de variáveis dentro do `DocumentEditor`** não entrou. A informação está na
+prévia (antes de criar) e as pendências ficam destacadas no texto (depois), então o
+essencial está coberto — mas um painel lateral no editor, listando cada variável com seu
+valor, seria melhor. Fica registrado para F2.10.
+
+### Nota sobre o banco
+
+Chave em `jurisctrl.db.v7`: o seed passou a povoar a biblioteca de modelos.
+**Exporte o backup em `#/privacidade` antes de atualizar.**
 
 ---
 

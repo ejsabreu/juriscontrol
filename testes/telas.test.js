@@ -301,6 +301,88 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   ok('resultados listados', painel.querySelectorAll('.global-results__item').length > 0,
      String(painel.querySelectorAll('.global-results__item').length));
 
+  console.log('\nModelos de peça (F2.7)');
+  await irPara('#/modelos', 900);
+  ok('a biblioteca abre', texto().includes('Modelos de peça'));
+  ok('lista os modelos do seed',
+     doc.querySelectorAll('.mod__item').length >= 15,
+     String(doc.querySelectorAll('.mod__item').length));
+  ok('mostra a prévia do modelo', !!doc.querySelector('.mod__texto'));
+  ok('destaca as variáveis no texto do modelo',
+     doc.querySelectorAll('.var-marca').length > 0,
+     String(doc.querySelectorAll('.var-marca').length));
+  ok('mostra o catálogo de variáveis', doc.querySelectorAll('.var').length > 15,
+     String(doc.querySelectorAll('.var').length));
+  ok('marca quais variáveis o modelo usa',
+     doc.querySelectorAll('.var--usada').length > 0);
+
+  doc.querySelector('[data-action="usar-modelo"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('o modal de geração abre', !!doc.querySelector('#form-usar-modelo'));
+  ok('a prévia conta o que será preenchido',
+     texto().includes('preenchida(s)'), texto().slice(0, 100));
+
+  const docsAntesModelo = window.App.services.db.get('documentos').length;
+  doc.querySelector('.modal [data-action="gerar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(1200);
+  ok('o documento foi gerado',
+     window.App.services.db.get('documentos').length === docsAntesModelo + 1);
+
+  const docGerado = window.App.services.db.get('documentos').slice(-1)[0];
+  const conteudoGerado = window.App.services.conteudoService.ler(docGerado.id);
+  ok('o documento gerado tem conteúdo preenchido',
+     !!conteudoGerado && conteudoGerado.conteudo.length > 50);
+  ok('o conteúdo não tem chave crua',
+     conteudoGerado.conteudo.indexOf('{{') === -1,
+     conteudoGerado.conteudo.slice(0, 120));
+
+  console.log('\nBusca global no conteúdo (F2.7)');
+  await irPara('#/', 800);
+  const campoBusca = doc.querySelector('#busca-global');
+  campoBusca.value = 'contestacao';
+  campoBusca.dispatchEvent(new window.Event('input', { bubbles: true }));
+  await esperar(1000);
+  const painelBusca = doc.querySelector('#resultados-globais');
+  ok('a busca devolve resultados',
+     painelBusca.querySelectorAll('.global-results__item').length > 0,
+     String(painelBusca.querySelectorAll('.global-results__item').length));
+  ok('a busca alcança mais de um tipo de registro',
+     painelBusca.querySelectorAll('.global-results__group-label').length >= 1);
+  ok('os resultados trazem trecho do conteúdo',
+     painelBusca.querySelectorAll('.global-results__trecho').length > 0);
+  ok('o trecho destaca o termo buscado',
+     painelBusca.querySelectorAll('mark').length > 0);
+
+  console.log('\nAssinatura e trilha de acesso (F2.7)');
+  await irPara('#/processos/' + docGerado.processoId, 1000);
+  const abaDocs = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Documentos'));
+  abaDocs.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(600);
+  ok('a barra oferece gerar a partir de modelo',
+     !!doc.querySelector('[data-action="documento-de-modelo"]'));
+
+  const linhaDoc = doc.querySelector('[data-action="abrir-documento"]');
+  const acessosAntes = window.App.services.db.get('acessosDocumento').length;
+  linhaDoc.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('o visor abre', !!doc.querySelector('.modal'));
+  ok('abrir o documento registra o acesso',
+     window.App.services.db.get('acessosDocumento').length > acessosAntes);
+  ok('o visor mostra o painel de assinaturas', texto().includes('Assinaturas'));
+  ok('o visor mostra quem acessou', texto().includes('Quem acessou'));
+  ok('o selo avisa que não há ICP-Brasil', texto().includes('ICP-Brasil'));
+
+  const assinAntes = window.App.services.db.get('assinaturas').length;
+  doc.querySelector('.modal [data-action="assinar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+  ok('assinar registra a assinatura',
+     window.App.services.db.get('assinaturas').length === assinAntes + 1);
+  ok('a assinatura aparece no painel', !!doc.querySelector('.assin'));
+
   console.log('\nProspecção — funil (F2.6)');
   await irPara('#/crm', 1000);
   ok('o funil abre', texto().includes('Prospecção'));

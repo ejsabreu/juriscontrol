@@ -198,6 +198,14 @@
                       icone: '✎', acao: 'novo-documento', valor: pastaAtual || '',
                       titulo: 'Criar um documento em branco e escrever no editor'
                     }) +
+                    // F2.7: a partir de modelo, já preenchido com os dados
+                    // do processo. Fica ao lado do "em branco" porque é a
+                    // mesma decisão — só muda o ponto de partida.
+                    App.components.ui.Button({
+                      rotulo: 'A partir de modelo', tamanho: 'sm', variante: 'secondary',
+                      icone: '📋', acao: 'documento-de-modelo', valor: pastaAtual || '',
+                      titulo: 'Gerar peça a partir de um modelo da biblioteca'
+                    }) +
                     App.components.ui.Button({
                       rotulo: 'Enviar documentos', tamanho: 'sm', variante: 'primary',
                       icone: '⤒', acao: 'enviar-documentos', valor: pastaAtual || ''

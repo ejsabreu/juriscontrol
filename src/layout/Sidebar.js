@@ -34,6 +34,8 @@
     { rota: '#/timesheet',  icone: '⏱', rotulo: 'Timesheet',  chave: 'timesheet' },
     { secao: 'Ferramentas' },
     { rota: '#/simulador', icone: '🗓', rotulo: 'Simulador de prazo', chave: 'simulador' },
+    { rota: '#/modelos',   icone: '📋', rotulo: 'Modelos de peça', chave: 'modelos',
+      permissao: 'documentos.editar' },
     /* Integrações fica em Ferramentas, e não em Administração: quem cuida
        dos monitoramentos do diário é quem tria publicação, e o advogado tem
        essa permissão. Sob Administração, ele veria uma seção inteira com um

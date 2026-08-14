@@ -48,6 +48,8 @@ const NUCLEO = [
   'src/domain/classificador.js',
   'src/domain/financeiro.js',
   'src/domain/boleto.js',
+  'src/domain/modelos.js',
+  'src/domain/busca.js',
 
   // Dados — depende do domínio acima
   'data/seed.js',
@@ -82,7 +84,14 @@ const NUCLEO = [
   'src/services/timesheetService.js',
   'src/services/leadService.js',
   'src/services/interacaoService.js',
-  'src/services/propostaService.js'
+  'src/services/propostaService.js',
+  'src/services/arquivoService.js',
+  'src/services/conteudoService.js',
+  'src/services/pastaDocumentoService.js',
+  'src/services/documentoService.js',
+  'src/services/modeloPecaService.js',
+  'src/services/buscaService.js',
+  'src/services/assinaturaService.js'
 ];
 
 /** localStorage de mentira — a sessão e o banco precisam persistir em algum lugar. */

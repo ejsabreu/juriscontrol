@@ -9,8 +9,8 @@ HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está em
 [PLANEJAMENTO.md](PLANEJAMENTO.md). A fase 2 está em
 [PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md): **concluídos** fundações, segurança/LGPD,
-alertas, portal do cliente, publicações/tribunais, financeiro e CRM; **a fazer** documentos
-avançados, assistente, relatórios e administração.
+alertas, portal do cliente, publicações/tribunais, financeiro, CRM e documentos avançados;
+**a fazer** assistente, relatórios e administração.
 
 ---
 
@@ -57,6 +57,7 @@ arquivos como estão.
 | `#/agenda` | Calendário forense + prazos e compromissos |
 | `#/clientes` | Lista e ficha de clientes |
 | `#/tarefas` | Kanban de tarefas |
+| `#/modelos` | **Modelos de peça** — biblioteca com variáveis e catálogo |
 | `#/crm` | **Funil de prospecção** — kanban de interessados, arrastar muda a etapa |
 | `#/crm/:id` | Ficha do interessado: histórico de contato, propostas e conversão |
 | `#/financeiro` | **Financeiro** — fluxo de caixa, a receber, a pagar, contratos e repasses |
@@ -143,6 +144,20 @@ Não é maquete estática. O que está implementado funciona:
 - **LGPD** — dossiê do titular, portabilidade em JSON/CSV, anonimização que preserva o
   registro, consentimentos com base legal e o prazo de 15 dias do art. 18 à vista.
 - **Backup e restauração em JSON** — a válvula de escape para a ausência de migração.
+- **Modelos de peça com variáveis** — `{{cliente.nome}}`, `{{processo.numeroCnj}}` e mais
+  vinte, preenchidas com os dados do processo ao gerar o documento. A prévia diz **antes**
+  quantas resolvem e quais ficam pendentes; a variável sem valor **nunca é apagada em
+  silêncio nem sai como chave crua** — vira uma marca destacada no editor. Apagar produz
+  petição com lacuna que ninguém nota; deixar `{{...}}` produz uma que envergonha no
+  protocolo.
+- **Busca no conteúdo, não só no nome** — índice invertido alcança o texto do documento, a
+  descrição do andamento e o corpo da publicação, com trecho destacado no resultado.
+  Processo em segredo de justiça fica de fora, pela mesma regra que vale no resto do
+  sistema.
+- **Assinatura com hash conferido na leitura** — não há ICP-Brasil nem carimbo do tempo,
+  mas alterar o texto **quebra a assinatura**, que é a propriedade que uma assinatura
+  entrega. Falta o que prova quem assinou, não o que prova que o texto não mudou. Junto vem
+  a trilha de quem viu, baixou e editou cada documento.
 - **CRM que fecha o ciclo** — o funil soma o **pipeline ponderado** (valor × probabilidade
   da etapa), não o valor cheio de todo mundo que ligou uma vez. Perder exige motivo, e a
   **conversão** cria cliente, contrato e processo numa passagem só, puxando os honorários
@@ -183,7 +198,7 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-1.443 verificações em 11 suítes. As oito que não precisam de jsdom compartilham o
+1.570 verificações em 12 suítes. As nove que não precisam de jsdom compartilham o
 sandbox de `testes/ambiente.js`, que carrega o núcleo (utils, domínio, seed, store e
 services) na ordem de dependência — assim um módulo novo no seed entra num lugar só.
 
@@ -197,6 +212,7 @@ services) na ordem de dependência — assim um módulo novo no seed entra num l
 | `publicacoes.test.js` | Classificador com textos no formato do diário, extração de CNJ, vínculo, deduplicação e o prazo gerado com a data que o motor do CPC calcula. **Não precisa de jsdom.** |
 | `financeiro.test.js` | Parcelamento que fecha ao centavo, êxito, juros pro rata die, aging, fluxo de caixa nos dois regimes, rentabilidade e a linha digitável FEBRABAN (com dígito trocado em 20 posições). **Não precisa de jsdom.** |
 | `crm.test.js` | Funil, ponderação do pipeline, propostas que expiram na leitura e a conversão íntegra de lead em cliente + contrato + processo. **Não precisa de jsdom.** |
+| `documentos.test.js` | Preenchimento de modelos (com ênfase na variável sem valor), índice invertido, busca com segredo de justiça aplicado, assinatura que quebra ao alterar o texto e trilha de acesso. **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |

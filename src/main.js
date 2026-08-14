@@ -40,6 +40,10 @@
                 { permissao: 'documentos.editar' });
     R.registrar('/simulador',              'simulador', P.SimuladorPage,        'Simulador de prazo');
 
+    // Modelos de peça (F2.7)
+    R.registrar('/modelos',                'modelos',   P.ModelosPage,          'Modelos de peça',
+                { permissao: 'documentos.editar' });
+
     // CRM e prospecção (F2.6)
     R.registrar('/crm',                    'crm',        P.CrmPage,            'Prospecção',
                 { permissao: 'crm.ver' });
@@ -112,6 +116,10 @@
       // 2. Auditoria DEPOIS do seed e ANTES de qualquer escrita da aplicação:
       //    ligá-la antes encheria a trilha com a geração dos dados fictícios.
       App.services.auditoriaService.iniciar();
+
+      //    O índice de busca (F2.7) é invalidado a cada escrita — sem isso,
+      //    a busca mostraria resultado obsoleto logo depois de salvar.
+      App.services.db.observarEscrita(App.services.buscaService.invalidar);
 
       // 3. Preferências persistidas (tema e visão do kanban).
       App.preferencias.carregar();

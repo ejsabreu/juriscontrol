@@ -19,8 +19,19 @@
   App.pages = App.pages || {};
 
   var container = null;
-  var aba = 'usuarios';
+  var aba = 'escritorio';
   var usuarios = [];
+  var regras = [];
+  var feriados = [];
+  var tipos = [];
+  var escritorio = {};
+  var preferencias = {};
+
+  /* Estado da importação: `conferencia` é o relatório devolvido pelo service
+     e é o que autoriza a gravação. Enquanto for null, não há o que importar. */
+  var layoutImportacao = 'processos';
+  var conferencia = null;
+  var conferindo = false;
 
   function esc(v) { return App.dom.esc(v); }
 
@@ -31,11 +42,16 @@
     carregar();
   }
 
-  var regras = [];
-
   function carregar() {
+    var cfg = App.services.configuracaoService;
+    var eu = App.services.sessaoService.atual();
+
     usuarios = App.services.db.getTodos('usuarios');
     regras = App.services.regraAlertaService.vigentes();
+    feriados = cfg.feriadosLocais();
+    tipos = cfg.tiposPrazo();
+    escritorio = cfg.escritorio();
+    preferencias = eu ? cfg.preferencias(eu.id) : {};
     desenhar();
   }
 
@@ -135,7 +151,292 @@
           '<input type="checkbox" data-action="dupla-conferencia"' + (exige ? ' checked' : '') + '>' +
           '<span>Exigir conferência de um segundo usuário</span>' +
         '</label>'
+    }) + '<div class="page-section">' + cartaoTiposPrazo() + '</div>';
+  }
+
+  // --- Tipos de prazo (F2.10) ------------------------------------------------
+
+  function cartaoTiposPrazo() {
+    var ui = App.components.ui;
+
+    var linhas = tipos.map(function (t) {
+      return '<tr>' +
+        '<td>' + esc(t.label) +
+          (t.doEscritorio
+            ? ' <span class="u-xs u-subtle">(do escritório)</span>'
+            : '') + '</td>' +
+        '<td class="u-tabular u-sm">' + t.dias + '</td>' +
+        '<td class="u-sm">' + (t.contagem === 'corridos' ? 'dias corridos' : 'dias úteis') + '</td>' +
+        '<td class="u-right">' +
+          (t.doEscritorio
+            ? ui.Button({ rotulo: 'Remover', tamanho: 'sm', variante: 'ghost',
+                          acao: 'remover-tipo-prazo', valor: t.id })
+            : '<span class="u-xs u-subtle">padrão do sistema</span>') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    return ui.Card({
+      titulo: 'Tipos de prazo',
+      subtitulo: tipos.length + ' disponível(is)',
+      conteudo:
+        '<p class="u-sm u-muted">Os padrões vêm do CPC e não podem ser removidos — há ' +
+        'prazos gravados apontando para eles. Os que o escritório criar entram na mesma ' +
+        'lista, com a mesma contagem.</p>' +
+        '<div class="table-wrap"><table class="table"><thead><tr>' +
+          '<th>Tipo</th><th>Dias</th><th>Contagem</th><th></th>' +
+        '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
+
+        '<h4 class="u-sm u-bold" style="margin-top:var(--space-5)">Criar tipo</h4>' +
+        '<div class="form-grid" id="form-tipo-prazo">' +
+          ui.Field({ nome: 'label', rotulo: 'Nome', obrigatorio: true,
+                     placeholder: 'Manifestação sobre laudo' }) +
+          ui.Field({ nome: 'dias', rotulo: 'Dias', tipo: 'number', obrigatorio: true,
+                     valor: 15 }) +
+          ui.Field({ nome: 'contagem', rotulo: 'Contagem', tipo: 'select',
+                     opcoes: '<option value="uteis">dias úteis (art. 219 do CPC)</option>' +
+                             '<option value="corridos">dias corridos</option>' }) +
+        '</div>' +
+        ui.Button({ rotulo: 'Adicionar tipo', variante: 'primary', acao: 'criar-tipo-prazo' })
     });
+  }
+
+  // --- Aba: escritório e preferências (F2.10) --------------------------------
+
+  function abaEscritorio() {
+    var ui = App.components.ui;
+    var eu = App.services.sessaoService.atual();
+
+    var dados = ui.Card({
+      titulo: 'Dados do escritório',
+      subtitulo: 'aparecem em contrato, proposta e boleto',
+      acoes: ui.Button({ rotulo: 'Salvar', tamanho: 'sm', variante: 'primary',
+                         acao: 'salvar-escritorio' }),
+      conteudo:
+        '<div class="form-grid" id="form-escritorio">' +
+          ui.Field({ nome: 'nome', rotulo: 'Razão social', valor: escritorio.nome,
+                     obrigatorio: true, largura: 'full' }) +
+          ui.Field({ nome: 'cnpj', rotulo: 'CNPJ', valor: escritorio.cnpj,
+                     placeholder: '00.000.000/0001-00',
+                     dica: 'conferido pelo dígito verificador' }) +
+          ui.Field({ nome: 'oab', rotulo: 'Registro OAB da sociedade',
+                     valor: escritorio.oab, placeholder: 'OAB/SP 12.345' }) +
+          ui.Field({ nome: 'email', rotulo: 'E-mail', tipo: 'email', valor: escritorio.email }) +
+          ui.Field({ nome: 'telefone', rotulo: 'Telefone', valor: escritorio.telefone }) +
+          ui.Field({ nome: 'endereco', rotulo: 'Endereço', valor: escritorio.endereco,
+                     largura: 'full' }) +
+        '</div>'
+    });
+
+    var minhas = ui.Card({
+      titulo: 'Minhas preferências',
+      subtitulo: eu ? esc(eu.nome) : '',
+      acoes: ui.Button({ rotulo: 'Salvar', tamanho: 'sm', variante: 'secondary',
+                         acao: 'salvar-preferencias' }),
+      conteudo:
+        '<p class="u-sm u-muted">Valem apenas para você — cada usuário tem as suas.</p>' +
+        '<div class="form-grid" id="form-preferencias">' +
+          ui.Field({ nome: 'telaInicial', rotulo: 'Abrir o sistema em', tipo: 'select',
+                     opcoes: [
+                       { v: '#/', r: 'Painel' },
+                       { v: '#/processos', r: 'Processos' },
+                       { v: '#/agenda', r: 'Agenda e prazos' },
+                       { v: '#/tarefas', r: 'Tarefas' },
+                       { v: '#/publicacoes', r: 'Publicações' }
+                     ].map(function (o) {
+                       return '<option value="' + o.v + '"' +
+                              (preferencias.telaInicial === o.v ? ' selected' : '') +
+                              '>' + o.r + '</option>';
+                     }).join('') }) +
+          ui.Field({ nome: 'itensPorPagina', rotulo: 'Itens por página', tipo: 'select',
+                     opcoes: [10, 15, 25, 50].map(function (n) {
+                       return '<option value="' + n + '"' +
+                              (Number(preferencias.itensPorPagina) === n ? ' selected' : '') +
+                              '>' + n + '</option>';
+                     }).join('') }) +
+        '</div>'
+    });
+
+    return dados + '<div class="page-section">' + minhas + '</div>';
+  }
+
+  // --- Aba: feriados locais (F2.10) ------------------------------------------
+
+  function linhaFeriado(f) {
+    var ui = App.components.ui;
+    return '<tr>' +
+      '<td class="u-tabular">' + esc(App.format.data(f.data)) + '</td>' +
+      '<td>' + esc(f.nome) + '</td>' +
+      '<td class="u-sm">' + esc(f.comarca || 'todo o escritório') + '</td>' +
+      '<td class="u-right">' +
+        ui.Button({ rotulo: 'Remover', tamanho: 'sm', variante: 'ghost',
+                    acao: 'remover-feriado', valor: f.id }) +
+      '</td>' +
+    '</tr>';
+  }
+
+  function abaFeriados() {
+    var ui = App.components.ui;
+
+    var lista = feriados.length
+      ? '<div class="table-wrap"><table class="table"><thead><tr>' +
+          '<th>Data</th><th>Motivo</th><th>Comarca</th><th></th>' +
+        '</tr></thead><tbody>' + feriados.map(linhaFeriado).join('') + '</tbody></table></div>'
+      : ui.EmptyState({
+          icone: '📅',
+          titulo: 'Nenhum feriado local cadastrado',
+          texto: 'Os nacionais e os forenses já são calculados — aqui entram só os que ' +
+                 'dependem do foro.'
+        });
+
+    var cadastro = ui.Card({
+      titulo: 'Cadastrar dia sem expediente',
+      conteudo:
+        '<div class="form-grid" id="form-feriado">' +
+          ui.Field({ nome: 'data', rotulo: 'Data', tipo: 'date', obrigatorio: true }) +
+          ui.Field({ nome: 'nome', rotulo: 'Motivo', obrigatorio: true,
+                     placeholder: 'Ponto facultativo — aniversário da cidade' }) +
+          ui.Field({ nome: 'comarca', rotulo: 'Comarca', placeholder: 'em branco = todas',
+                     dica: 'informativo: o cálculo aplica a todos os prazos' }) +
+        '</div>' +
+        ui.Button({ rotulo: 'Adicionar', variante: 'primary', acao: 'criar-feriado' })
+    });
+
+    return ui.Card({
+      titulo: 'Feriados locais',
+      subtitulo: feriados.length + ' cadastrado(s)',
+      conteudo:
+        '<p class="u-sm u-muted">O motor de prazos calcula os feriados nacionais e os ' +
+        'forenses a partir da Páscoa — esses não precisam ser digitados. Mas ' +
+        '<strong>ponto facultativo de comarca, feriado municipal e suspensão de expediente ' +
+        'por ato do tribunal</strong> não seguem regra nenhuma: só existem no calendário ' +
+        'daquele foro. Sem cadastrá-los aqui, o sistema conta um dia útil que não houve ' +
+        'e o prazo vence antes do que a tela mostra.</p>' +
+        '<p class="u-sm u-muted">O que for cadastrado passa a valer imediatamente em toda ' +
+        'contagem de prazo, no calendário e na conferência.</p>' +
+        lista,
+      semPadding: false
+    }) + '<div class="page-section">' + cadastro + '</div>';
+  }
+
+  // --- Aba: importação por CSV (F2.10) ---------------------------------------
+
+  function tabelaProblemas(titulo, itens) {
+    if (!itens.length) return '';
+    var linhas = itens.slice(0, 50).map(function (p) {
+      return '<tr>' +
+        '<td class="u-tabular u-sm">linha ' + p.linha + '</td>' +
+        '<td class="u-sm"><code>' + esc(p.campo || '—') + '</code></td>' +
+        '<td class="u-sm">' + esc(p.motivo) + '</td>' +
+      '</tr>';
+    }).join('');
+
+    return '<h4 class="u-sm u-bold" style="margin-top:var(--space-5)">' + esc(titulo) +
+             ' <span class="u-subtle">(' + itens.length + ')</span></h4>' +
+           (itens.length > 50
+             ? '<p class="u-xs u-subtle">mostrando as 50 primeiras</p>' : '') +
+           '<div class="table-wrap"><table class="table table--compact"><tbody>' +
+             linhas + '</tbody></table></div>';
+  }
+
+  function relatorioConferencia() {
+    var ui = App.components.ui;
+    var c = conferencia;
+    if (!c) return '';
+
+    var faltando = c.colunasFaltando.length
+      ? '<p class="import-erro">O arquivo não tem a(s) coluna(s) ' +
+          '<code>' + c.colunasFaltando.map(esc).join('</code>, <code>') + '</code>, ' +
+          'que são obrigatórias. Nada pode ser importado até que sejam incluídas.</p>'
+      : '';
+
+    var ignoradas = c.colunasIgnoradas.length
+      ? '<p class="u-xs u-subtle">Colunas do arquivo que o sistema não usa e vai ignorar: ' +
+        c.colunasIgnoradas.map(esc).join(', ') + '.</p>'
+      : '';
+
+    return ui.Card({
+      titulo: 'Conferência do arquivo',
+      subtitulo: c.totalLinhas + ' linha(s) lida(s)',
+      acoes: c.podeImportar
+        ? ui.Button({ rotulo: 'Importar ' + (c.validas.length - c.avisos.length) +
+                              ' registro(s)', variante: 'primary', tamanho: 'sm',
+                      acao: 'confirmar-importacao' })
+        : '',
+      conteudo:
+        faltando +
+        '<div class="grid grid--kpi">' +
+          ui.Kpi({ rotulo: 'Prontas para importar', icone: '✔',
+                   valor: String(c.validas.length - c.avisos.length),
+                   cor: 'var(--color-success)' }) +
+          ui.Kpi({ rotulo: 'Já existem — serão puladas', icone: '⊘',
+                   valor: String(c.avisos.length),
+                   cor: c.avisos.length ? 'var(--color-warning)' : 'var(--color-text-subtle)' }) +
+          ui.Kpi({ rotulo: 'Com erro', icone: '✕',
+                   valor: String(c.erros.length),
+                   cor: c.erros.length ? 'var(--color-danger)' : 'var(--color-text-subtle)' }) +
+        '</div>' +
+        ignoradas +
+        '<p class="u-sm u-muted">Nada foi gravado ainda. A conferência roda no arquivo ' +
+        'inteiro antes de qualquer gravação — uma importação que para no meio deixaria o ' +
+        'banco num estado que ninguém sabe desfazer.</p>' +
+        tabelaProblemas('Linhas com erro — corrija no arquivo e envie de novo', c.erros) +
+        tabelaProblemas('Linhas que já existem no sistema', c.avisos)
+    });
+  }
+
+  function abaImportacao() {
+    var ui = App.components.ui;
+    var layouts = App.services.importacaoService.LAYOUTS;
+
+    var opcoes = Object.keys(layouts).map(function (id) {
+      return '<option value="' + id + '"' +
+             (layoutImportacao === id ? ' selected' : '') + '>' +
+             esc(layouts[id].nome) + '</option>';
+    }).join('');
+
+    var layout = layouts[layoutImportacao];
+
+    var colunas = layout.campos.map(function (c) {
+      return '<tr><td><code>' + esc(c.campo) + '</code></td>' +
+             '<td class="u-sm">' + esc(c.titulo) + '</td>' +
+             '<td class="u-sm">' + (c.obrigatorio ? 'obrigatória' : 'opcional') + '</td></tr>';
+    }).join('');
+
+    return ui.Card({
+      titulo: 'Importar em massa',
+      subtitulo: 'arquivo CSV',
+      acoes: ui.Button({ rotulo: 'Baixar modelo', tamanho: 'sm', variante: 'ghost',
+                         acao: 'baixar-modelo' }),
+      conteudo:
+        '<p class="u-sm u-muted">Nenhum escritório migra a carteira digitando. Escolha o ' +
+        'layout, envie o arquivo e confira o relatório <strong>antes</strong> de gravar.</p>' +
+
+        '<div class="form-grid">' +
+          ui.Field({ nome: 'layout', rotulo: 'O que está importando', tipo: 'select',
+                     opcoes: opcoes,
+                     atributos: ' data-action="trocar-layout"' }) +
+          '<div class="field">' +
+            '<label class="field__label" for="arquivo-csv">Arquivo CSV</label>' +
+            '<input class="input" type="file" id="arquivo-csv" accept=".csv,text/csv"' +
+              ' data-action="arquivo-csv">' +
+            '<div class="field__hint">separador ; ou , — o sistema detecta sozinho</div>' +
+          '</div>' +
+        '</div>' +
+
+        (conferindo ? '<p class="u-sm u-muted">Conferindo…</p>' : '') +
+
+        '<h4 class="u-sm u-bold" style="margin-top:var(--space-5)">Colunas esperadas</h4>' +
+        '<div class="table-wrap"><table class="table"><thead><tr>' +
+          '<th>Coluna</th><th>Significado</th><th>Exigência</th>' +
+        '</tr></thead><tbody>' + colunas + '</tbody></table></div>' +
+
+        App.components.SeloSimulado({
+          forma: 'linha',
+          oque: 'a leitura acontece toda no navegador — o arquivo não sai da sua máquina.',
+          naFase3: 'upload para o servidor, com a mesma conferência antes de gravar.'
+        })
+    }) + (conferencia ? '<div class="page-section">' + relatorioConferencia() + '</div>' : '');
   }
 
   // --- Aba: usuários ---------------------------------------------------------
@@ -270,29 +571,51 @@
     });
   }
 
+  var ABAS = {
+    escritorio: abaEscritorio,
+    usuarios: abaUsuarios,
+    permissoes: abaPermissoes,
+    alertas: abaAlertas,
+    feriados: abaFeriados,
+    importacao: abaImportacao
+  };
+
   function desenhar() {
     var ui = App.components.ui;
+    var montar = ABAS[aba] || abaEscritorio;
 
     container.innerHTML =
       '<div class="page-header">' +
         '<div>' +
           '<h1 class="page-header__title">Configurações</h1>' +
-          '<p class="page-header__subtitle">Usuários, perfis e controle de acesso</p>' +
+          '<p class="page-header__subtitle">Escritório, usuários, calendário e carga de dados</p>' +
         '</div>' +
       '</div>' +
       ui.Tabs({
         ativa: aba,
         abas: [
+          { id: 'escritorio', label: 'Escritório' },
           { id: 'usuarios', label: 'Usuários', contador: usuarios.length },
           { id: 'permissoes', label: 'Perfis e permissões' },
-          { id: 'alertas', label: 'Alertas e prazos' }
+          { id: 'alertas', label: 'Alertas e prazos' },
+          { id: 'feriados', label: 'Feriados locais', contador: feriados.length },
+          { id: 'importacao', label: 'Importar dados' }
         ]
       }) +
-      '<div class="page-section">' +
-        (aba === 'usuarios' ? abaUsuarios()
-         : aba === 'permissoes' ? abaPermissoes()
-         : abaAlertas()) +
-      '</div>';
+      '<div class="page-section">' + montar() + '</div>';
+  }
+
+  /** Lê um bloco de campos como objeto — os formulários aqui são pequenos. */
+  function lerFormulario(id) {
+    var raiz = container.querySelector('#' + id);
+    var dados = {};
+    if (!raiz) return dados;
+
+    raiz.querySelectorAll('input, select, textarea').forEach(function (campo) {
+      if (!campo.name) return;
+      dados[campo.name] = campo.type === 'checkbox' ? campo.checked : campo.value.trim();
+    });
+    return dados;
   }
 
   function ligarEventos() {
@@ -381,6 +704,161 @@
         App.components.Toast.sucesso('Regras restauradas', 'Os padrões do sistema voltaram a valer.');
         carregar();
       });
+    });
+
+    // --- Escritório e preferências (F2.10) ---
+
+    App.dom.delegate(container, 'click', '[data-action="salvar-escritorio"]', function () {
+      App.services.configuracaoService.salvarEscritorio(lerFormulario('form-escritorio'))
+        .then(function () {
+          App.components.Toast.sucesso('Dados do escritório salvos');
+          carregar();
+        })
+        .catch(function (erro) {
+          App.components.Toast.erro('Não foi possível salvar', erro.message);
+        });
+    });
+
+    App.dom.delegate(container, 'click', '[data-action="salvar-preferencias"]', function () {
+      var eu = App.services.sessaoService.atual();
+      if (!eu) return;
+
+      App.services.configuracaoService
+        .salvarPreferencias(eu.id, lerFormulario('form-preferencias'))
+        .then(function () {
+          App.components.Toast.sucesso('Preferências salvas');
+          carregar();
+        });
+    });
+
+    // --- Feriados locais (F2.10) ---
+
+    App.dom.delegate(container, 'click', '[data-action="criar-feriado"]', function () {
+      App.services.configuracaoService.criarFeriado(lerFormulario('form-feriado'))
+        .then(function (f) {
+          App.components.Toast.sucesso('Feriado cadastrado',
+            App.format.data(f.data) + ' deixa de contar como dia útil a partir de agora.');
+          carregar();
+        })
+        .catch(function (erro) {
+          App.components.Toast.erro('Não foi possível cadastrar', erro.message);
+        });
+    });
+
+    App.dom.delegate(container, 'click', '[data-action="remover-feriado"]',
+      function (evento, alvo) {
+        App.components.Modal.confirmar({
+          titulo: 'Remover feriado local',
+          mensagem: 'A data volta a contar como dia útil.',
+          detalhe: 'Prazos já calculados não são recalculados sozinhos — confira os que ' +
+                   'passam por esta data.',
+          rotuloConfirmar: 'Remover',
+          variante: 'danger'
+        }).then(function (confirmado) {
+          if (!confirmado) return;
+          App.services.configuracaoService
+            .removerFeriado(alvo.getAttribute('data-value'))
+            .then(function () {
+              App.components.Toast.sucesso('Feriado removido');
+              carregar();
+            });
+        });
+      });
+
+    // --- Tipos de prazo (F2.10) ---
+
+    App.dom.delegate(container, 'click', '[data-action="criar-tipo-prazo"]', function () {
+      App.services.configuracaoService.criarTipoPrazo(lerFormulario('form-tipo-prazo'))
+        .then(function () {
+          App.components.Toast.sucesso('Tipo de prazo criado');
+          carregar();
+        })
+        .catch(function (erro) {
+          App.components.Toast.erro('Não foi possível criar', erro.message);
+        });
+    });
+
+    App.dom.delegate(container, 'click', '[data-action="remover-tipo-prazo"]',
+      function (evento, alvo) {
+        App.services.configuracaoService.removerTipoPrazo(alvo.getAttribute('data-value'))
+          .then(function () {
+            App.components.Toast.sucesso('Tipo de prazo removido');
+            carregar();
+          })
+          .catch(function (erro) {
+            App.components.Toast.erro('Não foi possível remover', erro.message);
+          });
+      });
+
+    // --- Importação por CSV (F2.10) ---
+
+    App.dom.delegate(container, 'change', '[data-action="trocar-layout"]',
+      function (evento, alvo) {
+        layoutImportacao = alvo.value;
+        conferencia = null;          // o relatório era do outro layout
+        desenhar();
+      });
+
+    App.dom.delegate(container, 'change', '[data-action="arquivo-csv"]',
+      function (evento, alvo) {
+        var arquivo = alvo.files && alvo.files[0];
+        if (!arquivo) return;
+
+        var leitor = new FileReader();
+        leitor.onload = function () {
+          conferindo = false;
+          App.services.importacaoService.conferir(layoutImportacao, String(leitor.result))
+            .then(function (relatorio) {
+              conferencia = relatorio;
+              desenhar();
+            })
+            .catch(function (erro) {
+              conferencia = null;
+              desenhar();
+              App.components.Toast.erro('Não foi possível ler o arquivo', erro.message);
+            });
+        };
+        leitor.onerror = function () {
+          conferindo = false;
+          desenhar();
+          App.components.Toast.erro('Não foi possível ler o arquivo');
+        };
+
+        conferindo = true;
+        conferencia = null;    // o relatório anterior era de outro arquivo
+        desenhar();
+        leitor.readAsText(arquivo, 'utf-8');
+      });
+
+    App.dom.delegate(container, 'click', '[data-action="confirmar-importacao"]', function () {
+      var pendente = conferencia;
+      if (!pendente) return;
+
+      App.components.Modal.confirmar({
+        titulo: 'Importar ' + (pendente.validas.length - pendente.avisos.length) +
+                ' registro(s)',
+        mensagem: 'Os registros serão criados agora.',
+        detalhe: 'As linhas com erro e as que já existem ficam de fora. Nada é sobrescrito.',
+        rotuloConfirmar: 'Importar'
+      }).then(function (confirmado) {
+        if (!confirmado) return;
+
+        App.services.importacaoService.importar(layoutImportacao, pendente)
+          .then(function (r) {
+            conferencia = null;
+            App.components.Toast.sucesso(
+              r.criados + ' registro(s) importado(s)',
+              r.pulados ? r.pulados + ' já existia(m) e foi(ram) pulado(s).' : '');
+            carregar();
+          })
+          .catch(function (erro) {
+            App.components.Toast.erro('A importação falhou', erro.message);
+          });
+      });
+    });
+
+    App.dom.delegate(container, 'click', '[data-action="baixar-modelo"]', function () {
+      App.services.importacaoService.baixarModelo(layoutImportacao);
     });
 
     App.dom.delegate(container, 'change', '[data-action="dupla-conferencia"]',

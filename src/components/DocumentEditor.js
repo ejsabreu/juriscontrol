@@ -121,6 +121,11 @@
                ui.Button({ rotulo: 'Nova versão', variante: 'secondary', tamanho: 'sm',
                            icone: '⧉', acao: 'salvar-versao',
                            titulo: 'Congela o texto atual como uma nova versão do documento' }) +
+               (p.variaveis
+                 ? ui.Button({ rotulo: 'Variáveis', variante: 'secondary', tamanho: 'sm',
+                               icone: '{ }', acao: 'alternar-variaveis',
+                               titulo: 'Lista as variáveis do modelo e insere no cursor' })
+                 : '') +
                menuExportar() +
                ui.Button({ rotulo: 'Ver no processo', variante: 'ghost', tamanho: 'sm',
                            icone: '←', acao: 'voltar-processo',
@@ -150,6 +155,55 @@
            '</div>';
   }
 
+  /* PAINEL DE VARIÁVEIS (F2.10, adiado de F2.7)
+     Quem escreve um modelo precisa saber que variáveis existem e como se
+     escrevem. Sem a lista, resta decorar 24 chaves ou digitar errado — e
+     variável digitada errada não falha: sai como texto no documento
+     protocolado. Por isso o painel INSERE, em vez de só documentar.
+
+     Aparece quando `props.variaveis` é verdadeiro; quem edita um .txt
+     comum não tem por que vê-lo. */
+  function painelVariaveis(p) {
+    if (!p.variaveis) return '';
+
+    var catalogo = App.domain.modelos.CATALOGO;
+    var grupos = {};
+    catalogo.forEach(function (v) { (grupos[v.grupo] = grupos[v.grupo] || []).push(v); });
+
+    var corpo = Object.keys(grupos).map(function (grupo) {
+      return '<div class="editor-vars__grupo">' +
+        '<h3 class="editor-vars__titulo">' + esc(grupo) + '</h3>' +
+        grupos[grupo].map(function (v) {
+          return '<button type="button" class="editor-vars__item"' +
+                   ' data-inserir-variavel="' + esc(v.chave) + '"' +
+                   ' title="' + esc('Inserir {{' + v.chave + '}}') + '">' +
+                   '<code>' + esc(v.chave) + '</code>' +
+                   '<span class="editor-vars__desc">' + esc(v.descricao) + '</span>' +
+                 '</button>';
+        }).join('') +
+      '</div>';
+    }).join('');
+
+    var filtros = App.domain.modelos.FILTROS
+      ? Object.keys(App.domain.modelos.FILTROS) : [];
+
+    return '<aside class="editor-vars" data-editor-vars hidden' +
+             ' aria-label="Variáveis disponíveis">' +
+             '<p class="editor-vars__ajuda u-xs">Clique para inserir no ponto do cursor. ' +
+             'O que não for preenchido no documento final aparece destacado, ' +
+             '<strong>nunca some sozinho</strong>.</p>' +
+             corpo +
+             (filtros.length
+               ? '<div class="editor-vars__grupo">' +
+                   '<h3 class="editor-vars__titulo">Filtros</h3>' +
+                   '<p class="editor-vars__ajuda u-xs">Escreva ' +
+                     '<code>{{cliente.nome|maiuscula}}</code>. Disponíveis: ' +
+                     filtros.map(esc).join(', ') + '.</p>' +
+                 '</div>'
+               : '') +
+           '</aside>';
+  }
+
   function folha(p) {
     if (p.modo === 'rico') {
       return '<div class="editor-doc__folha" data-editor-folha>' +
@@ -177,7 +231,10 @@
                ? '<div class="editor-doc__aviso" role="note">' + p.aviso + '</div>'
                : '') +
              (p.modo === 'rico' ? barraFerramentas() : '') +
-             folha(p) +
+             '<div class="editor-doc__corpo">' +
+               folha(p) +
+               painelVariaveis(p) +
+             '</div>' +
              '<footer class="editor-doc__rodape u-xs u-subtle" data-editor-rodape></footer>' +
            '</div>';
   }
@@ -280,6 +337,46 @@
         aoDigitar();
       }));
     });
+
+    /* Painel de variáveis (F2.10).
+       mousedown, e não click, pelo mesmo motivo da toolbar: no modo rico o
+       click chegaria depois de o contenteditable ter perdido a seleção, e a
+       variável cairia no começo do documento em vez de no cursor. */
+    var elVars = App.dom.qs('[data-editor-vars]', raiz);
+    var btnVars = App.dom.qs('[data-action="alternar-variaveis"]', raiz);
+
+    if (btnVars && elVars) {
+      descartes.push(escutar(btnVars, 'click', function () {
+        elVars.hidden = !elVars.hidden;
+        btnVars.setAttribute('aria-expanded', String(!elVars.hidden));
+      }));
+    }
+
+    App.dom.qsa('[data-inserir-variavel]', raiz).forEach(function (botao) {
+      descartes.push(escutar(botao, 'mousedown', function (evento) {
+        evento.preventDefault();
+        inserirNoCursor('{{' + botao.dataset.inserirVariavel + '}}');
+      }));
+    });
+
+    function inserirNoCursor(texto) {
+      if (!area) return;
+      area.focus();
+
+      if (modo === 'rico') {
+        try {
+          document.execCommand('insertText', false, texto);
+        } catch (e) {
+          area.innerHTML += esc(texto);
+        }
+      } else {
+        var inicio = area.selectionStart;
+        var fim = area.selectionEnd;
+        area.value = area.value.slice(0, inicio) + texto + area.value.slice(fim);
+        area.selectionStart = area.selectionEnd = inicio + texto.length;
+      }
+      aoDigitar();
+    }
 
     // Ctrl+S no documento inteiro: o atalho vale mesmo com o foco na barra.
     descartes.push(escutar(document, 'keydown', function (evento) {

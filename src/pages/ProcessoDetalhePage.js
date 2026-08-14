@@ -65,6 +65,9 @@
         // evita mostrar o resumo de um processo na tela de outro.
         analiseIa = null;
         carregandoIa = false;
+        // Mesmo motivo para o financeiro: os números são do processo anterior.
+        financeiro = null;
+        carregandoFinanceiro = false;
         return carregarLinks();
       })
       .catch(function (erro) {
@@ -193,6 +196,7 @@
         { id: 'prazos',     label: 'Prazos',      contador: abertos },
         { id: 'documentos', label: 'Documentos',  contador: processo.documentos.length },
         { id: 'tarefas',    label: 'Tarefas',     contador: processo.tarefas.length },
+        { id: 'financeiro', label: 'Financeiro' },
         { id: 'portal',     label: 'Compartilhamento',
           contador: linksAtivos.length || null },
         { id: 'assistente', label: 'Assistente' }
@@ -237,6 +241,10 @@
 
       '<div class="divider"></div>' +
 
+      blocoVinculados() +
+
+      '<div class="divider"></div>' +
+
       '<h4 style="margin-bottom:var(--space-3)">Decomposição do número CNJ</h4>' +
       (cnj
         ? '<div class="cnj-preview">' +
@@ -249,6 +257,55 @@
           '</div>'
         : '<p class="u-sm u-muted">Número fora do padrão CNJ.</p>') +
     '</div>';
+  }
+
+  /* PROCESSOS VINCULADOS (F2.10)
+     Cautelar, execução, embargos e apenso são processos separados na
+     numeração e um só caso na prática. Quem abre um precisa enxergar os
+     outros — senão o prazo é conferido no processo errado.
+
+     O que não aparece aqui: vínculo com processo em segredo de justiça que
+     o usuário não pode ver. O service já filtrou; a tela não sabe que
+     existe, que é o comportamento certo. */
+  function blocoVinculados() {
+    var ui = App.components.ui;
+    var enums = App.domain.enums;
+    var pai = processo.processoPai;
+    var apensos = processo.apensos || [];
+
+    function linha(p, papel) {
+      return '<a class="vinculo" href="#/processos/' + esc(p.id) + '">' +
+        '<span class="vinculo__papel">' + esc(papel) + '</span>' +
+        '<span class="vinculo__num u-mono">' + esc(p.numeroCnj || p.numeroInterno) + '</span>' +
+        '<span class="vinculo__assunto">' + esc(p.assunto) + '</span>' +
+        ui.BadgeEnum(enums.STATUS_PROCESSO, p.status) +
+      '</a>';
+    }
+
+    var corpo;
+    if (!pai && !apensos.length) {
+      corpo = '<p class="u-sm u-muted">Nenhum processo vinculado. Use o vínculo para ' +
+              'cautelar, execução, embargos e apensos — eles continuam com numeração ' +
+              'própria, mas passam a ser vistos juntos.</p>';
+    } else {
+      corpo = '<div class="vinculo-lista">' +
+        (pai ? linha(pai, 'principal') : '') +
+        apensos.map(function (p) { return linha(p, 'apenso'); }).join('') +
+      '</div>';
+    }
+
+    return '<div class="u-row" style="align-items:baseline">' +
+             '<h4 style="margin-bottom:var(--space-3)">Processos vinculados' +
+               (apensos.length ? ' <span class="u-subtle u-sm">(' + apensos.length +
+                                 ' apenso(s))</span>' : '') +
+             '</h4>' +
+             '<span class="u-spacer"></span>' +
+             (App.domain.permissoes.podeEditarProcesso(
+                App.services.sessaoService.atual(), processo)
+               ? ui.Button({ rotulo: pai ? 'Alterar vínculo' : 'Vincular a um processo',
+                             tamanho: 'sm', variante: 'ghost', acao: 'vincular-processo' })
+               : '') +
+           '</div>' + corpo;
   }
 
   function campoCnj(rotulo, valor) {
@@ -546,6 +603,85 @@
     '</div>';
   }
 
+  // --- Aba Financeiro (F2.10, adiada de F2.5) ---------------------------------
+
+  var financeiro = null;
+  var carregandoFinanceiro = false;
+
+  /* O financeiro do escritório já existia em #/financeiro, mas ali ele é
+     visto por competência e por cliente. Quem está DENTRO do processo tem
+     outra pergunta: este caso se paga? Por isso a aba mostra rentabilidade
+     — receita menos despesas menos o custo das horas apontadas — e não um
+     extrato. */
+  function painelFinanceiro() {
+    var ui = App.components.ui;
+    var fmt = App.format;
+
+    if (!financeiro && !carregandoFinanceiro) {
+      carregandoFinanceiro = true;
+      Promise.all([
+        App.services.lancamentoService.rentabilidadeDoProcesso(processo.id),
+        App.services.lancamentoService.listar({ processoId: processo.id })
+      ]).then(function (r) {
+        financeiro = { rentabilidade: r[0], lancamentos: r[1].itens };
+        carregandoFinanceiro = false;
+        if (abaAtiva === 'financeiro') desenhar();
+      }).catch(function () {
+        carregandoFinanceiro = false;
+      });
+    }
+
+    if (!financeiro) {
+      return '<div class="tab-panel">' + ui.Skeleton({ linhas: 5 }) + '</div>';
+    }
+
+    var r = financeiro.rentabilidade;
+    var positivo = r.resultadoCentavos >= 0;
+
+    var linhas = financeiro.lancamentos.map(function (l) {
+      return '<tr>' +
+        '<td class="u-tabular u-sm">' + esc(fmt.data(l.dataVencimento)) + '</td>' +
+        '<td>' + esc(l.descricao) + '</td>' +
+        '<td>' + ui.BadgeEnum(App.domain.enums.ORIGENS_LANCAMENTO, l.origem) + '</td>' +
+        '<td class="u-right u-tabular' + (l.tipo === 'receita' ? '' : ' u-muted') + '">' +
+          (l.tipo === 'receita' ? '' : '−') + esc(fmt.moeda(l.valorCentavos)) +
+        '</td>' +
+        '<td>' + ui.BadgeEnum(App.domain.enums.STATUS_LANCAMENTO, l.situacao) + '</td>' +
+      '</tr>';
+    }).join('');
+
+    return '<div class="tab-panel">' +
+      '<div class="grid grid--kpi">' +
+        ui.Kpi({ rotulo: 'Receita', valor: fmt.moeda(r.receitaCentavos), icone: '↑',
+                 cor: 'var(--color-success)' }) +
+        ui.Kpi({ rotulo: 'Despesas', valor: fmt.moeda(r.despesaCentavos), icone: '↓',
+                 cor: 'var(--color-warning)' }) +
+        ui.Kpi({ rotulo: 'Custo das horas', valor: fmt.moeda(r.custoHorasCentavos),
+                 icone: '⏱', dica: Math.round(r.minutos / 60) + 'h apontadas',
+                 cor: 'var(--color-info)' }) +
+        ui.Kpi({ rotulo: 'Resultado', valor: fmt.moeda(r.resultadoCentavos),
+                 icone: positivo ? '✔' : '✕',
+                 cor: positivo ? 'var(--color-success)' : 'var(--color-danger)' }) +
+      '</div>' +
+
+      '<p class="u-sm u-muted">O custo das horas usa o valor-hora do contrato deste ' +
+      'processo' + (r.contrato ? '' : ' — como não há contrato vinculado, aplica-se a ' +
+      'referência do escritório') + '. Sem esse custo, todo processo pareceria lucrativo.</p>' +
+
+      (linhas
+        ? '<div class="table-wrap"><table class="table"><thead><tr>' +
+            '<th>Vencimento</th><th>Descrição</th><th>Origem</th>' +
+            '<th class="u-right">Valor</th><th>Situação</th>' +
+          '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
+        : ui.EmptyState({
+            icone: '💰', titulo: 'Nenhum lançamento neste processo',
+            texto: 'Honorários, custas e reembolsos lançados aqui entram na rentabilidade.',
+            acao: ui.Button({ rotulo: 'Abrir o financeiro', variante: 'secondary',
+                              href: '#/financeiro' })
+          })) +
+    '</div>';
+  }
+
   var PAINEIS = {
     dados: painelDados,
     partes: painelPartes,
@@ -553,6 +689,7 @@
     prazos: painelPrazos,
     documentos: painelDocumentos,
     tarefas: painelTarefas,
+    financeiro: painelFinanceiro,
     portal: painelPortal,
     assistente: painelAssistente
   };
@@ -582,6 +719,8 @@
       verTodosAndamentos = true;
       desenhar();
     });
+
+    App.dom.delegate(container, 'click', '[data-action="vincular-processo"]', abrirVinculo);
 
     App.dom.delegate(container, 'click', '[data-action="cumprir-prazo"]', function (evento, botao) {
       App.services.prazoService.cumprir(botao.dataset.value).then(function (prazo) {
@@ -1547,6 +1686,58 @@
           progresso.innerHTML = '';
         });
       }
+    });
+  }
+
+  /* Vincular a um processo principal (F2.10).
+     A lista de candidatos vem do próprio `listar`, que já aplica segredo de
+     justiça — não montamos a lista a partir do banco cru. */
+  function abrirVinculo() {
+    var ui = App.components.ui;
+
+    App.services.processoService.listar({ porPagina: 0 }).then(function (r) {
+      var candidatos = r.itens.filter(function (p) {
+        // Fora: ele mesmo e os que já são apensos dele (viraria ciclo).
+        return p.id !== processo.id && p.processoPaiId !== processo.id;
+      });
+
+      var opcoes = '<option value="">— nenhum (processo independente) —</option>' +
+        candidatos.map(function (p) {
+          return '<option value="' + esc(p.id) + '"' +
+                 (processo.processoPaiId === p.id ? ' selected' : '') + '>' +
+                 esc((p.numeroCnj || p.numeroInterno) + ' — ' + p.assunto) +
+                 '</option>';
+        }).join('');
+
+      App.components.Modal.abrir({
+        titulo: 'Vincular processo',
+        conteudo: '<form id="form-vinculo" class="form-grid">' +
+          '<p class="u-sm u-muted">Escolha o processo <strong>principal</strong>. Este ' +
+          'passa a constar como apenso dele, e os dois aparecem juntos nas duas telas. ' +
+          'A numeração de cada um continua a mesma.</p>' +
+          ui.Field({ nome: 'processoPaiId', rotulo: 'Processo principal', tipo: 'select',
+                     opcoes: opcoes }) +
+        '</form>',
+        acoes: [
+          { rotulo: 'Cancelar', variante: 'secondary', acao: 'cancelar', fechar: true },
+          { rotulo: 'Salvar vínculo', variante: 'primary', acao: 'salvar' }
+        ],
+        aoAcao: function (acao, corpo, fechar) {
+          if (acao !== 'salvar') return;
+
+          var dados = App.dom.formToObject(App.dom.qs('#form-vinculo', corpo));
+          App.services.processoService.vincular(processo.id, dados.processoPaiId || null)
+            .then(function () {
+              fechar();
+              App.components.Toast.sucesso(
+                dados.processoPaiId ? 'Processo vinculado' : 'Vínculo desfeito');
+              recarregar();
+            })
+            .catch(function (erro) {
+              App.components.Toast.erro('Não foi possível vincular', erro.message);
+            });
+        }
+      });
     });
   }
 

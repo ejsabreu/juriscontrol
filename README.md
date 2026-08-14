@@ -8,9 +8,9 @@ HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 
 O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está em
 [PLANEJAMENTO.md](PLANEJAMENTO.md). A fase 2 está em
-[PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md): **concluídos** fundações, segurança/LGPD,
+[PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md), **concluída**: fundações, segurança/LGPD,
 alertas, portal do cliente, publicações/tribunais, financeiro, CRM, documentos avançados,
-assistente e relatórios/BI; **a fazer** administração e complementos.
+assistente, relatórios/BI e administração.
 
 ---
 
@@ -52,7 +52,7 @@ arquivos como estão.
 | `#/` | Dashboard — prazos críticos, compromissos, distribuição da carteira |
 | `#/processos` | Lista de processos em **tabela** ou **kanban** |
 | `#/processos/novo` | Cadastro com validação do número CNJ |
-| `#/processos/:id` | Detalhe — Dados · Partes · Andamentos · Prazos · Documentos · Tarefas |
+| `#/processos/:id` | Detalhe — Dados · Partes · Andamentos · Prazos · Documentos · Tarefas · Financeiro |
 | `#/processos/:id` → aba Compartilhamento | Links do portal, acessos e revogação |
 | `#/agenda` | Calendário forense + prazos e compromissos |
 | `#/clientes` | Lista e ficha de clientes |
@@ -69,7 +69,7 @@ arquivos como estão.
 | `#/integracoes` | Monitoramentos, histórico de captura e integrações previstas |
 | `#/simulador` | Simulador de contagem de prazo com memória de cálculo |
 | `#/notificacoes` | Central de notificações do usuário |
-| `#/configuracoes` | Usuários, matriz de permissões e regras de alerta *(só administrador)* |
+| `#/configuracoes` | Escritório · Usuários · Permissões · Alertas e tipos de prazo · **Feriados locais** · **Importar dados** *(só administrador)* |
 | `#/caixa-de-saida` | E-mails que teriam sido enviados *(só administrador)* |
 | `#/auditoria` | Trilha de auditoria com diff campo a campo *(só administrador)* |
 | `#/privacidade` | LGPD — titulares, solicitações, consentimentos e backup *(só administrador)* |
@@ -205,6 +205,23 @@ Não é maquete estática. O que está implementado funciona:
   contaria que o processo existe. **O link abre em qualquer navegador** — o token carrega
   os dados do compartilhamento, como um JWT; a soma de verificação detecta link truncado,
   mas não é assinatura (sem servidor não há segredo para assinar).
+- **Feriados locais do escritório** — o motor calcula os nacionais e os forenses a partir
+  da Páscoa, mas **ponto facultativo de comarca, feriado municipal e suspensão de
+  expediente por ato do tribunal não seguem regra nenhuma**: só existem no calendário
+  daquele foro. Cadastrados em *Configurações ▸ Feriados locais*, passam a valer
+  imediatamente em toda contagem de prazo, no calendário e na conferência — e sobrevivem à
+  restauração de backup. Sem eles, o sistema contaria um dia útil que não houve e mostraria
+  uma data errada com toda a confiança.
+- **Importação em massa por CSV** — nenhum escritório migra a carteira digitando. A
+  conferência valida o **arquivo inteiro antes de gravar qualquer linha**: CNJ pelo dígito
+  verificador, CPF/CNPJ, enums e valores, com o relatório apontando o **número da linha** de
+  cada erro. Registro que já existe é detectado e **pulado**, então reenviar o mesmo arquivo
+  por engano não duplica o cadastro. Importar sem conferir é recusado.
+- **Processos vinculados (apensos)** — cautelar, execução e embargos têm número próprio e
+  são o mesmo caso; vinculá-los faz os dois aparecerem juntos. O vínculo passa pelo mesmo
+  filtro de segredo de justiça do resto do sistema — um processo em segredo não vaza por
+  ser apenso de outro — e um vínculo que criaria ciclo é recusado, porque a árvore de
+  apensos recorreria para sempre.
 
 ---
 
@@ -215,7 +232,7 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-1.832 verificações em 14 suítes. As onze que não precisam de jsdom compartilham o
+1.921 verificações em 15 suítes. As doze que não precisam de jsdom compartilham o
 sandbox de `testes/ambiente.js`, que carrega o núcleo (utils, domínio, seed, store e
 services) na ordem de dependência — assim um módulo novo no seed entra num lugar só.
 
@@ -232,6 +249,7 @@ services) na ordem de dependência — assim um módulo novo no seed entra num l
 | `documentos.test.js` | Preenchimento de modelos (com ênfase na variável sem valor), índice invertido, busca com segredo de justiça aplicado, assinatura que quebra ao alterar o texto e trilha de acesso. **Não precisa de jsdom.** |
 | `assistente.test.js` | Resumo, próxima ação, duplicidade, risco, revisor de peça e gramática de intenções — com ênfase nos casos em que o sistema **precisa admitir que não sabe**. **Não precisa de jsdom.** |
 | `relatorios.test.js` | Contrato de retorno dos dez indicadores, coerência entre total e tabela, escopo próprio e segredo de justiça nas contas. **Não precisa de jsdom.** |
+| `administracao.test.js` | Feriado local que **muda a contagem do prazo** (e sobrevive à restauração de backup), tipos de prazo, importação CSV que confere o arquivo inteiro antes de gravar qualquer linha, e apensos com segredo de justiça aplicado. **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |

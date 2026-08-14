@@ -83,6 +83,26 @@
     return lista;
   }
 
+  /* FERIADOS LOCAIS (F2.10).
+     O motor calcula os nacionais e os forenses a partir da Páscoa, mas ponto
+     facultativo de comarca, feriado municipal e suspensão de expediente por
+     ato do tribunal só existem no calendário daquele foro — não há regra que
+     os derive. São informados pelo escritório e injetados aqui.
+
+     A lista mora fora do domínio (vem do banco, via `configuracaoService`);
+     o domínio continua puro, apenas recebendo-a. */
+  var locais = [];
+
+  /**
+   * @param {Array} lista  [{ data: 'YYYY-MM-DD', nome, comarca?, tribunalId? }]
+   */
+  function definirLocais(lista) {
+    locais = (lista || []).filter(function (f) { return f && f.data; });
+    cache = {};      // o mapa memoizado envelheceu
+  }
+
+  function listarLocais() { return locais.slice(); }
+
   /** Mapa { 'YYYY-MM-DD': feriado } cobrindo um intervalo de anos, memoizado. */
   function mapa(anoInicio, anoFim) {
     var chave = anoInicio + ':' + anoFim;
@@ -95,6 +115,23 @@
         if (!m[f.data] || f.abrangencia === 'nacional') m[f.data] = f;
       });
     }
+
+    /* O local entra por último e NÃO sobrescreve nacional nem forense: a data
+       já é não útil de qualquer forma, e manter o nome oficial é mais
+       informativo na tela do calendário. */
+    locais.forEach(function (f) {
+      var ano = parseInt(String(f.data).slice(0, 4), 10);
+      if (ano < anoInicio || ano > anoFim) return;
+      if (m[f.data]) return;
+
+      m[f.data] = {
+        data: f.data,
+        nome: f.nome || 'Feriado local',
+        abrangencia: 'local',
+        comarca: f.comarca || null,
+        tribunalId: f.tribunalId || null
+      };
+    });
 
     cache[chave] = m;
     return m;
@@ -137,6 +174,8 @@
   App.domain.feriados = {
     pascoa: pascoa,
     listar: listar,
+    definirLocais: definirLocais,
+    listarLocais: listarLocais,
     mapa: mapa,
     mapaPadrao: mapaPadrao,
     ehFeriado: ehFeriado,

@@ -330,6 +330,13 @@
       var incompativel = pacote.versao && pacote.versao !== db().CHAVE;
       db().substituirTudo(pacote.dados);
 
+      /* O backup traz os feriados locais do escritório, mas o motor de prazos
+         guarda a própria cópia em memória (F2.10). Sem reinjetar, a contagem
+         seguiria usando o calendário de ANTES da restauração. */
+      if (App.services.configuracaoService) {
+        App.services.configuracaoService.aplicarFeriados();
+      }
+
       App.services.auditoriaService.registrar({
         acao: 'atualizar',
         colecao: null,

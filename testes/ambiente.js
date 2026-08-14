@@ -95,7 +95,9 @@ const NUCLEO = [
   'src/services/buscaService.js',
   'src/services/assinaturaService.js',
   'src/services/simulado/iaService.js',
-  'src/services/relatorioService.js'
+  'src/services/relatorioService.js',
+  'src/services/configuracaoService.js',
+  'src/services/importacaoService.js'
 ];
 
 /** localStorage de mentira — a sessão e o banco precisam persistir em algum lugar. */

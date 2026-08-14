@@ -20,6 +20,22 @@ virtualConsole.on('log', () => {});
 
 function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+/* Espera uma CONDIÇÃO, não um relógio.
+
+   Dormir um tempo fixo depois de uma escrita assíncrona funciona quase
+   sempre — e é exatamente o "quase" que produz a falha que só aparece uma
+   vez a cada tantas execuções, sem apontar defeito nenhum. Aqui a espera
+   termina quando o estado chega; o limite existe só para o teste não pendurar
+   caso ele nunca chegue. */
+async function ate(condicao, limite = 3000, passo = 50) {
+  const fim = Date.now() + limite;
+  while (Date.now() < fim) {
+    try { if (condicao()) return true; } catch (e) { /* ainda não montou */ }
+    await esperar(passo);
+  }
+  return false;
+}
+
 (async () => {
   const dom = await JSDOM.fromFile(path.join(RAIZ, 'index.html'), {
     runScripts: 'dangerously',
@@ -180,10 +196,19 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   await irPara('#/processos/' + primeiro.id, 900);
   ok('número CNJ exibido', texto().includes(primeiro.numeroCnj));
   // 6 abas da fase 1 + Compartilhamento (F2.3) + Assistente (F2.8)
-  ok('abas renderizadas', doc.querySelectorAll('.tabs__tab').length === 8,
+  //                  + Financeiro (F2.10)
+  ok('abas renderizadas', doc.querySelectorAll('.tabs__tab').length === 9,
      String(doc.querySelectorAll('.tabs__tab').length));
   ok('decomposição do CNJ presente', texto().includes('Decomposição do número CNJ'));
   ok('segmento identificado', /Justiça (Estadual|Federal|do Trabalho)/.test(texto()));
+
+  // F2.10: vínculo entre processos fica na aba Dados, junto do resto da ficha.
+  ok('a aba Dados mostra os processos vinculados',
+     texto().includes('Processos vinculados'));
+  ok('sem vínculo, a tela explica para que serve',
+     texto().includes('Nenhum processo vinculado'));
+  ok('o admin pode criar o vínculo',
+     !!doc.querySelector('[data-action="vincular-processo"]'));
 
   for (const aba of ['partes', 'andamentos', 'prazos', 'documentos', 'tarefas']) {
     const botao = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
@@ -192,6 +217,18 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
     await esperar(120);
     ok(`aba "${aba}" renderiza sem erro`, !!doc.querySelector('.tab-panel'));
   }
+
+  // A aba Financeiro (F2.10) busca sob demanda — precisa de mais fôlego que
+  // as demais, que já vêm carregadas junto do processo.
+  Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.dataset.value === 'financeiro')
+    .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(900);
+
+  ok('a aba Financeiro mostra a rentabilidade do processo',
+     texto().includes('Resultado') && texto().includes('Custo das horas'));
+  ok('a aba diz de onde vem o custo da hora',
+     texto().includes('valor-hora'));
 
   console.log('\nProcesso — formulário');
   await irPara('#/processos/novo', 800);
@@ -253,9 +290,16 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   const cliente = window.App.services.db.get('pessoas').find(p => p.ehCliente);
   await irPara('#/clientes/' + cliente.id, 900);
   ok('ficha do cliente renderizada', texto().includes(cliente.nome));
-  ok('KPIs do cliente', doc.querySelectorAll('.kpi').length === 4,
-     String(doc.querySelectorAll('.kpi').length));
+  /* Conta os KPIs da FAIXA DO CLIENTE, não os da tela toda: o cartão
+     financeiro (F2.10) traz os seus, e um total global voltaria a quebrar a
+     cada bloco novo sem nunca ter apontado um defeito. */
+  ok('KPIs do cliente',
+     doc.querySelectorAll('.grid--kpi')[0].querySelectorAll('.kpi').length === 4,
+     String(doc.querySelectorAll('.grid--kpi')[0].querySelectorAll('.kpi').length));
   ok('tabela de processos do cliente', texto().includes('Processos do cliente'));
+  // F2.10: a situação financeira entra na ficha, sem obrigar a abrir #/financeiro.
+  ok('a ficha traz a situação financeira do cliente',
+     texto().includes('Recebido') && texto().includes('Em atraso'));
 
   console.log('\nSimulador de prazo');
   await irPara('#/simulador', 800);
@@ -938,6 +982,15 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   console.log('\nConfigurações (#/configuracoes)');
   await irPara('#/configuracoes', 700);
   ok('tela abre para o admin', texto().includes('Configurações'));
+
+  // F2.10: a tela passou a abrir em "Escritório"; usuários é a segunda aba.
+  ok('abre na aba do escritório', !!doc.querySelector('#form-escritorio'));
+
+  const abaUsuarios = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Usuários'));
+  abaUsuarios.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(300);
+
   ok('lista os usuários do escritório',
      doc.querySelectorAll('table.table tbody tr').length ===
      window.App.services.db.getTodos('usuarios').length,
@@ -980,20 +1033,73 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   const chipD5 = doc.querySelector('[data-action="antecedencia"][data-gatilho="prazo"][data-dia="5"]');
   chipD5.checked = false;
   chipD5.dispatchEvent(new window.Event('change', { bubbles: true }));
-  await esperar(700);
+
+  const regraDe = (g) => window.App.services.regraAlertaService.vigentes()
+    .filter(r => r.gatilho === g)[0];
+
+  await ate(() => regraDe('prazo').antecedenciaDias.indexOf(5) === -1);
   ok('desmarcar um marco grava a regra personalizada',
-     window.App.services.regraAlertaService.vigentes()
-       .filter(r => r.gatilho === 'prazo')[0].antecedenciaDias.indexOf(5) === -1);
+     regraDe('prazo').antecedenciaDias.indexOf(5) === -1);
   ok('as demais regras continuam nos padrões',
-     window.App.services.regraAlertaService.vigentes()
-       .filter(r => r.gatilho === 'compromisso')[0].antecedenciaDias.length === 3);
+     regraDe('compromisso').antecedenciaDias.length === 3);
+
+  ok('a mesma aba lista os tipos de prazo (F2.10)',
+     texto().includes('Tipos de prazo') && !!doc.querySelector('#form-tipo-prazo'));
+  ok('os tipos do CPC aparecem protegidos',
+     texto().includes('padrão do sistema'));
 
   doc.querySelector('[data-action="restaurar-regras"]')
      .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await esperar(700);
+  await ate(() => regraDe('prazo').antecedenciaDias.indexOf(5) !== -1);
   ok('restaurar padrões volta a régua original',
-     window.App.services.regraAlertaService.vigentes()
-       .filter(r => r.gatilho === 'prazo')[0].antecedenciaDias.indexOf(5) !== -1);
+     regraDe('prazo').antecedenciaDias.indexOf(5) !== -1);
+
+  console.log('\nConfigurações — feriados locais (F2.10)');
+  const abaFeriados = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Feriados'));
+  abaFeriados.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(300);
+
+  ok('a aba abre com o formulário de cadastro', !!doc.querySelector('#form-feriado'));
+  ok('a tela explica por que o cadastro existe',
+     texto().includes('ponto facultativo'));
+
+  /* Cadastrar pela TELA e conferir no MOTOR: é o caminho que o usuário
+     percorre, e o ponto onde um cadastro que não chega ao cálculo passaria
+     despercebido. */
+  const alvoFeriado = window.App.format.toISO(
+    new Date(new Date().getFullYear() + 1, 6, 15));   // 15/07 do ano que vem
+
+  doc.querySelector('#form-feriado [name="data"]').value = alvoFeriado;
+  doc.querySelector('#form-feriado [name="nome"]').value = 'Aniversário da comarca';
+  doc.querySelector('[data-action="criar-feriado"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(700);
+
+  ok('o feriado cadastrado pela tela aparece na lista',
+     texto().includes('Aniversário da comarca'));
+  ok('o feriado cadastrado pela tela VALE no motor de prazos',
+     !window.App.domain.prazos.ehDiaUtil(alvoFeriado));
+
+  doc.querySelector('[data-action="remover-feriado"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(300);
+  doc.querySelector('[data-action="confirmar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(700);
+  ok('removido pela tela, o dia volta a ser útil',
+     window.App.domain.prazos.ehDiaUtil(alvoFeriado));
+
+  console.log('\nConfigurações — importação por CSV (F2.10)');
+  const abaImport = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Importar'));
+  abaImport.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(300);
+
+  ok('a aba mostra o seletor de arquivo', !!doc.querySelector('[data-action="arquivo-csv"]'));
+  ok('a aba documenta as colunas esperadas', texto().includes('Colunas esperadas'));
+  ok('a aba diz que o arquivo não sai da máquina',
+     texto().includes('não sai da sua máquina'));
 
   console.log('\nAuditoria (#/auditoria)');
   await irPara('#/auditoria', 700);

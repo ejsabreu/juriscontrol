@@ -208,7 +208,32 @@
       var compromissos = db().where('compromissos', function (cp) { return cp.processoId === id; })
         .sort(function (a, b) { return a.dataHora < b.dataHora ? -1 : 1; });
 
+      /* PROCESSOS VINCULADOS (F2.10) — apensos, cautelar, execução, embargos.
+         Passam pelo MESMO filtro de segredo de justiça: um processo em
+         segredo não pode vazar por ser apenso de outro que a pessoa vê.
+         O vínculo existe, mas para quem não pode vê-lo ele não aparece. */
+      function visivel(p) {
+        return App.domain.permissoes.podeVerProcesso(usuarioDaSessao(), p);
+      }
+      function resumo(p) {
+        return {
+          id: p.id, numeroCnj: p.numeroCnj, numeroInterno: p.numeroInterno,
+          assunto: p.assunto, classeProcessual: p.classeProcessual,
+          status: p.status, faseId: p.faseId, valorCausa: p.valorCausa
+        };
+      }
+
+      var pai = processo.processoPaiId
+        ? db().find('processos', processo.processoPaiId) : null;
+
+      var apensos = db()
+        .where('processos', function (p) { return p.processoPaiId === id; })
+        .filter(visivel)
+        .map(resumo);
+
       return Object.assign(enriquecer(processo), {
+        processoPai: pai && visivel(pai) ? resumo(pai) : null,
+        apensos: apensos,
         partes: partes,
         andamentos: andamentos,
         prazos: listaPrazos,
@@ -263,6 +288,48 @@
       var removido = db().remove('processos', id);
       if (!removido) throw http().ErroApi('Processo não encontrado.', 404);
       return { id: id };
+    });
+  }
+
+  /**
+   * Vincula um processo a outro (apenso). `paiId` nulo desfaz o vínculo.
+   *
+   * A checagem de CICLO não é preciosismo: A → B → A faria a árvore de
+   * apensos da tela recorrer para sempre, e travar o navegador é pior do
+   * que recusar o vínculo. Subimos a cadeia inteira antes de gravar.
+   */
+  function vincular(id, paiId) {
+    return http().requisicao(function () {
+      var processo = db().find('processos', id);
+      if (!processo) throw http().ErroApi('Processo não encontrado.', 404);
+
+      if (!paiId) {
+        return enriquecer(db().update('processos', id, { processoPaiId: null }));
+      }
+      if (paiId === id) {
+        throw http().ErroApi('Um processo não pode ser apenso de si mesmo.', 400);
+      }
+
+      var pai = db().find('processos', paiId);
+      if (!pai) throw http().ErroApi('Processo principal não encontrado.', 404);
+      if (!App.domain.permissoes.podeVerProcesso(usuarioDaSessao(), pai)) {
+        throw http().ErroApi('Processo principal não encontrado.', 404);
+      }
+
+      var visitados = {};
+      var atual = pai;
+      while (atual) {
+        if (atual.id === id) {
+          throw http().ErroApi(
+            'Este vínculo criaria um ciclo: o processo escolhido já está abaixo deste.',
+            409);
+        }
+        if (visitados[atual.id]) break;      // cadeia já corrompida — não insiste
+        visitados[atual.id] = true;
+        atual = atual.processoPaiId ? db().find('processos', atual.processoPaiId) : null;
+      }
+
+      return enriquecer(db().update('processos', id, { processoPaiId: paiId }));
     });
   }
 
@@ -370,6 +437,7 @@
     criar: criar,
     atualizar: atualizar,
     remover: remover,
+    vincular: vincular,
     mudarFase: mudarFase,
     mudarCampoKanban: mudarCampoKanban,
     estatisticas: estatisticas,

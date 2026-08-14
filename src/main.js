@@ -130,6 +130,12 @@
       // 3. Preferências persistidas (tema e visão do kanban).
       App.preferencias.carregar();
 
+      //    Feriados locais (F2.10) ANTES de qualquer tela: o motor de prazos
+      //    é consultado já no primeiro desenho do painel, e injetá-los depois
+      //    faria a contagem inicial ignorar dias sem expediente que o
+      //    escritório cadastrou — data errada exibida com toda a confiança.
+      App.services.configuracaoService.aplicarFeriados();
+
       // 4. Sessão gravada, se houver. Sem ela, a guarda manda para /entrar.
       App.services.sessaoService.restaurar();
 

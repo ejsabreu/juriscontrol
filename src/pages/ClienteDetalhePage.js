@@ -10,21 +10,30 @@
   var container = null;
   var cliente = null;
   var interacoes = [];
+  var titulos = null;      // null = ainda não buscado; [] = buscado e vazio
 
   function esc(v) { return App.dom.esc(v); }
 
   function render(elemento, params) {
     container = elemento;
     container.innerHTML = App.components.ui.Skeleton({ linhas: 6 });
+    titulos = null;        // os títulos em memória são do cliente anterior
     ligarEventos();
 
     App.services.clienteService.obter(params.id).then(function (c) {
       cliente = c;
       /* F2.6: o histórico do cliente começa ANTES de ele ser cliente — o
-         serviço traz junto as interações do lead que virou esta pessoa. */
-      return App.services.interacaoService.listar({ pessoaId: c.id });
-    }).then(function (lista) {
-      interacoes = lista;
+         serviço traz junto as interações do lead que virou esta pessoa.
+         F2.10: os títulos entram no MESMO carregamento, e não em uma busca
+         disparada pelo cartão. Buscar depois custaria uma segunda
+         renderização da ficha inteira a cada abertura. */
+      return Promise.all([
+        App.services.interacaoService.listar({ pessoaId: c.id }),
+        App.services.lancamentoService.listar({ clienteId: c.id })
+      ]);
+    }).then(function (r) {
+      interacoes = r[0];
+      titulos = r[1].itens;
       desenhar();
     }).catch(function (erro) {
       container.innerHTML = App.components.ui.EmptyState({
@@ -198,9 +207,63 @@
       heroi() +
       kpis() +
       tabelaProcessos() +
+      cardFinanceiro() +
       cardInteracoes();
 
     App.components.DataTable.mount(container, {});
+  }
+
+  /* Situação financeira do cliente (F2.10, adiada de F2.5).
+     A pergunta que se faz antes de ligar para o cliente é "ele está em dia?".
+     Responder isso exigia abrir o financeiro e filtrar — agora está na ficha. */
+  function cardFinanceiro() {
+    var ui = App.components.ui;
+    var fmt = App.format;
+
+    var receitas = (titulos || []).filter(function (l) { return l.tipo === 'receita'; });
+    var soma = function (lista) {
+      return lista.reduce(function (s, l) { return s + Math.round(l.valorCentavos || 0); }, 0);
+    };
+
+    var atrasados = receitas.filter(function (l) { return l.situacao === 'atrasado'; });
+    var abertos = receitas.filter(function (l) { return l.situacao === 'em_aberto'; });
+    var pagos = receitas.filter(function (l) { return l.situacao === 'pago'; });
+
+    var linhas = receitas
+      .filter(function (l) { return l.situacao !== 'pago'; })
+      .slice(0, 10)
+      .map(function (l) {
+        return '<tr>' +
+          '<td class="u-tabular u-sm">' + esc(fmt.data(l.dataVencimento)) + '</td>' +
+          '<td>' + esc(l.descricao) + '</td>' +
+          '<td class="u-right u-tabular">' + esc(fmt.moeda(l.valorCentavos)) + '</td>' +
+          '<td>' + ui.BadgeEnum(App.domain.enums.STATUS_LANCAMENTO, l.situacao) + '</td>' +
+        '</tr>';
+      }).join('');
+
+    return ui.Card({
+      titulo: 'Financeiro',
+      subtitulo: receitas.length + ' título(s) de honorários',
+      acoes: ui.Button({ rotulo: 'Ver no financeiro', tamanho: 'sm', variante: 'ghost',
+                         href: '#/financeiro' }),
+      conteudo:
+        '<div class="grid grid--kpi">' +
+          ui.Kpi({ rotulo: 'Recebido', valor: fmt.moeda(soma(pagos)), icone: '✔',
+                   cor: 'var(--color-success)' }) +
+          ui.Kpi({ rotulo: 'A receber', valor: fmt.moeda(soma(abertos)), icone: '◷',
+                   cor: 'var(--color-info)' }) +
+          ui.Kpi({ rotulo: 'Em atraso', valor: fmt.moeda(soma(atrasados)), icone: '⚠',
+                   dica: atrasados.length ? atrasados.length + ' título(s)' : 'nenhum',
+                   cor: atrasados.length ? 'var(--color-danger)'
+                                         : 'var(--color-text-subtle)' }) +
+        '</div>' +
+        (linhas
+          ? '<div class="table-wrap"><table class="table"><thead><tr>' +
+              '<th>Vencimento</th><th>Descrição</th>' +
+              '<th class="u-right">Valor</th><th>Situação</th>' +
+            '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
+          : '<p class="u-sm u-muted">Nenhum título em aberto — o cliente está em dia.</p>')
+    });
   }
 
   /** Histórico de contato (F2.6) — inclui o que veio da fase de prospecção. */

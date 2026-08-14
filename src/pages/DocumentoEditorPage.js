@@ -135,10 +135,16 @@
     if (editor) editor.destruir();
 
     var salvo = conteudos().ler(documento.id);
+    var conteudo = salvo ? salvo.conteudo : '';
+
+    /* O painel de variáveis (F2.10) só aparece onde faz sentido: em peça
+       gerada de modelo, que é onde ainda há `{{...}}` para preencher ou
+       acrescentar. Num .csv ou num despacho já pronto, ele seria ruído. */
     var props = {
       documento: documento,
       modo: modo,
-      conteudo: salvo ? salvo.conteudo : '',
+      conteudo: conteudo,
+      variaveis: /\{\{/.test(conteudo),
       aviso: aviso(salvo),
       podeFechar: !!window.opener
     };

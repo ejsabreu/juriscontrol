@@ -59,7 +59,7 @@ outros módulos.
 | **F2.7** | Documentos avançados (modelos, busca, assinatura) ✅ | F2.0 | M |
 | **F2.8** | Assistente (IA) ✅ | F2.4, F2.7 | M |
 | **F2.9** | Relatórios e BI ✅ | F2.2, F2.5, F2.6 | M |
-| **F2.10** | Administração e complementos | F2.1 | M |
+| **F2.10** | Administração e complementos ✅ | F2.1 | M |
 
 **Atalho possível:** se a prioridade for demonstrar valor rápido, **F2.3 (portal)** pode
 saltar para logo depois de F2.0 — ele só precisa de permissões rudimentares, e os campos
@@ -1255,7 +1255,7 @@ recorte funciona normalmente.
 
 ---
 
-## F2.10 — Administração e complementos
+## F2.10 — Administração e complementos ✅ concluída
 
 Os buracos que não estavam na lista original mas que qualquer escritório cobra na primeira
 semana de uso.
@@ -1271,17 +1271,99 @@ semana de uso.
 | Backup e restauração | Botão de exportar/importar o banco em JSON |
 | Preferências por usuário | Tela inicial, colunas da tabela, densidade |
 
-### Passos
+### Passos — todos executados
 
-1. `#/configuracoes` com abas (escritório, usuários, prazos, feriados, alertas, integrações)
-2. `feriadoEscritorioService` + injeção no `domain/feriados.js` (a função pura passa a
-   aceitar uma lista extra — sem quebrar a assinatura atual)
-3. Importação CSV com prévia, validação linha a linha (CNJ, CPF/CNPJ) e relatório de erros
-4. Vínculo de processos: campo `processoPaiId` no formulário, árvore de apensos no detalhe
-5. Busca global sobre andamentos, documentos, prazos, publicações e leads
-6. Backup/restauração em JSON
-7. Preferências por usuário
-8. Testes: importação com linha inválida, árvore de apensos, busca por tipo
+1. ✅ `#/configuracoes` com seis abas: **Escritório** (dados + preferências pessoais),
+   Usuários, Perfis e permissões, Alertas e prazos (agora com **tipos de prazo**),
+   **Feriados locais** e **Importar dados**
+2. ✅ `configuracaoService` + `definirLocais`/`listarLocais` em `domain/feriados.js` —
+   o domínio continua puro, só passa a **receber** a lista
+3. ✅ `importacaoService` — conferência com prévia, validação linha a linha e relatório
+   de erros com o número da linha do arquivo
+4. ✅ Vínculo de processos: `processoPaiId` no formulário, `vincular()` no service com
+   detecção de ciclo, e os vinculados na aba Dados do detalhe
+5. ✅ Busca global ampliada — **já entregue em F2.7** (`buscaService` com índice invertido
+   sobre processos, andamentos, documentos, prazos, publicações, pessoas e leads)
+6. ✅ Backup/restauração em JSON — **já entregue em F2.1**; aqui ganhou a reinjeção dos
+   feriados no motor após restaurar
+7. ✅ Preferências por usuário (tela inicial, itens por página), isoladas por `usuarioId`
+8. ✅ `testes/administracao.test.js` — 72 verificações, mais 16 nas suítes de tela
+
+### Também nesta fase: os dois itens adiados
+
+- **Abas financeiras dentro do processo e do cliente** (adiado de F2.5). No processo, a
+  pergunta não é "qual o extrato" e sim **"este caso se paga?"** — então a aba mostra
+  rentabilidade: receita menos despesas menos o **custo das horas apontadas**. Sem esse
+  custo, todo processo pareceria lucrativo. Na ficha do cliente entra "ele está em dia?":
+  recebido, a receber e em atraso, com os títulos em aberto.
+- **Painel de variáveis no `DocumentEditor`** (adiado de F2.7). Quem escreve um modelo
+  precisa saber que variáveis existem e como se escrevem. Sem a lista, resta decorar 24
+  chaves — e variável digitada errada **não falha**: sai como texto no documento
+  protocolado. Por isso o painel **insere no cursor**, em vez de só documentar.
+
+### O feriado local é o item que muda um número
+
+O resto de F2.10 é conveniência. Este não: cadastrar um dia sem expediente só serve se a
+**contagem passar a pular esse dia**. Se o cadastro existir e o motor ignorar, o sistema
+mostra uma data errada com toda a confiança — e o prazo vence antes do que a tela diz.
+
+Por isso a injeção acontece em três pontos, e o teste cobre os três: no **bootstrap**
+(antes da primeira tela, porque o painel já consulta o motor no primeiro desenho), a **cada
+alteração** do cadastro, e **depois de restaurar um backup** — o motor guarda a própria
+cópia em memória, e sem reinjetar a contagem seguiria usando o calendário de antes.
+
+O local **não sobrescreve** o nacional nem o forense na mesma data: a data já é não útil de
+qualquer forma, e manter o nome oficial é mais informativo na tela do calendário.
+
+### Conferir tudo antes de gravar qualquer coisa
+
+A regra que organiza o `importacaoService`. Uma importação que grava 300 linhas e para na
+301 deixa o banco num estado que ninguém sabe desfazer — e o usuário sem saber se recomeça
+ou se continua. A conferência é uma passada inteira; a gravação é outra, e só acontece
+depois que o usuário vê o relatório.
+
+Duas consequências que o teste trava:
+
+- **`conferir` não grava nada.** O teste compara o tamanho da coleção antes e depois.
+- **Reenviar o mesmo arquivo não duplica.** A detecção de duplicidade de F2.8 é reusada
+  (CNJ para processo, CPF/CNPJ para pessoa); a linha repetida vira **aviso**, não erro, e é
+  **pulada** na gravação.
+
+### Decisões tomadas durante a implementação
+
+- **O erro aponta o número da linha do arquivo.** Corrigir CSV sem saber onde doeu é
+  adivinhação. `utils/csv.js` já devolvia `__linha` desde F2.0 — era para isto.
+- **Tipo de prazo padrão do CPC não pode ser removido**, porque há prazos gravados
+  apontando para ele. Tipo do escritório em uso também é recusado, com a contagem de
+  quantos prazos o usam. Recusar é o comportamento correto, não uma limitação.
+- **Vínculo que criaria ciclo é recusado** (`409`). A checagem sobe a cadeia inteira antes
+  de gravar: A → B → A faria a árvore de apensos recorrer para sempre, e travar o navegador
+  é pior do que recusar o vínculo.
+- **O apenso passa pelo mesmo filtro de segredo de justiça** do resto do sistema, na camada
+  de dados. Um processo em segredo não pode vazar por ser apenso de outro que a pessoa vê —
+  nem aparecer na lista de candidatos do formulário, o que já contaria que ele existe.
+- **O escritório não é seedado com feriados locais.** Semear feriados municipais fictícios
+  deslocaria silenciosamente todos os prazos do seed. O estado vazio explica o que vai ali e
+  o formulário está do lado.
+- **A aba de configurações passou a abrir em "Escritório"**, e não em "Usuários".
+
+### Um defeito real que o teste pegou
+
+O cartão financeiro do cliente disparava a busca dos títulos **de dentro do render** e
+re-renderizava a ficha inteira quando ela voltava. Funcionava — e deixou a suíte de telas
+**intermitente**: falhas em telas não relacionadas, uma a cada tantas execuções. A carga
+passou para a mesma cadeia de promessas do resto da ficha: uma renderização, não duas.
+
+O achado colateral foi uma asserção antiga que dormia 700 ms depois de uma escrita
+assíncrona em vez de esperar a condição. Virou `ate(condicao)` — o "quase sempre" de um
+tempo fixo é exatamente a falha que só aparece de vez em quando e não aponta defeito nenhum.
+
+### Nota sobre o banco
+
+`feriadosEscritorio` e `configuracoes` já estavam declaradas em `COLECOES_FASE2` desde
+F2.0 e agora são usadas. Nenhuma coleção nova, nenhuma migração: a chave continua em
+`jurisctrl.db.v7`. `configuracoes` é chave/valor de propósito — cada opção nova é uma
+chave, não uma migração.
 
 ---
 

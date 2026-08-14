@@ -78,6 +78,29 @@
     };
   }
 
+  /* Candidatos a processo principal.
+     Filtra pelo MESMO teste de segredo de justiça que o resto do sistema:
+     oferecer na lista um processo que a pessoa não pode abrir já contaria
+     que ele existe. E tira o próprio processo e os que já são apensos dele,
+     porque escolher qualquer um dos dois criaria um ciclo. */
+  function opcoesProcessoPai() {
+    var eu = App.services.sessaoService.atual();
+    var atual = processo.processoPaiId || '';
+
+    var lista = App.services.db.get('processos').filter(function (p) {
+      if (processo.id && (p.id === processo.id || p.processoPaiId === processo.id)) return false;
+      return App.domain.permissoes.podeVerProcesso(eu, p);
+    });
+
+    return '<option value="">— nenhum (processo independente) —</option>' +
+      lista.map(function (p) {
+        return '<option value="' + esc(p.id) + '"' +
+               (atual === p.id ? ' selected' : '') + '>' +
+               esc((p.numeroCnj || p.numeroInterno) + ' — ' + p.assunto) +
+               '</option>';
+      }).join('');
+  }
+
   function desenhar() {
     var ui = App.components.ui;
     var enums = App.domain.enums;
@@ -216,6 +239,12 @@
                 nome: 'segredoJustica', rotulo: 'Processo em segredo de justiça',
                 tipo: 'checkbox', valor: processo.segredoJustica, largura: 4,
                 dica: 'Restringe a visualização a quem tem permissão'
+              }) +
+              ui.Field({
+                nome: 'processoPaiId', rotulo: 'Apenso a', tipo: 'select', largura: 6,
+                opcoes: opcoesProcessoPai(),
+                dica: 'Cautelar, execução e embargos têm número próprio e são o mesmo ' +
+                      'caso — vincular faz os dois aparecerem juntos'
               }) +
               ui.Field({
                 nome: 'descricao', rotulo: 'Observações internas', tipo: 'textarea',
@@ -363,6 +392,7 @@
       dataDistribuicao: dados.dataDistribuicao,
       valorCausa: App.mask.moedaParaCentavos(dados.valorCausa),
       valorProvisao: App.mask.moedaParaCentavos(dados.valorProvisao),
+      processoPaiId: dados.processoPaiId || null,
       descricao: dados.descricao
     };
 

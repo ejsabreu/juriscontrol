@@ -2401,3 +2401,150 @@
     row-gap: 0;
   }
 }
+
+/* --- Importação por CSV (F2.10) ------------------------------------------- */
+
+/* O relatório de conferência precisa de um bloco que pare o olho: quando
+   falta coluna obrigatória, NADA pode ser importado, e o usuário precisa
+   saber disso antes de procurar o botão. */
+.import-erro {
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  background: var(--color-prazo-critico-bg);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.import-erro code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+/* --- Processos vinculados (F2.10) ----------------------------------------- */
+
+.vinculo-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vinculo {
+  display: grid;
+  grid-template-columns: 84px minmax(140px, auto) 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  color: inherit;
+  text-decoration: none;
+}
+
+.vinculo:hover { background: var(--color-surface-hover); }
+
+/* "principal" e "apenso" são o dado mais importante da linha: sem eles a
+   lista é só um monte de número de processo. */
+.vinculo__papel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-subtle);
+}
+
+.vinculo__num { font-size: var(--text-sm); }
+
+.vinculo__assunto {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .vinculo {
+    grid-template-columns: 1fr auto;
+    row-gap: var(--space-1);
+  }
+  .vinculo__assunto { grid-column: 1 / -1; }
+}
+
+/* --- Painel de variáveis do editor (F2.10) -------------------------------- */
+
+/* `__corpo` existe só para pôr folha e painel lado a lado. Ele herda o
+   `flex: 1` que era da folha, senão a folha para de esticar. */
+.editor-doc__corpo {
+  flex: 1;
+  display: flex;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.editor-vars {
+  flex: 0 0 260px;
+  align-self: flex-start;
+  max-height: 78vh;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.editor-vars[hidden] { display: none; }
+
+.editor-vars__grupo + .editor-vars__grupo { margin-top: var(--space-4); }
+
+.editor-vars__titulo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+}
+
+.editor-vars__ajuda {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.editor-vars__item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.editor-vars__item:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border);
+}
+
+.editor-vars__item code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+}
+
+.editor-vars__desc {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+}
+
+@media (max-width: 900px) {
+  .editor-doc__corpo { flex-direction: column; }
+  .editor-vars { flex: none; width: 100%; max-height: 40vh; }
+}

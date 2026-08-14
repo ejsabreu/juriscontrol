@@ -1399,6 +1399,155 @@
 }
 
 /* ==========================================================================
+   FASE 2 — F2.8 · assistente
+   ========================================================================== */
+
+.ia__bloco {
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.ia__titulo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+}
+
+.ia__texto {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text);
+}
+
+.ia__alerta {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-prazo-critico-bg);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+}
+
+.ia__razoes {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: var(--leading-normal);
+}
+
+.ia-acoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ia-acao {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ia-acao:last-child { border-bottom: 0; }
+
+.ia-acao__icone { flex: none; font-size: var(--text-xs); }
+
+.ia-acao__titulo {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* O porquê não é nota de rodapé: é o que permite discordar da sugestão. */
+.ia-acao__porque {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: var(--leading-normal);
+}
+
+.ia-acao--critica .ia-acao__titulo { color: var(--color-danger); }
+
+.ia__pergunta {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.ia__pergunta .input { flex: 1; }
+
+.ia-resposta {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface-alt);
+  border-left: 3px solid var(--color-primary-400);
+  border-radius: var(--radius-sm);
+}
+
+/* "Não sei" tem tratamento próprio: é uma resposta legítima, e o usuário
+   precisa distingui-la de uma que o sistema conseguiu montar. */
+.ia-resposta--nao-sei {
+  border-left-color: var(--color-text-subtle);
+}
+
+/* --- Revisão da peça ------------------------------------------------------------ */
+.revisao-list {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+
+.revisao {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+  border-left: 3px solid var(--color-border);
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
+}
+
+.revisao--critica { border-left-color: var(--color-danger); }
+.revisao--atencao { border-left-color: var(--color-warning); }
+.revisao--info    { border-left-color: var(--color-primary-400); }
+
+.revisao__mensagem {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.revisao__detalhe {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+/* --- Atalho de intenção na busca global ------------------------------------------ */
+.global-results__atalho {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-50);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+[data-theme="dark"] .global-results__atalho { background: var(--color-surface-hover); }
+
+.global-results__atalho:hover { background: var(--color-surface-hover); }
+
+.global-results__atalho-icone { color: var(--color-primary-500); }
+
+/* ==========================================================================
    FASE 2 — F2.7 · modelos de peça, busca e assinatura
    ========================================================================== */
 

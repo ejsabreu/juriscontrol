@@ -9,8 +9,8 @@ HTML, CSS e JavaScript puro. Sem framework, sem build, sem backend.
 O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está em
 [PLANEJAMENTO.md](PLANEJAMENTO.md). A fase 2 está em
 [PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md): **concluídos** fundações, segurança/LGPD,
-alertas, portal do cliente, publicações/tribunais, financeiro, CRM e documentos avançados;
-**a fazer** assistente, relatórios e administração.
+alertas, portal do cliente, publicações/tribunais, financeiro, CRM, documentos avançados e
+assistente; **a fazer** relatórios/BI e administração.
 
 ---
 
@@ -144,6 +144,13 @@ Não é maquete estática. O que está implementado funciona:
 - **LGPD** — dossiê do titular, portabilidade em JSON/CSV, anonimização que preserva o
   registro, consentimentos com base legal e o prazo de 15 dias do art. 18 à vista.
 - **Backup e restauração em JSON** — a válvula de escape para a ausência de migração.
+- **Assistente que não inventa** — resumo do processo, próximas ações, risco sugerido,
+  revisão da peça antes do protocolo e pergunta livre. **Não há modelo de linguagem**, e a
+  tela diz isso: é regra e dicionário auditável. Três garantias sustentam o módulo —
+  **toda conclusão vem com o porquê**, **sem base histórica o sistema diz que não sabe** em
+  vez de chutar, e **pergunta fora do repertório é recusada explicitamente**. Uma resposta
+  convincente e errada é indistinguível de uma correta para quem pergunta, e é justamente
+  esse risco que o assistente se recusa a correr. Toda resposta declara a origem.
 - **Modelos de peça com variáveis** — `{{cliente.nome}}`, `{{processo.numeroCnj}}` e mais
   vinte, preenchidas com os dados do processo ao gerar o documento. A prévia diz **antes**
   quantas resolvem e quais ficam pendentes; a variável sem valor **nunca é apagada em
@@ -198,7 +205,7 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-1.570 verificações em 12 suítes. As nove que não precisam de jsdom compartilham o
+1.677 verificações em 13 suítes. As dez que não precisam de jsdom compartilham o
 sandbox de `testes/ambiente.js`, que carrega o núcleo (utils, domínio, seed, store e
 services) na ordem de dependência — assim um módulo novo no seed entra num lugar só.
 
@@ -213,6 +220,7 @@ services) na ordem de dependência — assim um módulo novo no seed entra num l
 | `financeiro.test.js` | Parcelamento que fecha ao centavo, êxito, juros pro rata die, aging, fluxo de caixa nos dois regimes, rentabilidade e a linha digitável FEBRABAN (com dígito trocado em 20 posições). **Não precisa de jsdom.** |
 | `crm.test.js` | Funil, ponderação do pipeline, propostas que expiram na leitura e a conversão íntegra de lead em cliente + contrato + processo. **Não precisa de jsdom.** |
 | `documentos.test.js` | Preenchimento de modelos (com ênfase na variável sem valor), índice invertido, busca com segredo de justiça aplicado, assinatura que quebra ao alterar o texto e trilha de acesso. **Não precisa de jsdom.** |
+| `assistente.test.js` | Resumo, próxima ação, duplicidade, risco, revisor de peça e gramática de intenções — com ênfase nos casos em que o sistema **precisa admitir que não sabe**. **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |

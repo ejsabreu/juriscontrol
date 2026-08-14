@@ -203,9 +203,12 @@
         desabilitado: !podeTriar || jaGerou || !pub.processoId,
         titulo: !pub.processoId ? 'Vincule a um processo antes' : ''
       }) +
+      // F2.8: a mesma leitura do classificador, apresentada em frases.
+      ui.Button({ rotulo: 'Explicar', icone: '💬', acao: 'explicar-pub' }) +
       ui.Button({ rotulo: 'Descartar', variante: 'ghost', acao: 'descartar-pub',
                   desabilitado: !podeTriar || pub.status === 'descartada' }) +
-      '</div>';
+      '</div>' +
+      '<div id="pub-explicacao"></div>';
 
     return '<div class="pub__leitura">' +
       '<div class="pub__cabecalho">' +
@@ -414,6 +417,25 @@
       });
 
     App.dom.delegate(container, 'click', '[data-action="gerar-prazo"]', abrirGerarPrazo);
+
+    App.dom.delegate(container, 'click', '[data-action="explicar-pub"]', function () {
+      var alvo = App.dom.qs('#pub-explicacao', container);
+      if (!alvo || !selecionada) return;
+
+      alvo.innerHTML = '<p class="u-sm u-subtle">Lendo o texto…</p>';
+
+      App.services.iaService.resumirPublicacao({ publicacaoId: selecionada })
+        .then(function (r) {
+          alvo.innerHTML =
+            '<div class="ia-resposta">' +
+              '<p class="ia__texto">' + esc(r.texto) + '</p>' +
+              '<p class="u-xs u-subtle">' + esc(r.aviso) + '</p>' +
+            '</div>';
+        })
+        .catch(function (erro) {
+          alvo.innerHTML = '<p class="ia__alerta">' + esc(erro.message) + '</p>';
+        });
+    });
 
     App.dom.delegate(container, 'click', '[data-action="descartar-pub"]', function () {
       App.services.publicacaoService.descartar(selecionada, 'Descartada na triagem.')

@@ -109,13 +109,27 @@
       if (!termo || termo.trim().length < 2) return esconder();
 
       App.services.buscaService.buscarAgrupado(termo, 24).then(function (r) {
+        /* F2.8: antes dos resultados, a INTENÇÃO. "prazos vencendo" não é
+           uma busca por documentos que contenham essas palavras — é um
+           pedido de navegação, e tratá-lo como texto devolveria lixo.
+           É gramática, não modelo: cada padrão é uma expressão regular. */
+        var intencao = App.domain.assistente.interpretarBusca(termo);
+
+        var atalho = intencao
+          ? '<a class="global-results__atalho" href="' + esc(intencao.rota) + '">' +
+              '<span class="global-results__atalho-icone" aria-hidden="true">↗</span>' +
+              '<span>Ir para <strong>' + esc(intencao.descricao) + '</strong></span>' +
+            '</a>'
+          : '';
+
         if (!r.total) {
-          painel.innerHTML = '<div class="global-results__group-label">Nenhum resultado</div>';
+          painel.innerHTML = atalho ||
+            '<div class="global-results__group-label">Nenhum resultado</div>';
           painel.classList.remove('u-hidden');
           return;
         }
 
-        var html = '';
+        var html = atalho;
 
         GRUPOS.forEach(function (grupo) {
           var itens = r.grupos[grupo.tipo];

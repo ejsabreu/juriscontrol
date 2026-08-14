@@ -61,6 +61,10 @@
     App.services.processoService.obter(id)
       .then(function (p) {
         processo = p;
+        // A análise do assistente é do processo anterior — descartar aqui
+        // evita mostrar o resumo de um processo na tela de outro.
+        analiseIa = null;
+        carregandoIa = false;
         return carregarLinks();
       })
       .catch(function (erro) {
@@ -190,7 +194,8 @@
         { id: 'documentos', label: 'Documentos',  contador: processo.documentos.length },
         { id: 'tarefas',    label: 'Tarefas',     contador: processo.tarefas.length },
         { id: 'portal',     label: 'Compartilhamento',
-          contador: linksAtivos.length || null }
+          contador: linksAtivos.length || null },
+        { id: 'assistente', label: 'Assistente' }
       ]
     });
   }
@@ -514,6 +519,33 @@
     '</div>';
   }
 
+  // --- Aba Assistente (F2.8) --------------------------------------------------
+
+  var analiseIa = null;
+  var carregandoIa = false;
+
+  function painelAssistente() {
+    /* A análise é buscada na primeira vez que a aba abre, e não junto do
+       processo: quem não usa o assistente não paga por ele. */
+    if (!analiseIa && !carregandoIa) {
+      carregandoIa = true;
+      App.services.iaService.analisarProcesso(processo.id).then(function (r) {
+        analiseIa = r;
+        carregandoIa = false;
+        if (abaAtiva === 'assistente') desenhar();
+      }).catch(function () {
+        carregandoIa = false;
+      });
+    }
+
+    return '<div class="tab-panel">' +
+      App.components.AssistentePanel({
+        analise: analiseIa,
+        carregando: carregandoIa
+      }) +
+    '</div>';
+  }
+
   var PAINEIS = {
     dados: painelDados,
     partes: painelPartes,
@@ -521,7 +553,8 @@
     prazos: painelPrazos,
     documentos: painelDocumentos,
     tarefas: painelTarefas,
-    portal: painelPortal
+    portal: painelPortal,
+    assistente: painelAssistente
   };
 
   function desenhar() {
@@ -657,6 +690,33 @@
       function (evento, botao) {
         abrirDocumentoDeModelo(botao.dataset.value || null);
       });
+
+    // --- Assistente (F2.8) ---
+    App.dom.delegate(container, 'click', '[data-action="ia-perguntar"]', function () {
+      var campo = App.dom.qs('#ia-pergunta', container);
+      var alvo = App.dom.qs('#ia-resposta', container);
+      if (!campo || !alvo || !campo.value.trim()) return;
+
+      alvo.innerHTML = '<p class="ia__texto u-subtle">Consultando as regras…</p>';
+
+      App.services.iaService.perguntar({
+        processoId: processo.id, pergunta: campo.value
+      }).then(function (r) {
+        alvo.innerHTML =
+          '<div class="ia-resposta' + (r.respondeu ? '' : ' ia-resposta--nao-sei') + '">' +
+            '<p class="ia__texto">' + esc(r.resposta) + '</p>' +
+            '<p class="u-xs u-subtle">' + esc(r.aviso) + '</p>' +
+          '</div>';
+      }).catch(function (erro) {
+        alvo.innerHTML = '<p class="ia__alerta">' + esc(erro.message) + '</p>';
+      });
+    });
+
+    App.dom.delegate(container, 'keydown', '#ia-pergunta', function (evento) {
+      if (evento.key !== 'Enter') return;
+      var botao = App.dom.qs('[data-action="ia-perguntar"]', container);
+      if (botao) botao.click();
+    });
 
     App.dom.delegate(container, 'click', '[data-action="abrir-documento"]', function (evento, botao) {
       abrirDocumento(botao.dataset.value);
@@ -979,6 +1039,7 @@
     var acoes = [
       { rotulo: 'Baixar', variante: 'secondary', acao: 'baixar' },
       { rotulo: 'Mover', variante: 'secondary', acao: 'mover' },
+      { rotulo: 'Revisar', variante: 'secondary', acao: 'revisar' },
       { rotulo: 'Assinar', variante: 'secondary', acao: 'assinar' }
     ];
 
@@ -1006,7 +1067,61 @@
         // sentido — o usuário volta para o processo, não para o visor.
         if (acao === 'editar') { fechar(); abrirEditor(documentoId); }
         if (acao === 'assinar') assinarDocumento(documentoId, corpo);
+        if (acao === 'revisar') revisarDocumento(documentoId, corpo);
       }
+    });
+  }
+
+  /**
+   * Revisão da peça antes do protocolo (F2.8).
+   *
+   * Cada achado é um erro que já aconteceu em escritório de verdade:
+   * variável não substituída, marcador de rascunho esquecido, CNJ inválido
+   * no corpo, prazo citado que não bate com o cadastrado.
+   */
+  function revisarDocumento(documentoId, corpo) {
+    var alvo = App.dom.qs('#painel-assinaturas', corpo);
+    if (!alvo) return;
+
+    alvo.innerHTML = '<p class="u-sm u-subtle">Conferindo a peça contra o cadastro…</p>';
+
+    App.services.iaService.revisarDocumento(documentoId).then(function (r) {
+      if (r.semTexto) {
+        alvo.innerHTML = '<div class="ia-resposta"><p class="ia__texto">' +
+          esc(r.aviso) + '</p></div>';
+        return;
+      }
+
+      if (!r.achados.length) {
+        alvo.innerHTML =
+          '<div class="ia-resposta">' +
+            '<p class="ia__texto">✓ Nenhum problema encontrado na conferência.</p>' +
+            '<p class="u-xs u-subtle">' + esc(r.aviso) + '</p>' +
+          '</div>';
+        return;
+      }
+
+      var itens = r.achados.map(function (a) {
+        return '<li class="revisao revisao--' + esc(a.gravidade) + '">' +
+          '<div class="revisao__mensagem">' + esc(a.mensagem) + '</div>' +
+          '<div class="revisao__detalhe">' + esc(a.detalhe) + '</div>' +
+        '</li>';
+      }).join('');
+
+      alvo.innerHTML =
+        '<div class="doc-rodape">' +
+          '<div class="doc-rodape__bloco" style="grid-column:1/-1">' +
+            '<h5 class="doc-rodape__titulo">Revisão da peça</h5>' +
+            (r.criticos
+              ? '<p class="ia__alerta">' + r.criticos +
+                ' problema(s) crítico(s) — não protocole assim.</p>'
+              : '') +
+            '<ul class="revisao-list">' + itens + '</ul>' +
+            '<p class="u-xs u-subtle">' + esc(r.aviso) + '</p>' +
+          '</div>' +
+        '</div>';
+    }).catch(function (erro) {
+      alvo.innerHTML = '<p class="ia__alerta">' + esc(erro.message) + '</p>';
     });
   }
 

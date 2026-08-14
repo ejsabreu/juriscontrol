@@ -179,8 +179,8 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   const primeiro = window.App.services.db.get('processos')[0];
   await irPara('#/processos/' + primeiro.id, 900);
   ok('número CNJ exibido', texto().includes(primeiro.numeroCnj));
-  // 6 abas da fase 1 + Compartilhamento (F2.3)
-  ok('abas renderizadas', doc.querySelectorAll('.tabs__tab').length === 7,
+  // 6 abas da fase 1 + Compartilhamento (F2.3) + Assistente (F2.8)
+  ok('abas renderizadas', doc.querySelectorAll('.tabs__tab').length === 8,
      String(doc.querySelectorAll('.tabs__tab').length));
   ok('decomposição do CNJ presente', texto().includes('Decomposição do número CNJ'));
   ok('segmento identificado', /Justiça (Estadual|Federal|do Trabalho)/.test(texto()));
@@ -300,6 +300,93 @@ function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
   ok('painel de resultados aberto', !painel.classList.contains('u-hidden'));
   ok('resultados listados', painel.querySelectorAll('.global-results__item').length > 0,
      String(painel.querySelectorAll('.global-results__item').length));
+
+  console.log('\nAssistente (F2.8)');
+  const processoIa = window.App.services.db.get('processos')
+    .filter(p => !p.segredoJustica)[0];
+  await irPara('#/processos/' + processoIa.id, 1000);
+  const abaIa = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Assistente'));
+  ok('a aba do assistente existe', !!abaIa);
+  abaIa.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(1200);
+
+  ok('mostra o resumo do processo', texto().includes('Resumo do processo'));
+  ok('mostra as próximas ações', texto().includes('Próximas ações'));
+  ok('mostra o risco sugerido', texto().includes('Risco sugerido'));
+  ok('toda ação vem com o porquê',
+     doc.querySelectorAll('.ia-acao__porque').length ===
+     doc.querySelectorAll('.ia-acao__titulo').length,
+     doc.querySelectorAll('.ia-acao__porque').length + ' vs ' +
+     doc.querySelectorAll('.ia-acao__titulo').length);
+  ok('o selo declara que não há modelo de linguagem',
+     texto().includes('não há modelo de linguagem'));
+
+  const campoPergunta = doc.querySelector('#ia-pergunta');
+  ok('oferece perguntar sobre o processo', !!campoPergunta);
+  campoPergunta.value = 'Qual o próximo prazo?';
+  doc.querySelector('[data-action="ia-perguntar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(1000);
+  ok('a pergunta é respondida', !!doc.querySelector('.ia-resposta'));
+
+  campoPergunta.value = 'Qual a chance de ganhar essa ação?';
+  doc.querySelector('[data-action="ia-perguntar"]')
+     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(1000);
+  ok('pergunta fora do repertório é sinalizada como "não sei"',
+     !!doc.querySelector('.ia-resposta--nao-sei'));
+  ok('e a resposta diz por que não sabe',
+     texto().includes('modelo de linguagem'));
+
+  console.log('\nRevisão da peça (F2.8)');
+  const abaDocsIa = Array.from(doc.querySelectorAll('[data-action="trocar-aba"]'))
+    .find(b => b.textContent.includes('Documentos'));
+  abaDocsIa.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(600);
+  const docParaRevisar = doc.querySelector('[data-action="abrir-documento"]');
+  if (docParaRevisar) {
+    docParaRevisar.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await esperar(800);
+    doc.querySelector('.modal [data-action="revisar"]')
+       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await esperar(900);
+    ok('a revisão da peça responde',
+       texto().includes('Revisão da peça') || texto().includes('Nenhum problema') ||
+       texto().includes('nada a revisar'));
+    doc.querySelector('.modal [data-action="fechar"]')
+       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await esperar(400);
+  } else {
+    ok('a revisão da peça responde', true, 'processo sem documento');
+  }
+
+  console.log('\nIntenção na busca global (F2.8)');
+  await irPara('#/', 800);
+  const campoIntencao = doc.querySelector('#busca-global');
+  campoIntencao.value = 'prazos vencendo';
+  campoIntencao.dispatchEvent(new window.Event('input', { bubbles: true }));
+  await esperar(1000);
+  ok('a busca oferece o atalho de intenção',
+     !!doc.querySelector('.global-results__atalho'));
+  ok('o atalho leva à agenda',
+     doc.querySelector('.global-results__atalho').getAttribute('href') === '#/agenda');
+
+  campoIntencao.value = 'contestacao';
+  campoIntencao.dispatchEvent(new window.Event('input', { bubbles: true }));
+  await esperar(1000);
+  ok('texto comum NÃO gera atalho forçado',
+     !doc.querySelector('.global-results__atalho'));
+
+  console.log('\nExplicar publicação (F2.8)');
+  await irPara('#/publicacoes', 1000);
+  const btnExplicar = doc.querySelector('[data-action="explicar-pub"]');
+  ok('a triagem oferece explicar', !!btnExplicar);
+  btnExplicar.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(1000);
+  ok('a explicação aparece', !!doc.querySelector('#pub-explicacao .ia-resposta'));
+  ok('a explicação declara o método',
+     doc.querySelector('#pub-explicacao').textContent.includes('dicionário'));
 
   console.log('\nModelos de peça (F2.7)');
   await irPara('#/modelos', 900);

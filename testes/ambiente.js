@@ -50,6 +50,7 @@ const NUCLEO = [
   'src/domain/boleto.js',
   'src/domain/modelos.js',
   'src/domain/busca.js',
+  'src/domain/assistente.js',
 
   // Dados — depende do domínio acima
   'data/seed.js',
@@ -91,7 +92,8 @@ const NUCLEO = [
   'src/services/documentoService.js',
   'src/services/modeloPecaService.js',
   'src/services/buscaService.js',
-  'src/services/assinaturaService.js'
+  'src/services/assinaturaService.js',
+  'src/services/simulado/iaService.js'
 ];
 
 /** localStorage de mentira — a sessão e o banco precisam persistir em algum lugar. */

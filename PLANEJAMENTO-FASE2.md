@@ -57,7 +57,7 @@ outros módulos.
 | **F2.5** | Módulo financeiro ✅ | F2.0, F2.1 | G |
 | **F2.6** | CRM e prospecção ✅ | F2.0, F2.5 | M |
 | **F2.7** | Documentos avançados (modelos, busca, assinatura) ✅ | F2.0 | M |
-| **F2.8** | Assistente (IA) | F2.4, F2.7 | M |
+| **F2.8** | Assistente (IA) ✅ | F2.4, F2.7 | M |
 | **F2.9** | Relatórios e BI | F2.2, F2.5, F2.6 | M |
 | **F2.10** | Administração e complementos | F2.1 | M |
 
@@ -1045,7 +1045,7 @@ Chave em `jurisctrl.db.v7`: o seed passou a povoar a biblioteca de modelos.
 
 ---
 
-## F2.8 — Assistente (IA)
+## F2.8 — Assistente (IA) ✅ concluída
 
 Sem backend não há modelo de linguagem. A postura aqui é a mesma dos documentos: entregar
 de verdade o que é regra, simular o que é rede — e dizer qual é qual, na cara.
@@ -1090,17 +1090,65 @@ chamada vira `POST /api/ia/peca`."*
 - **Assistente de busca** na topbar: "prazos do Dr. Silva vencendo esta semana" resolvido
   por gramática de intenções (regra, não modelo)
 
-### Passos
+### Passos — todos executados
 
-1. `domain/assistente.js` (resumo, próxima ação, duplicidade, risco) + testes
-2. Revisor de peça sobre `domain/modelos.js` e `domain/cnj.js`
-3. `simulado/iaService.js` com as 4 assinaturas e latência
-4. Painel Assistente no processo
-5. "Gerar minuta" no editor com escrita progressiva
-6. "Explicar publicação" na triagem
-7. Gramática de intenções da busca (5 a 8 padrões, com fallback para busca textual)
-8. Selo de simulação em **toda** superfície do assistente
-9. Testes: resumo, próxima ação, duplicidade, revisor, intenções da busca
+1. ✅ `domain/assistente.js` — resumo, próxima ação, duplicidade, risco, revisor, intenções
+2. ✅ Revisor de peça sobre `modelos.js`, `cnj.js` e `classificador.js`
+3. ✅ `simulado/iaService.js` com as assinaturas da fase 3 e latência
+4. ✅ Aba **Assistente** no processo, com pergunta livre
+5. ✅ `gerarPeca()` monta a partir dos modelos de F2.7
+6. ✅ **"Explicar"** na fila de triagem
+7. ✅ Gramática de 8 intenções na busca, com queda para o índice de F2.7
+8. ✅ Selo em toda superfície + campo `origem` em **toda** resposta
+9. ✅ `testes/assistente.test.js` — 90 verificações
+
+### A regra que organiza o módulo: não inventar
+
+O ponto não é acertar sempre — é **nunca produzir uma resposta convincente e errada**, que
+é indistinguível de uma correta para quem pergunta. Três mecanismos garantem isso:
+
+1. **Toda conclusão vem com o porquê.** "Risco provável" sozinho é palpite; "risco provável
+   porque 62% dos encerrados nesta área tiveram perda e há um prazo perdido aqui" é
+   argumento — e o advogado pode discordar com base.
+2. **Sem base, o sistema diz que não sabe.** Risco com menos de 5 processos encerrados na
+   área devolve `null` com a justificativa, em vez de chutar.
+3. **Pergunta fora do repertório é recusada explicitamente**, antes de qualquer outra regra.
+
+### O defeito que o teste pegou, e que resume o módulo
+
+A pergunta *"qual a probabilidade de o STF mudar o entendimento sobre isso?"* era respondida
+com o **resumo do processo** — porque continha a palavra "sobre", que era gatilho do ramo de
+resumo. O assistente respondia com aparência total de ter entendido a pergunta.
+
+Era exatamente o desfecho que o módulo existe para evitar. A correção tem duas partes: uma
+**barreira de fora-do-repertório** conferida antes de tudo (jurisprudência, STF, chance,
+previsão, estratégia, opinião) e a remoção de "sobre" como gatilho genérico.
+
+### Decisões tomadas durante a implementação
+
+- **As instruções do usuário viram uma ANOTAÇÃO no topo da minuta, não texto redigido.**
+  Fingir que foram "compreendidas" seria a mentira central que este módulo recusa.
+- **`gerarPeca` diz de qual modelo saiu.** O texto vem da biblioteca de F2.7 preenchida com
+  os dados do processo — não há redação, e a tela informa isso.
+- **Toda resposta carrega `origem: 'regras-locais'`.** Na fase 3 o campo vira `'modelo'`, e
+  a tela pode dizer ao usuário de onde veio o texto — informação que ele merece ter. Há
+  teste conferindo que nenhuma resposta esconde a origem.
+- **A gramática de intenções é regex, não modelo.** "Prazos vencendo" não é busca por
+  documentos com essas palavras: é pedido de navegação. Quando nenhum padrão casa, cai no
+  índice de F2.7 — inventar uma intenção seria pior que não ter nenhuma.
+- **O revisor de peça confere contra o CADASTRO**, e cada achado é um erro que já aconteceu
+  em escritório real: variável não substituída, marcador de rascunho esquecido, CNJ inválido
+  no corpo, peça citando outro processo, prazo divergente do cadastrado.
+- **Duplicidade separa certeza de suspeita.** Documento igual é certeza; nome parecido é
+  suspeita, com o grau de similaridade à vista. Tratar as duas do mesmo jeito faria o
+  usuário ignorar as duas.
+- **A análise só é buscada quando a aba abre.** Quem não usa o assistente não paga por ele.
+
+### Um ajuste em `interpretarBusca`
+
+Os padrões casavam contra o texto acentuado, e `\w` não alcança `õ` nem `á` em expressão
+regular de JavaScript — "publicações do diário" não era reconhecido. A entrada passou a ser
+normalizada antes do casamento, com os padrões escritos sem acento.
 
 ---
 

@@ -12,6 +12,9 @@ O planejamento completo (modelo de dados, regras, arquitetura e roadmap) está e
 alertas, portal do cliente, publicações/tribunais, financeiro, CRM, documentos avançados,
 assistente, relatórios/BI e administração.
 
+As convenções que valem para todo código novo — **responsividade**, arquitetura e as
+três regras da simulação — estão em [CLAUDE.md](CLAUDE.md).
+
 ---
 
 ## Como abrir
@@ -225,6 +228,28 @@ Não é maquete estática. O que está implementado funciona:
 
 ---
 
+## Responsividade
+
+**Toda página é responsiva — é padrão do projeto, não preferência estética.**
+Metade do trabalho de advocacia acontece com o celular na mão, no corredor do fórum,
+e uma tela que empurra a página de lado esconde o menu e o cabeçalho.
+
+A escala tem quatro degraus, cada um com um motivo físico: **600px** (telefone em pé),
+**720px** (telefone deitado), **900px** (tablet — onde a sidebar vira gaveta) e
+**1100px** (desktop estreito, onde dois painéis deixam de caber).
+
+Grade de largura fixa colapsa; tabela rola dentro do próprio container e nunca na
+página; linha que guarda botão quebra; nada declara largura mínima maior que um
+telefone; e a meta viewport **não bloqueia zoom** — num sistema que exibe número de
+processo com 20 dígitos, tirar o zoom de quem enxerga mal é barreira de acessibilidade.
+
+`testes/responsivo.test.js` reprova quem sair da escala ou reintroduzir uma das
+armadilhas. Ele verifica as **causas** na fonte, não o resultado: o `jsdom` não calcula
+largura nenhuma, então medir estouro de verdade exigiria um navegador — e fingir que
+mede seria pior que não medir. As regras completas estão em [CLAUDE.md](CLAUDE.md).
+
+---
+
 ## Testes
 
 ```bash
@@ -232,7 +257,7 @@ npm install      # instala jsdom (só para as suítes de interface)
 npm test
 ```
 
-1.921 verificações em 15 suítes. As doze que não precisam de jsdom compartilham o
+1.935 verificações em 16 suítes. As treze que não precisam de jsdom compartilham o
 sandbox de `testes/ambiente.js`, que carrega o núcleo (utils, domínio, seed, store e
 services) na ordem de dependência — assim um módulo novo no seed entra num lugar só.
 
@@ -250,6 +275,7 @@ services) na ordem de dependência — assim um módulo novo no seed entra num l
 | `assistente.test.js` | Resumo, próxima ação, duplicidade, risco, revisor de peça e gramática de intenções — com ênfase nos casos em que o sistema **precisa admitir que não sabe**. **Não precisa de jsdom.** |
 | `relatorios.test.js` | Contrato de retorno dos dez indicadores, coerência entre total e tabela, escopo próprio e segredo de justiça nas contas. **Não precisa de jsdom.** |
 | `administracao.test.js` | Feriado local que **muda a contagem do prazo** (e sobrevive à restauração de backup), tipos de prazo, importação CSV que confere o arquivo inteiro antes de gravar qualquer linha, e apensos com segredo de justiça aplicado. **Não precisa de jsdom.** |
+| `responsivo.test.js` | Padrão de responsividade: escala de breakpoints, colapso das grades de largura fixa, rolagem própria das tabelas e quebra das linhas de ação. **Não precisa de jsdom.** |
 | `telas.test.js` | Renderização e navegação de todas as rotas |
 | `interacoes.test.js` | Drag & drop (kanban, pastas e envio de arquivo), modais, criação de prazo/tarefa/cliente/pasta, criação/envio/visor/edição/exportação de documentos, baixa de prazo |
 | `listeners.test.js` | Regressão: listeners não vazam entre rotas nem acumulam no re-render |

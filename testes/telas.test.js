@@ -425,7 +425,7 @@ async function ate(condicao, limite = 3000, passo = 50) {
     .find(b => b.textContent.includes('Assistente'));
   ok('a aba do assistente existe', !!abaIa);
   abaIa.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await esperar(1200);
+  await ate(() => texto().includes('Resumo do processo'));
 
   ok('mostra o resumo do processo', texto().includes('Resumo do processo'));
   ok('mostra as próximas ações', texto().includes('Próximas ações'));
@@ -443,13 +443,13 @@ async function ate(condicao, limite = 3000, passo = 50) {
   campoPergunta.value = 'Qual o próximo prazo?';
   doc.querySelector('[data-action="ia-perguntar"]')
      .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await esperar(1000);
+  await ate(() => !!doc.querySelector('.ia-resposta'));
   ok('a pergunta é respondida', !!doc.querySelector('.ia-resposta'));
 
   campoPergunta.value = 'Qual a chance de ganhar essa ação?';
   doc.querySelector('[data-action="ia-perguntar"]')
      .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await esperar(1000);
+  await ate(() => !!doc.querySelector('.ia-resposta--nao-sei'));
   ok('pergunta fora do repertório é sinalizada como "não sei"',
      !!doc.querySelector('.ia-resposta--nao-sei'));
   ok('e a resposta diz por que não sabe',
@@ -499,7 +499,9 @@ async function ate(condicao, limite = 3000, passo = 50) {
   const btnExplicar = doc.querySelector('[data-action="explicar-pub"]');
   ok('a triagem oferece explicar', !!btnExplicar);
   btnExplicar.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await esperar(1000);
+  // Espera a resposta chegar, não o relógio: a latência simulada varia, e
+  // dormir um valor fixo produzia falha intermitente aqui.
+  await ate(() => !!doc.querySelector('#pub-explicacao .ia-resposta'));
   ok('a explicação aparece', !!doc.querySelector('#pub-explicacao .ia-resposta'));
   ok('a explicação declara o método',
      doc.querySelector('#pub-explicacao').textContent.includes('dicionário'));

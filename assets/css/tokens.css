@@ -3,6 +3,21 @@
    Na migração para React estes tokens viram o theme do Tailwind
    (tailwind.config.js) ou o tema do design system. Nenhum componente
    referencia cor literal — sempre via var().
+
+   ---------------------------------------------------------------------------
+   ESCALA DE BREAKPOINTS — padrão do projeto
+
+      600px   telefone em pé
+      720px   telefone deitado / tablet estreito
+      900px   tablet — é onde a sidebar vira gaveta
+     1100px   desktop estreito — onde dois painéis deixam de caber
+
+   Não estão declarados como custom property de propósito: `var()` NÃO
+   funciona dentro de condição de @media — `@media (max-width: var(--bp-lg))`
+   falha em silêncio. A escala é convenção, verificada por
+   `testes/responsivo.test.js`, que reprova qualquer breakpoint fora dela.
+
+   As regras completas estão em CLAUDE.md.
    ========================================================================== */
 
 :root {

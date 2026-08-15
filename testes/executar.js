@@ -24,6 +24,7 @@ const SUITES = [
   { arquivo: 'assistente.test.js', titulo: 'Assistente: regras auditáveis e admitir que não sabe (F2.8)', precisaJsdom: false },
   { arquivo: 'relatorios.test.js', titulo: 'Indicadores, coerência dos totais e escopo (F2.9)', precisaJsdom: false },
   { arquivo: 'administracao.test.js', titulo: 'Feriados locais, importação em massa e apensos (F2.10)', precisaJsdom: false },
+  { arquivo: 'responsivo.test.js', titulo: 'Padrão de responsividade (escala, colapso, rolagem)', precisaJsdom: false },
   { arquivo: 'telas.test.js',      titulo: 'Telas e navegação',                     precisaJsdom: true },
   { arquivo: 'interacoes.test.js', titulo: 'Interações (drag & drop, modais)',      precisaJsdom: true },
   { arquivo: 'listeners.test.js',  titulo: 'Regressão de listeners',                precisaJsdom: true }

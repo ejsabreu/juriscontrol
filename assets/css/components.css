@@ -157,6 +157,7 @@
 
 .card__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
@@ -171,6 +172,7 @@
 .card__actions {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
@@ -370,7 +372,7 @@ a.kpi:hover {
 .field--8 { grid-column: span 8; }
 .field--9 { grid-column: span 9; }
 
-@media (max-width: 780px) {
+@media (max-width: 720px) {
   .field--3, .field--4, .field--6, .field--8, .field--9 { grid-column: span 12; }
 }
 
@@ -664,6 +666,7 @@ a.kpi:hover {
 
 .modal__footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
@@ -1107,6 +1110,7 @@ a.kpi:hover {
 /* --- Calendário ----------------------------------------------------------- */
 .calendar__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
@@ -1370,6 +1374,7 @@ a.kpi:hover {
 
 .chart__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
   margin-bottom: var(--space-1);
@@ -1563,6 +1568,7 @@ a.kpi:hover {
 /* --- Stepper -------------------------------------------------------------- */
 .stepper__track {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   list-style: none;
   margin: 0 0 var(--space-5);
@@ -1678,6 +1684,7 @@ a.kpi:hover {
 
 .daterange__custom {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 

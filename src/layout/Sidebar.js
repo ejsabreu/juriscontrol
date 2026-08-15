@@ -29,7 +29,7 @@
       permissao: 'crm.ver', badge: 'followUpAtrasado' },
     { rota: '#/clientes',  icone: '👤', rotulo: 'Clientes',   chave: 'clientes' },
     { secao: 'Financeiro' },
-    { rota: '#/financeiro', icone: '💰', rotulo: 'Financeiro', chave: 'financeiro',
+    { rota: '#/financeiro', icone: '$', rotulo: 'Financeiro', chave: 'financeiro',
       permissao: 'financeiro.ver' },
     { rota: '#/timesheet',  icone: '⏱', rotulo: 'Timesheet',  chave: 'timesheet' },
     { secao: 'Análise' },

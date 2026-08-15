@@ -8,6 +8,10 @@ O planejamento completo está em [PLANEJAMENTO.md](PLANEJAMENTO.md) e
 [PLANEJAMENTO-FASE2.md](PLANEJAMENTO-FASE2.md). Este arquivo guarda só as
 regras que precisam valer em **todo** código novo.
 
+Documentação de funcionalidade para o usuário final — a que vai para o Notion,
+com capturas de tela — segue
+[PADRAO-DOCUMENTACAO.md](PADRAO-DOCUMENTACAO.md), sem exceção.
+
 ---
 
 ## Responsividade — padrão do projeto

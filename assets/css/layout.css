@@ -2,7 +2,11 @@
    Shell da aplicação: sidebar + topbar + conteúdo
    ========================================================================== */
 
+/* `position: relative` existe para o menu expandido do celular: ele se
+   posiciona contra esta caixa, e é isto que lhe dá a altura da PÁGINA em vez
+   da altura da janela. Ver o bloco de 900px lá embaixo. */
 .app {
+  position: relative;
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
   grid-template-rows: var(--topbar-height) 1fr;
@@ -21,27 +25,149 @@
   grid-template-areas: "main";
 }
 
+/* Os slots do AppShell são ponto de montagem, não caixa: eles existem só para
+   o `render()` ter um alvo estável. Sem `display: contents` quem vira item da
+   grade é o SLOT, e aí o `grid-area` da sidebar e da topbar não vale nada — a
+   sidebar cai na primeira linha (altura da topbar) e o resto dela transborda
+   para fora da célula. Parece inteira parada, mas a `position: sticky` fica
+   limitada a essa faixa de 56px e o menu sobe e some ao rolar a página. */
+#slot-sidebar,
+#slot-topbar {
+  display: contents;
+}
+
 /* --- Sidebar -------------------------------------------------------------- */
+
+/* O menu ocupa a página inteira na vertical: a área `sidebar` cobre as duas
+   linhas da grade e o item estica por padrão, então a coluna vai do topo ao
+   fim do documento — e o documento cresce até caber o menu inteiro, porque um
+   item que atravessa as duas linhas entra no cálculo da altura delas.
+
+   Sem rolagem própria, de propósito. Uma barra dentro do menu obriga quem usa
+   a perceber que há duas rolagens na tela e a acertar o ponteiro na certa para
+   escolher entre elas. Sem ela o menu é parte da página: a lista simplesmente
+   segue abaixo da dobra e chega junto com o resto. O preço é que o menu sai de
+   vista numa página longa — aceito, porque a alternativa cobra atenção o tempo
+   todo, e não só quando se rola até o fim. */
 .sidebar {
   grid-area: sidebar;
   display: flex;
   flex-direction: column;
   background: var(--color-sidebar);
   color: var(--color-sidebar-text);
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
 }
 
+/* Três elementos em 232px de largura: sigla, identidade e o botão de recolher.
+   O recuo da direita é menor que o da esquerda de propósito — o botão tem
+   respiro próprio no seu quadrado de toque, e repetir o recuo cheio empurraria
+   a identidade para menos espaço do que o nome precisa. */
 .sidebar__brand {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   height: var(--topbar-height);
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-2) 0 var(--space-4);
   flex-shrink: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Esta linha guarda um botão, mas NÃO leva `flex-wrap: wrap` como manda a
+   regra 3 do padrão de responsividade: ela tem altura fixa (`--topbar-height`)
+   e quebrar só empurraria o botão para fora da faixa visível. O estouro se
+   resolve pelo outro lado — a identidade encolhe e corta.
+
+   `min-width: 0` é o que permite esse corte: item de flex não encolhe abaixo
+   do próprio conteúdo sem ele, e sem a linha um nome comprido empurraria o
+   botão para fora em vez de ser reticenciado. */
+.sidebar__identidade {
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar__name,
+.sidebar__tagline {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__toggle {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--color-sidebar-text);
+  transition: background var(--transition), color var(--transition);
+}
+
+.sidebar__toggle:hover {
+  background: var(--color-sidebar-hover);
+  color: #fff;
+}
+
+.sidebar__toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- Menu recolhido (tira de ícones) --------------------------------------
+   Sem media query: "recolhido" quer dizer a mesma coisa nos dois degraus.
+   O que muda por largura é só o PADRÃO (o celular começa recolhido) e o que
+   acontece ao expandir (no celular, sobreposição) — ambos mais abaixo. */
+.app--menu-recolhido {
+  grid-template-columns: var(--sidebar-width-min) 1fr;
+}
+
+/* Some tudo que só existe para explicar o ícone. O que fica é o próprio
+   ícone, centrado, e o `title` que devolve o nome ao parar o ponteiro. */
+.sidebar--recolhida .sidebar__identidade,
+.sidebar--recolhida .sidebar__section-label,
+.sidebar--recolhida .nav-item__rotulo,
+.sidebar--recolhida .sidebar__footer {
+  display: none;
+}
+
+/* Na faixa da marca sobra só o botão: a sigla e ele lado a lado não cabem em
+   64px sem encostar um no outro. E é o botão que precisa ficar, porque agora
+   ele é o ÚNICO jeito de trazer o menu de volta — não há mais ☰ na topbar. */
+.sidebar--recolhida .sidebar__logo {
+  display: none;
+}
+
+.sidebar--recolhida .sidebar__brand,
+.sidebar--recolhida .sidebar__nav {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar--recolhida .sidebar__brand,
+.sidebar--recolhida .nav-item {
+  justify-content: center;
+}
+
+.sidebar--recolhida .nav-item {
+  position: relative;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Sem rótulo não há linha para o contador ocupar, então ele deixa de ser
+   número e vira sinal: um ponto no canto do ícone. O número volta inteiro ao
+   expandir — aqui ele não caberia legível, e um "12" espremido sobre o desenho
+   seria pior que a marca de que há algo a ver. */
+.sidebar--recolhida .nav-item__badge {
+  position: absolute;
+  top: 3px;
+  right: 12px;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  overflow: hidden;
+  text-indent: 100%;
+  white-space: nowrap;
 }
 
 .sidebar__logo {
@@ -117,6 +243,21 @@
   opacity: 0.9;
 }
 
+/* Ícone desenhado em SVG no lugar de um glifo. `currentColor` no traço já
+   resolve a cor — inclusive o branco do item ativo, que é o `color` do
+   `.nav-item` mudando. Aqui só resta o tamanho.
+
+   15px, e não os 18px da caixa, porque glifo e desenho medem diferente: um
+   glifo de 16px de fonte pinta uns 12px de tinta, com folga em volta, e um SVG
+   pinta a caixa toda. Igualar o número deixaria o desenho maior que os
+   vizinhos. */
+.nav-item__icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  margin: 0 auto;
+}
+
 .nav-item__badge {
   margin-left: auto;
   min-width: 20px;
@@ -138,12 +279,22 @@
 }
 
 /* --- Topbar --------------------------------------------------------------- */
+
+/* A topbar declara `sticky` desde sempre, mas nunca grudou: um item de grade
+   só cola dentro da própria área, e a área `topbar` tem a altura exata dele —
+   não sobra caminho para percorrer. Estendê-la até o fim da coluna (`1 / -1`)
+   dá esse caminho; `align-self: start` mantém a altura de sempre, então ela
+   segue ocupando só a primeira linha e o `<main>`, que começa na segunda, não
+   fica coberto — passa por baixo ao rolar, que é o que o z-index resolve. */
 .topbar {
   grid-area: topbar;
+  grid-row: 1 / -1;
+  align-self: start;
   display: flex;
   align-items: center;
   gap: var(--space-4);
   padding: 0 var(--space-6);
+  height: var(--topbar-height);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   position: sticky;
@@ -337,33 +488,36 @@
 
 /* --- Responsivo ----------------------------------------------------------- */
 @media (max-width: 900px) {
-  .app {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "topbar"
-      "main";
+  /* A coluna do menu é SEMPRE a tira, expandido ou não — porque aqui expandir
+     não alarga a coluna, sobrepõe. Um menu de 232px em fluxo deixaria 128px de
+     conteúdo num telefone de 360px, o que não é uma tela, é uma tira.
+
+     O `:not(.app--nu)` protege as rotas nuas (entrada e portal), que não têm
+     menu nenhum e cuja grade de coluna única é definida antes desta regra. */
+  .app:not(.app--nu) {
+    grid-template-columns: var(--sidebar-width-min) 1fr;
   }
 
-  .sidebar {
-    position: fixed;
+  /* Expandido no celular é sobreposição, mas `absolute` e não `fixed`, e a
+     diferença é justamente a altura: `fixed` mede a JANELA e para nela — o
+     menu terminava no fim da tela, com uma barra de rolagem só dele. `absolute`
+     mede o `.app`, que é a PÁGINA inteira, então o menu desce até o fim dela e
+     rola junto com o resto, como no desktop.
+
+     `min-height` em vez de `bottom: 0` porque a lista pode ser mais alta que a
+     página: com `bottom` ela seria cortada, com `min-height` ela estica a
+     sobreposição e continua alcançável ao rolar. */
+  .sidebar:not(.sidebar--recolhida) {
+    position: absolute;
     left: 0;
     top: 0;
     width: var(--sidebar-width);
+    min-height: 100%;
     z-index: var(--z-modal);
-    transform: translateX(-100%);
-    transition: transform var(--transition);
     box-shadow: var(--shadow-xl);
-  }
-
-  .sidebar--open {
-    transform: translateX(0);
   }
 
   .main {
     padding: var(--space-4);
   }
-}
-
-@media (min-width: 901px) {
-  .topbar__menu-btn { display: none; }
 }

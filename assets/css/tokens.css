@@ -158,6 +158,9 @@
 
   /* --- Layout ------------------------------------------------------------ */
   --sidebar-width:   232px;
+  /* Recolhido: o quadrado de toque do item (36px) mais o respiro dos dois
+     lados. Menos que isto e o alvo do clique encosta na borda da tela. */
+  --sidebar-width-min: 64px;
   --topbar-height:   56px;
   --content-max:     1600px;
   --z-dropdown: 100;

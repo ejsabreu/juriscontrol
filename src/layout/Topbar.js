@@ -16,10 +16,11 @@
 
     return '<header class="topbar">' +
 
-      ui.Button({
-        icone: '☰', variante: 'ghost', apenasIcone: true,
-        acao: 'alternar-sidebar', titulo: 'Menu', classe: 'topbar__menu-btn'
-      }) +
+      /* Sem ☰ aqui: o botão do menu mora no menu, nos dois degraus. Ele pôde
+         sair porque o menu recolhido não some mais da tela — vira uma tira de
+         ícones que continua visível, e é de dentro dela que o botão o traz de
+         volta. Enquanto a versão pequena escondia o menu por completo, este
+         botão era a única forma de reabri-lo. */
 
       '<div class="topbar__search">' +
         '<span class="topbar__search-icon" aria-hidden="true">⌕</span>' +

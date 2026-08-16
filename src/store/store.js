@@ -92,7 +92,11 @@
 
     // Preferências de UI persistidas entre navegações
     tema: 'light',
-    sidebarAberta: false,
+
+    /* Valor de partida do desktop. Quem decide de verdade é o AppShell, na
+       montagem e a cada vez que a janela cruza os 900px — o padrão depende da
+       largura, e largura não é assunto do store. */
+    sidebarRecolhida: false,
 
     // Filtros da tela de Processos — sobrevivem à troca tabela ⇄ kanban
     processosFiltros: {
@@ -135,6 +139,9 @@
       var s = store.getState();
       window.localStorage.setItem(CHAVE_PREFS, JSON.stringify({
         tema: s.tema,
+        // `sidebarRecolhida` NÃO entra aqui: o menu começa recolhido a cada
+        // abertura, por decisão de projeto. Gravar o estado faria a segunda
+        // sessão abrir expandida.
         processosVisao: s.processosVisao,
         processosAgruparPor: s.processosAgruparPor
       }));

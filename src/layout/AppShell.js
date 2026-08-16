@@ -24,10 +24,52 @@
   var cascaVisivel = true;
 
   /* Estado do sino. Mora aqui, e não no store, porque é estado de casca —
-     mesma natureza de `badges` e `sidebarAberta`. */
+     mesma natureza de `badges`. */
   var notificacoes = [];
   var naoLidas = 0;
   var notificacoesAbertas = false;
+
+  /* O degrau do menu, pela MESMA consulta que o CSS usa.
+
+     Ler `window.innerWidth` uma vez na abertura parecia bastar, e não bastava:
+     quem estreita a janela — ou gira o telefone — cruza os 900px sem recarregar
+     a página. O CSS acompanha na hora, o estado não acompanhava, e o menu
+     continuava expandido numa largura onde ele cobre a tela inteira.
+
+     `matchMedia` é o que avisa quando a resposta muda. O `innerWidth` fica de
+     reserva para ambiente sem ele — o jsdom dos testes, por exemplo, que monta
+     DOM mas não implementa consulta de mídia. */
+  var CONSULTA_ESTREITO =
+    typeof window.matchMedia === 'function'
+      ? window.matchMedia('(max-width: 900px)')
+      : null;
+
+  function telaEstreita() {
+    return CONSULTA_ESTREITO ? CONSULTA_ESTREITO.matches : window.innerWidth <= 900;
+  }
+
+  /* No estreito o menu nasce recolhido; no largo, aberto. Roda na montagem e a
+     cada travessia do degrau — e a travessia REDEFINE mesmo que a pessoa tenha
+     mexido no botão antes, porque a escolha feita numa largura não vale para a
+     outra: expandido no desktop é uma coluna ao lado do conteúdo, e expandido
+     no celular é uma cortina por cima dele. */
+  function aplicarPadraoDoMenu() {
+    App.store.setState({ sidebarRecolhida: telaEstreita() });
+  }
+
+  function observarDegrau() {
+    if (!CONSULTA_ESTREITO) return;
+
+    function aoCruzar() {
+      aplicarPadraoDoMenu();
+      renderizarCasca();
+    }
+
+    // `addListener` é o nome antigo; Safari só ganhou `addEventListener`
+    // nesta interface em 2020, e o protótipo abre em navegador de escritório.
+    if (CONSULTA_ESTREITO.addEventListener) CONSULTA_ESTREITO.addEventListener('change', aoCruzar);
+    else if (CONSULTA_ESTREITO.addListener) CONSULTA_ESTREITO.addListener(aoCruzar);
+  }
 
   function montar(elementoRaiz) {
     raiz = elementoRaiz;
@@ -39,8 +81,10 @@
         '<main class="main" id="conteudo" tabindex="-1"></main>' +
       '</div>';
 
+    aplicarPadraoDoMenu();   // antes do primeiro render, para não piscar
     renderizarCasca();
     ligarEventos();
+    observarDegrau();
     atualizarBadges();
     atualizarNotificacoes();
   }
@@ -48,7 +92,13 @@
   function renderizarCasca() {
     var estado = App.store.getState();
     var app = raiz && raiz.querySelector('.app');
-    if (app) app.className = 'app' + (cascaVisivel ? '' : ' app--nu');
+    if (app) {
+      app.className = 'app' +
+        (cascaVisivel ? '' : ' app--nu') +
+        // A largura da coluna é da GRADE, não da sidebar: estreitar só o
+        // <aside> deixaria a coluna larga e um vão vazio ao lado dele.
+        (cascaVisivel && estado.sidebarRecolhida ? ' app--menu-recolhido' : '');
+    }
 
     if (!cascaVisivel) {
       App.dom.render('#slot-sidebar', '');
@@ -59,7 +109,7 @@
     App.dom.render('#slot-sidebar', App.layout.Sidebar({
       rotaAtual: estado.rota && estado.rota.chave,
       badges: badges,
-      aberta: estado.sidebarAberta,
+      recolhida: estado.sidebarRecolhida,
       usuario: estado.usuarioAtual      // F2.1: o menu esconde o que o perfil não acessa
     }));
 
@@ -104,8 +154,32 @@
   }
 
   function ligarEventos() {
-    App.dom.delegate(raiz, 'click', '[data-action="alternar-sidebar"]', function () {
-      App.store.setState({ sidebarAberta: !App.store.getState().sidebarAberta });
+    /* Um botão só, um estado só, nos dois degraus — e nada de salvar: o menu
+       começa recolhido a cada abertura (ver o padrão em store.js). Expandir
+       vale para esta sessão. */
+    App.dom.delegate(raiz, 'click', '[data-action="alternar-menu"]', function () {
+      App.store.setState({ sidebarRecolhida: !App.store.getState().sidebarRecolhida });
+      renderizarCasca();
+    });
+
+    /* Clique fora recolhe — só no estreito, e só quando está expandido.
+
+       No estreito o menu expandido é uma cortina por cima do conteúdo, e
+       cortina que só fecha pelo próprio botão prende quem tocou nela por
+       engano. No largo ele é uma coluna ao lado do conteúdo, e não estorva
+       nada: recolher a cada clique na tela seria roubar a escolha de quem
+       deixou o menu aberto de propósito.
+
+       O `closest('.sidebar')` é o que preserva o ☰: ele mora DENTRO do menu,
+       então o clique nele nunca é "fora" e o botão segue expandindo e
+       recolhendo normalmente. Vale também depois do render que troca o nó — o
+       alvo desconectado ainda tem a `<aside>` antiga na sua linhagem. */
+    document.addEventListener('click', function (evento) {
+      if (!telaEstreita()) return;
+      if (App.store.getState().sidebarRecolhida) return;
+      if (evento.target.closest && evento.target.closest('.sidebar')) return;
+
+      App.store.setState({ sidebarRecolhida: true });
       renderizarCasca();
     });
 
@@ -176,10 +250,11 @@
       });
     });
 
-    // Em telas pequenas, navegar fecha a gaveta.
+    /* Em telas pequenas o menu expandido é sobreposição: ele fica por cima da
+       tela para onde o clique acabou de levar. Navegar recolhe. */
     App.dom.delegate(raiz, 'click', '.sidebar .nav-item', function () {
-      if (window.innerWidth <= 900 && App.store.getState().sidebarAberta) {
-        App.store.setState({ sidebarAberta: false });
+      if (telaEstreita() && !App.store.getState().sidebarRecolhida) {
+        App.store.setState({ sidebarRecolhida: true });
         renderizarCasca();
       }
     });

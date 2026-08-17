@@ -205,6 +205,58 @@
         App.components.Toast.erro('Não foi possível baixar o prazo', erro.message);
       });
     });
+
+    App.dom.delegate(container, 'click', '[data-action="ver-evento"]', function (evento, botao) {
+      var item = eventos.itens.filter(function (ev) { return ev.id === botao.dataset.id; })[0];
+      if (item) abrirResumoEvento(item);
+    });
+  }
+
+  /** Modal com o resumo do prazo/compromisso do dia — sem sair da agenda. */
+  function abrirResumoEvento(item) {
+    var ui = App.components.ui;
+    var enums = App.domain.enums;
+    var fmt = App.format;
+    var conteudo;
+
+    if (item.categoria === 'prazo') {
+      conteudo = App.components.PrazoCard({
+        prazo: App.services.prazoService.enriquecer(item.registro),
+        acoes: false
+      });
+    } else {
+      var tipo = enums.achar(enums.TIPOS_COMPROMISSO, item.tipoCompromisso);
+      var linhas = [];
+
+      if (tipo) linhas.push(['Tipo', ui.Badge({ rotulo: tipo.label, cor: tipo.cor })]);
+      linhas.push(['Quando', esc(fmt.diaSemana(item.data)) + ', ' + esc(fmt.dataExtenso(item.data)) +
+                              (item.hora ? ' · ' + esc(item.hora) : '')]);
+      if (item.processoNumero) linhas.push(['Processo', esc(item.processoNumero)]);
+      if (item.clienteNome) linhas.push(['Cliente', esc(item.clienteNome)]);
+      if (item.subtitulo) linhas.push(['Local', esc(item.subtitulo)]);
+      if (item.responsavel) linhas.push(['Responsável', esc(item.responsavel.nome)]);
+
+      conteudo = '<dl class="def-list">' +
+        linhas.map(function (par) {
+          return '<div><dt class="def-list__term">' + par[0] + '</dt>' +
+                   '<dd class="def-list__desc">' + par[1] + '</dd></div>';
+        }).join('') +
+      '</dl>';
+    }
+
+    var temProcesso = item.href && item.href !== '#/agenda';
+
+    App.components.Modal.abrir({
+      titulo: item.titulo,
+      conteudo: conteudo,
+      acoes: [{ rotulo: 'Fechar', variante: 'secondary', acao: 'fechar', fechar: true }]
+        .concat(temProcesso
+          ? [{ rotulo: 'Ver processo completo', variante: 'primary', acao: 'ver-processo', fechar: true }]
+          : []),
+      aoAcao: function (acao) {
+        if (acao === 'ver-processo') window.location.hash = item.href;
+      }
+    });
   }
 
   App.pages.AgendaPage = { render: render };

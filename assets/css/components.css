@@ -1188,12 +1188,18 @@ a.kpi:hover {
 
 .calendar__event {
   display: block;
+  width: 100%;
+  margin: 0;
   padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
+  border: 0;
   border-left: 2px solid var(--event-accent, var(--color-primary-400));
+  border-radius: var(--radius-sm);
   background: var(--color-surface-hover);
+  font: inherit;
   font-size: var(--text-xs);
   color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

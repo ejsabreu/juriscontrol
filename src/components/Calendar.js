@@ -92,13 +92,13 @@
           ? (evento.semaforo || 'ok')
           : 'compromisso';
 
-        html += '<a class="calendar__event calendar__event--' + modificador + '"' +
-                  ' href="' + esc(evento.href || '#/agenda') + '"' +
+        html += '<button type="button" class="calendar__event calendar__event--' + modificador + '"' +
+                  ' data-action="ver-evento" data-id="' + esc(evento.id) + '"' +
                   ' title="' + esc((evento.hora ? evento.hora + ' — ' : '') +
                                    evento.titulo + (evento.subtitulo ? ' · ' + evento.subtitulo : '')) + '">' +
                   (evento.hora ? '<strong>' + esc(evento.hora) + '</strong> ' : '') +
                   esc(fmt.truncar(evento.titulo, 22)) +
-                '</a>';
+                '</button>';
       });
 
       if (eventos.length > MAX_EVENTOS_POR_DIA) {

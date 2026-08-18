@@ -40,9 +40,11 @@
           aberto: p.notificacoesAbertas
         }) +
 
-        '<button class="topbar__icon-btn" data-action="ir-prazos"' +
-          ' data-count="' + (p.prazosCriticos || 0) + '"' +
-          ' title="' + (p.prazosCriticos || 0) + ' prazo(s) crítico(s) ou vencido(s)">⏱</button>' +
+        /* Sem atalho de prazos vencidos aqui. Ele era um segundo contador
+           vermelho ao lado do sino, contando o mesmo tipo de urgência com
+           outro número — e prazo crítico já vira notificação pelas regras de
+           alerta. Dois avisos para o mesmo fato treinam a pessoa a ignorar os
+           dois. Quem vai à Agenda vai pelo menu. */
 
         '<button class="topbar__icon-btn" data-action="alternar-tema"' +
           ' title="Alternar tema claro/escuro">' + (p.tema === 'dark' ? '☀' : '☾') + '</button>' +
@@ -52,6 +54,10 @@
 
         '<div class="topbar__user" title="' + esc(usuario.nome || '') + '">' +
           ui.Avatar({ usuario: usuario }) +
+          /* No telefone fica só o círculo com as iniciais: ele já responde de
+             quem é a sessão, e o nome por extenso com o cargo embaixo comia a
+             largura da busca, que é o que se usa de fato com o celular na mão.
+             Quem quiser conferir tem o nome no `title` do bloco. */
           '<div class="u-stack u-hidden-sm">' +
             '<span class="u-sm u-bold">' + esc(usuario.nome || '—') + '</span>' +
             '<span class="u-xs u-subtle">' +
@@ -61,8 +67,11 @@
           '</div>' +
           // Trocar de usuário é a forma de conferir a matriz de permissões
           // sem abrir o código — por isso o botão fica à mão.
+          // Porta, e não o botão de energia que estava aqui: ⏻ promete
+          // desligar alguma coisa, e o que este botão faz é sair da sessão.
           '<button class="topbar__icon-btn" data-action="sair"' +
-            ' title="Sair e trocar de usuário">⏻</button>' +
+            ' title="Sair e trocar de usuário" aria-label="Sair e trocar de usuário">' +
+            App.icones.de('porta-saida') + '</button>' +
         '</div>' +
 
       '</div>' +

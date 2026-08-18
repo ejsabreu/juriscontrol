@@ -360,7 +360,6 @@
             }[campo];
 
             Toast.sucesso('Processo movido', processo.numeroInterno + ' → ' + rotulo);
-            App.layout.AppShell.atualizarBadges();
             carregar();
           })
           .catch(function (erro) {

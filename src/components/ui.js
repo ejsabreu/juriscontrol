@@ -364,6 +364,9 @@
     return html;
   }
 
+  // Os ícones desenhados moram em `components/icones.js` — moldura, registro
+  // e o porquê de cada traço.
+
   App.components.ui = {
     Button: Button,
     Badge: Badge,

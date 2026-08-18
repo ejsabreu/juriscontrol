@@ -755,6 +755,16 @@ a.kpi:hover {
   margin-bottom: var(--space-1);
 }
 
+/* O ícone do estado vazio aceita glifo ou desenho. Quando é desenho, o
+   `font-size` não o alcança — o tamanho vem daqui, na altura do glifo de 34px
+   para os dois conviverem sem degrau. */
+.empty-state__icon svg {
+  display: block;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+}
+
 .empty-state__title {
   font-size: var(--text-md);
   font-weight: 600;

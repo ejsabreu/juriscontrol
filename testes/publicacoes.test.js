@@ -156,7 +156,7 @@ const cl = App.domain.classificador;
   ok('há publicações já triadas e descartadas',
      resumo.triadas > 0 && resumo.descartadas > 0,
      resumo.triadas + ' triadas, ' + resumo.descartadas + ' descartadas');
-  ok('o badge conta só o que exige ação',
+  ok('o resumo conta só o que exige ação',
      resumo.pendentes === resumo.novas + resumo.vinculadas + resumo.semVinculo);
 
   const listaTodas = await pubService.listar({});

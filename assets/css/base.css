@@ -125,6 +125,18 @@ table {
 .u-truncate  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .u-hidden    { display: none !important; }
 
+/* Some no telefone — em pé e deitado. É o degrau certo para o que é APOIO e
+   não conteúdo: no cabeçalho, o nome e o cargo ao lado do avatar. O círculo
+   com as iniciais fica, porque ele sozinho já responde "de quem é esta
+   sessão", e o espaço que sobra vai para a busca, que é o que se usa com o
+   celular na mão.
+
+   Escondida por CSS, e não retirada do HTML: a mesma casca serve às duas
+   larguras, e girar o telefone não pode exigir novo render. */
+@media (max-width: 720px) {
+  .u-hidden-sm { display: none !important; }
+}
+
 .u-row {
   display: flex;
   align-items: center;

@@ -303,4 +303,42 @@ LINHAS_DE_ACAO.forEach(function (par) {
 ok('toda linha de ação declara flex-wrap: wrap',
    semQuebra.length === 0, semQuebra.join(' · '));
 
+// ===================== 7. Utilitários existem de verdade =====================
+secao('Toda classe utilitária usada tem regra no CSS');
+
+/* O cabeçalho pedia `u-hidden-sm` para esconder nome e cargo no telefone, e a
+   regra nunca existiu: a classe estava no HTML, o CSS não a conhecia, e o
+   bloco simplesmente aparecia no celular como se nada tivesse sido pedido.
+
+   É a pior espécie de defeito responsivo — não quebra, não avisa, só não
+   acontece. E é barato de pegar: utilitário é um vocabulário fechado, então
+   toda classe `u-*` escrita num `class="..."` precisa ter dono no CSS. */
+const utilitariosUsados = new Set();
+
+(function varrer(dir) {
+  fs.readdirSync(dir, { withFileTypes: true }).forEach(function (e) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) return varrer(p);
+    if (!e.name.endsWith('.js')) return;
+
+    const fonte = fs.readFileSync(p, 'utf8');
+    (fonte.match(/class="[^"]*"/g) || []).forEach(function (atributo) {
+      (atributo.match(/\bu-[a-z0-9-]+/g) || [])
+        .forEach(function (classe) { utilitariosUsados.add(classe); });
+    });
+  });
+})(path.join(RAIZ, 'src'));
+
+const cssInteiro = ARQUIVOS_CSS.map(lerCss).join('\n');
+
+const semRegra = Array.from(utilitariosUsados).filter(function (classe) {
+  // O limite à direita evita que `.u-sm` case com `.u-small`.
+  return !new RegExp('\\.' + escaparRegex(classe) + '(?![a-z0-9-])').test(cssInteiro);
+});
+
+ok('há utilitários para conferir', utilitariosUsados.size > 0,
+   String(utilitariosUsados.size));
+ok('todo utilitário usado no HTML existe no CSS',
+   semRegra.length === 0, semRegra.join(' · '));
+
 encerrar();

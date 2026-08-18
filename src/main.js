@@ -70,7 +70,6 @@
                 { permissao: 'publicacoes.triar' });
 
     // Notificações (F2.2)
-    R.registrar('/notificacoes',           'notificacoes',  P.NotificacoesPage,  'Notificações');
     R.registrar('/caixa-de-saida',         'caixa-de-saida', P.CaixaSaidaPage,   'Caixa de saída',
                 { permissao: 'configuracoes' });
 

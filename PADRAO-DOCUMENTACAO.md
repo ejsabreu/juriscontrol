@@ -27,7 +27,7 @@ desta documentação repetir nada disso.
 
 | Escreva assim | Não escreva assim |
 |---|---|
-| "O número vermelho conta os prazos críticos ou vencidos." | "O badge é alimentado por `prazoService.resumo()`." |
+| "O número vermelho no sino conta os avisos que você ainda não leu." | "O contador é alimentado por `notificacaoService.listar()`." |
 | "Clicar na faixa colorida leva à tela do processo." | "O evento tem um `href` para a rota `#/processos/:id`." |
 | "A contagem é em dias úteis, não em dias corridos." | "`diasUteisEntre()` exclui o dia inicial." |
 

@@ -199,7 +199,6 @@
     App.dom.delegate(container, 'click', '[data-action="cumprir-prazo"]', function (evento, botao) {
       App.services.prazoService.cumprir(botao.dataset.value).then(function (prazo) {
         App.components.Toast.sucesso('Prazo baixado', prazo.titulo);
-        App.layout.AppShell.atualizarBadges();
         carregar();
       }).catch(function (erro) {
         App.components.Toast.erro('Não foi possível baixar o prazo', erro.message);

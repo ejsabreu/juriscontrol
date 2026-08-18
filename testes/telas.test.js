@@ -949,25 +949,73 @@ async function ate(condicao, limite = 3000, passo = 50) {
   ok('o painel abre', !!doc.querySelector('.notif'));
   ok('o painel lista avisos ou diz que não há',
      doc.querySelectorAll('.notif__item').length > 0 || !!doc.querySelector('.notif__empty'));
-  ok('o painel leva para a tela cheia',
-     !!doc.querySelector('.notif__footer[href="#/notificacoes"]'));
+  ok('os avisos vêm repartidos por categoria',
+     doc.querySelectorAll('.notif__item').length === 0 ||
+     doc.querySelectorAll('.notif__group-label').length > 0);
 
-  await irPara('#/notificacoes', 800);
-  ok('a tela de notificações abre', texto().includes('Notificações'));
-  ok('lista os avisos do usuário',
-     doc.querySelectorAll('.notif-row').length > 0 || !!doc.querySelector('.empty-state'));
+  /* O painel é o único lugar onde os avisos existem — não há mais tela cheia.
+     Duas travas: nenhum aviso pode ficar de fora da lista, e nenhum link pode
+     apontar para a rota removida. */
+  const noPainel = doc.querySelectorAll('.notif__item').length;
+  const doUsuario = window.App.services.db.get('notificacoes')
+    .filter(n => n.usuarioId === window.App.store.getState().usuarioAtual.id && !n.arquivadaEm)
+    .length;
+  ok('o painel mostra TODOS os avisos do usuário, sem corte',
+     noPainel === doUsuario, noPainel + ' no painel, ' + doUsuario + ' no banco');
+  ok('o rodapé do painel ficou, sem virar link',
+     !!doc.querySelector('.notif__footer') &&
+     !doc.querySelector('.notif__footer[href]'));
+  ok('nenhum link do painel aponta para a tela removida',
+     !doc.querySelector('.notif [href="#/notificacoes"]'));
+  const caminhoDe = a => (a.getAttribute('href') || '').replace(/^#/, '').split('?')[0];
+  ok('todo aviso leva a uma rota que existe',
+     Array.from(doc.querySelectorAll('.notif__item'))
+       .every(a => !!window.App.router.resolver(caminhoDe(a))),
+     Array.from(doc.querySelectorAll('.notif__item'))
+       .filter(a => !window.App.router.resolver(caminhoDe(a)))
+       .map(a => a.getAttribute('href')).join(', '));
+
+  /* A lixeira. Três coisas importam: o aviso some, o painel CONTINUA ABERTO
+     (senão limpar vários vira abrir-fechar-abrir) e a sincronização seguinte
+     não o traz de volta — é o que a chave preservada no banco garante. */
+  const lixeiras = doc.querySelectorAll('[data-action="excluir-notificacao"]');
+  ok('cada aviso traz a lixeira', lixeiras.length === noPainel,
+     lixeiras.length + ' lixeiras para ' + noPainel + ' avisos');
+  ok('a lixeira é irmã do link, não filha (botão dentro de <a> é inválido)',
+     !doc.querySelector('a [data-action="excluir-notificacao"]'));
+
+  if (lixeiras.length) {
+    const alvo = lixeiras[0].getAttribute('data-value');
+    lixeiras[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await esperar(700);
+
+    ok('apagar tira o aviso do painel',
+       doc.querySelectorAll('.notif__item').length === noPainel - 1);
+    ok('o painel segue aberto depois de apagar', !!doc.querySelector('.notif'));
+    ok('o registro não é destruído — fica arquivado (soft delete)',
+       !!window.App.services.db.getTodos('notificacoes')
+         .filter(n => n.id === alvo)[0].arquivadaEm);
+
+    window.App.services.notificacaoService.sincronizar();
+    await esperar(300);
+    ok('a sincronização não ressuscita o aviso apagado',
+       !window.App.services.db.get('notificacoes')
+         .some(n => n.id === alvo && !n.arquivadaEm));
+  }
 
   const antesLidas = window.App.services.notificacaoService
     .contarNaoLidas(window.App.store.getState().usuarioAtual.id);
-  const btnLida = doc.querySelector('[data-action="marcar-lida"]');
-  if (btnLida) {
-    btnLida.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  const btnTodas = doc.querySelector('[data-action="marcar-todas-lidas"]');
+  if (btnTodas) {
+    btnTodas.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     await esperar(700);
-    ok('marcar como lida reduz o contador',
+    ok('marcar todas como lidas zera o contador',
        window.App.services.notificacaoService
-         .contarNaoLidas(window.App.store.getState().usuarioAtual.id) === antesLidas - 1);
+         .contarNaoLidas(window.App.store.getState().usuarioAtual.id) === 0,
+       'antes eram ' + antesLidas);
   } else {
-    ok('marcar como lida reduz o contador', antesLidas === 0, 'nada não lido para o admin');
+    ok('marcar todas como lidas zera o contador', antesLidas === 0,
+       'nada não lido para este usuário');
   }
 
   console.log('\nCaixa de saída (#/caixa-de-saida)');

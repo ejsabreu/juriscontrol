@@ -44,7 +44,11 @@
     { gatilho: 'follow_up',    antecedenciaDias: [0],          canais: ['app'],          ativo: true }
   ];
 
-  var HORA_DIGEST = 8;
+  /* Hora padrão de envio de cada regra. Não é usada pelo avaliador — que
+     decide por DATA, não por relógio —, mas é o que a tela de regras grava ao
+     materializar as padrão. Aqui porque é padrão do escritório, ao lado das
+     outras. */
+  var HORA_ENVIO_PADRAO = 8;
 
   function chaveDe(tipo, entidadeId, marco) {
     return tipo + ':' + entidadeId + ':' + marco;
@@ -87,7 +91,22 @@
       var estadoPrazo = prazos().avaliar(prazo, hoje);
       var dias = estadoPrazo.diasRestantes;
       if (dias === null || dias === undefined) return;
-      if (!dispara(regra, dias)) return;
+
+      /* PISO DO SISTEMA: prazo no vermelho do semáforo avisa TODO dia em que
+         estiver vermelho, esteja ou não na régua de antecedência.
+
+         A régua é uma escolha de quando lembrar com folga — 5 dias, 3 dias.
+         O vermelho não é escolha: é o prazo prestes a ser perdido. Com a
+         régua padrão [5,3,1,0], um prazo a 2 dias úteis ficava no vão entre
+         dois degraus e não avisava ninguém — no acervo atual são três prazos
+         críticos calados. Quem quiser silêncio desliga a regra inteira; o que
+         não existe é "avise a 5 dias, mas não a 2".
+
+         Quem define o vermelho é `domain/prazos.js`, e não um número repetido
+         aqui: o dia em que o semáforo mudar de limiar, isto acompanha. */
+      var noVermelho = estadoPrazo.semaforo === 'critico' ||
+                       estadoPrazo.semaforo === 'vencido';
+      if (!noVermelho && !dispara(regra, dias)) return;
 
       var tipo, gravidade, titulo, marco;
 
@@ -104,7 +123,7 @@
         marco = 0;
       } else {
         tipo = 'prazo_proximo';
-        gravidade = dias <= 1 ? 'critica' : 'atencao';
+        gravidade = noVermelho ? 'critica' : 'atencao';
         titulo = 'Faltam ' + dias + ' ' +
                  App.format.plural(dias, 'dia útil', 'dias úteis') + ': ' + prazo.titulo;
         marco = dias;
@@ -196,10 +215,38 @@
     var regra = regraDe(regras, 'publicacao');
     if (!regra) return;
 
-    var novas = (estado.publicacoes || []).filter(function (p) {
-      return p.ativo !== false && p.status === 'nova';
+    /* Toda a fila pendente, não só as novas.
+       A publicação já vinculada ao processo ainda espera o prazo ser gerado, e
+       a "sem vínculo" espera alguém achar o processo à mão — as duas exigem
+       ação tanto quanto a recém-chegada. Avisar só das novas escondia
+       justamente as que travaram no meio da triagem, que são as que ninguém
+       lembra sozinho. Quem lista o que é pendente é o catálogo de status, o
+       mesmo que o resumo da fila lê. */
+    var pendentes = App.domain.enums.statusPendentesPublicacao();
+
+    var porStatus = {};
+    var total = 0;
+
+    (estado.publicacoes || []).forEach(function (p) {
+      if (p.ativo === false) return;
+      if (pendentes.indexOf(p.status) === -1) return;
+      porStatus[p.status] = (porStatus[p.status] || 0) + 1;
+      total++;
     });
-    if (!novas.length) return;
+
+    if (!total) return;
+
+    // A quebra por situação é o que diz o que fazer: 12 novas pede triagem,
+    // 3 sem vínculo pede garimpo. Um número só não distingue os dois.
+    var DETALHE = {
+      nova: 'aguardando triagem',
+      vinculada: 'sem prazo gerado',
+      sem_vinculo: 'sem processo vinculado'
+    };
+    var detalhe = pendentes
+      .filter(function (s) { return porStatus[s]; })
+      .map(function (s) { return porStatus[s] + ' ' + DETALHE[s]; })
+      .join(' · ');
 
     // Uma notificação por DIA para o lote, não uma por publicação: trinta
     // avisos idênticos no sino é o mesmo que nenhum.
@@ -210,9 +257,9 @@
         usuarioId: u.id,
         tipo: 'publicacao_nova',
         gravidade: 'info',
-        titulo: novas.length + ' ' + App.format.plural(novas.length, 'publicação', 'publicações') +
-                ' aguardando triagem',
-        mensagem: 'Vincule ao processo e gere o prazo correspondente.',
+        titulo: total + ' ' + App.format.plural(total, 'publicação', 'publicações') +
+                ' aguardando ação',
+        mensagem: detalhe,
         entidadeColecao: 'publicacoes',
         entidadeId: null,
         canais: regra.canais || ['app'],
@@ -277,58 +324,23 @@
     });
   }
 
-  // --- Resumo do dia --------------------------------------------------------
-
-  /**
-   * Um aviso por usuário por dia, consolidando o que ele tem pela frente.
-   * Só é gerado a partir da hora configurada — antes disso o resumo estaria
-   * incompleto — e só quando há de fato algo a resumir.
-   */
-  function montarDigest(saida, estado, hoje, agora) {
-    var hora = agora instanceof Date ? agora.getHours() : HORA_DIGEST;
-    if (hora < HORA_DIGEST) return [];
-
-    var porUsuario = {};
-    saida.forEach(function (n) {
-      if (!n.usuarioId) return;
-      if (n.tipo === 'digest') return;
-      (porUsuario[n.usuarioId] = porUsuario[n.usuarioId] || []).push(n);
-    });
-
-    return Object.keys(porUsuario).map(function (usuarioId) {
-      var itens = porUsuario[usuarioId];
-      var criticos = itens.filter(function (n) { return n.gravidade === 'critica'; }).length;
-
-      return {
-        chave: chaveDe('digest', usuarioId, hoje),
-        usuarioId: usuarioId,
-        tipo: 'digest',
-        gravidade: criticos ? 'atencao' : 'info',
-        titulo: 'Resumo do dia · ' + itens.length + ' ' +
-                App.format.plural(itens.length, 'item', 'itens') + ' exigindo atenção',
-        mensagem: criticos
-          ? criticos + ' ' + App.format.plural(criticos, 'item crítico', 'itens críticos') +
-            ' na sua fila de hoje.'
-          : 'Nada crítico hoje.',
-        entidadeColecao: null,
-        entidadeId: null,
-        canais: ['app', 'email'],
-        diasRestantes: 0
-      };
-    });
-  }
-
   // --- Ponto de entrada -----------------------------------------------------
+
+  /* NÃO HÁ RESUMO DO DIA. Existiu: um aviso por pessoa por dia dizendo "N
+     itens exigindo atenção". Saiu porque contava o que já estava logo abaixo
+     dele, no mesmo painel — e desde que o sino separa por categoria, o painel
+     aberto já É o resumo, com os itens à mão em vez de um número.
+     Pior: o número congelava na primeira geração do dia (a chave era
+     `digest:usuário:data`), então de tarde ele contradizia a própria lista. */
 
   /**
    * @param {Object} estado  { prazos, compromissos, tarefas, publicacoes,
    *                           lancamentos, leads, usuarios, regrasAlerta }
    * @param {string} [hoje]  ISO 'YYYY-MM-DD' — injetável para o teste não
    *                         depender do relógio
-   * @param {Date}   [agora] só para decidir a hora do resumo diário
    * @returns {Array} avisos que deveriam existir hoje, cada um com `chave`
    */
-  function avaliar(estado, hoje, agora) {
+  function avaliar(estado, hoje) {
     var dados = estado || {};
     var dia = hoje || prazos().hojeISO();
     var regras = dados.regrasAlerta || [];
@@ -343,9 +355,62 @@
 
     // Sem responsável não há para quem avisar — e um aviso sem destinatário
     // é um aviso que ninguém lê.
-    saida = saida.filter(function (n) { return !!n.usuarioId; });
+    return saida.filter(function (n) { return !!n.usuarioId; });
+  }
 
-    return saida.concat(montarDigest(saida, dados, dia, agora));
+  // --- Categorias (para o sino) ---------------------------------------------
+
+  /** Em que gaveta um tipo cai. Tipo desconhecido vai para 'outros'. */
+  function categoriaDe(tipo) {
+    var categorias = App.domain.enums.CATEGORIAS_NOTIFICACAO;
+    var achada = 'outros';
+    categorias.forEach(function (c) {
+      if ((c.tipos || []).indexOf(tipo) !== -1) achada = c.id;
+    });
+    return achada;
+  }
+
+  /**
+   * Reparte as notificações nas gavetas do sino.
+   *
+   * POR QUE ISTO EXISTE: o painel mostrava as mais recentes e pronto. Numa
+   * manhã de sincronização, trinta publicações novas ocupavam a lista inteira
+   * e empurravam para fora o único prazo vencido — o aviso mais caro do
+   * sistema, invisível por chegar alguns minutos antes. Separar por categoria
+   * é o que garante lugar a cada assunto, independente do volume dos outros.
+   *
+   * Dentro da gaveta, NÃO LIDAS PRIMEIRO: o que ninguém viu ainda é o que se
+   * foi olhar, e numa categoria com muitos avisos os já lidos empurrariam o
+   * novo para o fim da rolagem.
+   *
+   * Devolve só o que a tela desenha — nome e itens. Já devolveu total, não
+   * lidas e quantas ficaram de fora; os três morreram junto com o corte por
+   * categoria e com o número no cabeçalho da gaveta, e contagem que ninguém lê
+   * é a que passa a divergir sem ninguém notar.
+   *
+   * @param {Array} notificacoes  já filtradas por usuário
+   * @returns {Array} [{ id, label, itens }] — sem as categorias vazias, na
+   *                  ordem do catálogo
+   */
+  function agruparPorCategoria(notificacoes) {
+    var porCategoria = {};
+
+    (notificacoes || []).forEach(function (n) {
+      var id = categoriaDe(n.tipo);
+      (porCategoria[id] = porCategoria[id] || []).push(n);
+    });
+
+    return App.domain.enums.CATEGORIAS_NOTIFICACAO.map(function (categoria) {
+      var itens = (porCategoria[categoria.id] || []).slice();
+
+      /* `sort` estável a partir do ES2019: quem já veio ordenado por data
+         mantém a ordem dentro de cada metade. */
+      itens.sort(function (a, b) {
+        return (a.lidaEm ? 1 : 0) - (b.lidaEm ? 1 : 0);
+      });
+
+      return { id: categoria.id, label: categoria.label, itens: itens };
+    }).filter(function (grupo) { return grupo.itens.length > 0; });
   }
 
   /**
@@ -364,9 +429,11 @@
 
   App.domain.alertas = {
     REGRAS_PADRAO: REGRAS_PADRAO,
-    HORA_DIGEST: HORA_DIGEST,
+    HORA_ENVIO_PADRAO: HORA_ENVIO_PADRAO,
     avaliar: avaliar,
     novidades: novidades,
+    categoriaDe: categoriaDe,
+    agruparPorCategoria: agruparPorCategoria,
     chaveDe: chaveDe,
     regraDe: regraDe,
     dispara: dispara

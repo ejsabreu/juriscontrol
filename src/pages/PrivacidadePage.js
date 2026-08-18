@@ -472,7 +472,6 @@
               }
               App.components.Toast.sucesso('Banco restaurado',
                 r.processos + ' processo(s) recuperado(s).');
-              App.layout.AppShell.atualizarBadges();
               carregar();
             })
             .catch(function (erro) {

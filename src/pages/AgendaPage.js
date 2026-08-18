@@ -98,6 +98,9 @@
       ],
       totalAtivos: App.selectors.filtrosAtivos(f, ['apenasAbertos']),
       direita: App.components.ui.Button({
+        rotulo: 'Novo compromisso', variante: 'secondary',
+        icone: '+', acao: 'novo-compromisso'
+      }) + App.components.ui.Button({
         rotulo: 'Simulador de prazo', variante: 'secondary',
         icone: '🗓', href: '#/simulador'
       })
@@ -211,6 +214,82 @@
     App.dom.delegate(container, 'click', '[data-action="ver-evento"]', function (evento, botao) {
       var item = eventos.itens.filter(function (ev) { return ev.id === botao.dataset.id; })[0];
       if (item) abrirResumoEvento(item);
+    });
+
+    App.dom.delegate(container, 'click', '[data-action="novo-compromisso"]', abrirNovoCompromisso);
+  }
+
+  /** Modal de cadastro — compromisso avulso (reunião, diligência...), com ou
+      sem processo vinculado. A agenda não fica limitada a prazo processual. */
+  function abrirNovoCompromisso() {
+    var ui = App.components.ui;
+    var enums = App.domain.enums;
+    var pessoas = App.services.db.get('pessoas');
+    var processosAtivos = App.services.db.get('processos').filter(function (p) {
+      return p.status === 'ativo';
+    });
+
+    var opcoesProcesso = processosAtivos.map(function (p) {
+      var cliente = pessoas.filter(function (x) { return x.id === p.clienteId; })[0];
+      return { id: p.id, label: p.numeroInterno + ' — ' + (cliente ? cliente.nome : '') };
+    });
+
+    App.components.Modal.abrir({
+      titulo: 'Novo compromisso',
+      conteudo: '<form id="form-compromisso" class="form-grid">' +
+        ui.Field({ nome: 'titulo', rotulo: 'Título', obrigatorio: true,
+                   placeholder: 'Ex.: Reunião com o cliente' }) +
+        ui.Field({ nome: 'tipo', rotulo: 'Tipo', tipo: 'select', largura: 6,
+                   opcoes: enums.opcoes(enums.TIPOS_COMPROMISSO, 'reuniao') }) +
+        ui.Field({ nome: 'responsavelId', rotulo: 'Responsável', tipo: 'select', largura: 6,
+                   opcoes: enums.opcoes(
+                     usuarios.map(function (u) { return { id: u.id, label: u.nome }; }),
+                     App.store.getState().usuarioAtual.id) }) +
+        ui.Field({ nome: 'data', rotulo: 'Data', tipo: 'date', largura: 6, obrigatorio: true,
+                   valor: App.domain.prazos.hojeISO() }) +
+        ui.Field({ nome: 'hora', rotulo: 'Hora', tipo: 'time', largura: 6, obrigatorio: true,
+                   valor: '09:00' }) +
+        ui.Field({ nome: 'duracaoMin', rotulo: 'Duração (min)', tipo: 'number', largura: 6,
+                   valor: 60 }) +
+        ui.Field({ nome: 'processoId', rotulo: 'Processo vinculado', tipo: 'select', largura: 6,
+                   opcoes: enums.opcoes(opcoesProcesso, '', 'Sem processo (uso interno)') }) +
+        ui.Field({ nome: 'local', rotulo: 'Local',
+                   placeholder: 'Ex.: Escritório, sala 2 · ou um link de videochamada' }) +
+      '</form>',
+      acoes: [
+        { rotulo: 'Cancelar', variante: 'secondary', acao: 'cancelar', fechar: true },
+        { rotulo: 'Agendar', variante: 'primary', acao: 'salvar' }
+      ],
+      aoAcao: function (acao, corpo, fecharModal) {
+        if (acao !== 'salvar') return;
+
+        var d = App.dom.formToObject(App.dom.qs('#form-compromisso', corpo));
+        if (!d.titulo || !d.titulo.trim()) {
+          App.components.Toast.aviso('Informe o título do compromisso.');
+          return;
+        }
+        if (!d.data || !d.hora) {
+          App.components.Toast.aviso('Informe a data e a hora do compromisso.');
+          return;
+        }
+
+        App.services.agendaService.criarCompromisso({
+          processoId: d.processoId || null,
+          tipo: d.tipo,
+          titulo: d.titulo.trim(),
+          dataHora: d.data + 'T' + d.hora,
+          duracaoMin: Number(d.duracaoMin) || 60,
+          local: d.local,
+          responsavelId: d.responsavelId,
+          participantesIds: [d.responsavelId]
+        }).then(function () {
+          fecharModal();
+          App.components.Toast.sucesso('Compromisso agendado', d.titulo.trim());
+          carregar();
+        }).catch(function (erro) {
+          App.components.Toast.erro('Não foi possível agendar', erro.message);
+        });
+      }
     });
   }
 

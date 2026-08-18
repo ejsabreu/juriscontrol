@@ -129,25 +129,29 @@
         subtitulo: vencidos.length + ' item(s)',
         semPadding: true,
         classe: 'agenda-vencidos',
-        conteudo: App.components.PrazoList({
-          prazos: vencidos.map(paraPrazoCard),
-          acoes: true
-        })
+        conteudo: '<div class="agenda-lista-scroll">' +
+          App.components.PrazoList({
+            prazos: vencidos.map(paraPrazoCard),
+            acoes: true
+          }) +
+        '</div>'
       });
     }
 
-    html += '<div style="margin-top:' + (vencidos.length ? 'var(--space-4)' : '0') + '">' +
-      ui.Card({
-        titulo: 'Próximos prazos',
-        semPadding: true,
-        conteudo: App.components.PrazoList({
+    html += ui.Card({
+      titulo: 'Próximos prazos',
+      semPadding: true,
+      classe: 'agenda-proximos',
+      conteudo: '<div class="agenda-lista-scroll">' +
+        App.components.PrazoList({
           prazos: proximos.map(paraPrazoCard),
           acoes: true,
           icone: '✓',
           tituloVazio: 'Nenhum prazo à frente',
           textoVazio: 'Não há prazos em aberto no período exibido.'
-        })
-      }) + '</div>';
+        }) +
+      '</div>'
+    });
 
     return html;
   }
@@ -160,7 +164,7 @@
         '<div class="card">' +
           App.components.Calendar({ mes: mesAtual, eventosPorDia: eventos.mapa }) +
         '</div>' +
-        '<div>' + painelLateral() + '</div>' +
+        '<div class="agenda-sidebar">' + painelLateral() + '</div>' +
       '</div>';
   }
 

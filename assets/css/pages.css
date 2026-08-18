@@ -484,11 +484,65 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
   gap: var(--space-4);
-  align-items: start;
+  align-items: stretch;
 }
 
 @media (max-width: 1100px) {
   .agenda-layout { grid-template-columns: 1fr; }
+}
+
+/* Acima de 1100px o calendário fica ao lado da coluna de prazos, e o grid
+   (align-items: stretch) estica essa coluna para acompanhar a altura do
+   calendário. "Vencidos sem baixa" e "Próximos prazos" dividem essa altura
+   ao meio (flex: 1 1 0 em cada) e rolam por dentro — sem isso, uma lista
+   comprida ultrapassava o calendário e alongava a página bem além dele.
+   Abaixo de 1100px as colunas empilham (regra 1 da responsividade) e não há
+   mais "altura do calendário" pra acompanhar, então os cards voltam a
+   crescer com o próprio conteúdo, com um teto fixo só pra não fugir demais. */
+.agenda-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+.agenda-sidebar .card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.agenda-sidebar .card__header {
+  flex-shrink: 0;
+}
+
+.agenda-sidebar .card__body--flush {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.agenda-lista-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 1100px) {
+  .agenda-sidebar .card,
+  .agenda-sidebar .card__body--flush,
+  .agenda-lista-scroll {
+    flex: none;
+    min-height: auto;
+  }
+
+  .agenda-sidebar .card__body--flush { display: block; }
+
+  .agenda-lista-scroll {
+    max-height: 420px;
+    overflow-y: auto;
+  }
 }
 
 /* --- Clientes ------------------------------------------------------------- */

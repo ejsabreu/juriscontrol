@@ -257,7 +257,7 @@
         '<div>' +
           '<h1 class="page-header__title">Publicações</h1>' +
           '<p class="page-header__subtitle">' +
-            resumo.pendentes + ' aguardando triagem · ' + resumo.total + ' no total' +
+            resumo.pendentes + ' aguardando ação · ' + resumo.total + ' no total' +
             (ultima && ultima.concluidaEm
               ? ' · última sincronização ' + App.format.dataHora(ultima.concluidaEm)
               : '') +
@@ -305,7 +305,6 @@
       sincronizando = false;
       App.components.Toast.sucesso('Sincronização concluída',
         r.novas + ' nova(s) · ' + r.duplicadas + ' duplicada(s) descartada(s).');
-      App.layout.AppShell.atualizarBadges();
       carregar();
     }).catch(function (erro) {
       sincronizando = false;
@@ -366,7 +365,6 @@
           fecharModal();
           App.components.Toast.sucesso('Prazo criado',
             r.prazo.titulo + ' — data fatal em ' + App.format.data(r.prazo.dataFatal) + '.');
-          App.layout.AppShell.atualizarBadges();
           App.layout.AppShell.atualizarNotificacoes();
           carregar();
         }).catch(function (erro) {
@@ -441,7 +439,6 @@
       App.services.publicacaoService.descartar(selecionada, 'Descartada na triagem.')
         .then(function () {
           App.components.Toast.sucesso('Publicação descartada');
-          App.layout.AppShell.atualizarBadges();
           carregar();
         });
     });

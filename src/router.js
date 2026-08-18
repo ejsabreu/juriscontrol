@@ -172,6 +172,10 @@
 
   App.router = {
     registrar: registrar,
+    // Exposto para quem precisa saber se um caminho leva a algum lugar ANTES
+    // de mandar alguém para lá — hoje, a verificação de que nenhum aviso do
+    // sino aponta para rota inexistente.
+    resolver: resolver,
     definirGuarda: definirGuarda,
     iniciar: iniciar,
     ir: ir,

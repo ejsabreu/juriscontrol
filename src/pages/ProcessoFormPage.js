@@ -407,7 +407,6 @@
       App.components.Toast.sucesso(
         ehEdicao() ? 'Processo atualizado' : 'Processo cadastrado',
         salvo.numeroInterno + ' — ' + salvo.clienteNome);
-      App.layout.AppShell.atualizarBadges();
 
       /* Veio da fila de publicações (F2.4): fecha o ciclo vinculando a
          publicação ao processo recém-criado e devolvendo o usuário à fila,

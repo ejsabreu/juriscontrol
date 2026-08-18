@@ -12,10 +12,6 @@
   App.layout = App.layout || {};
 
   var raiz = null;
-  var badges = {
-    prazosCriticos: 0, tarefasAtrasadas: 0,
-    publicacoesPendentes: 0, followUpAtrasado: 0
-  };
 
   /* Rotas "nuas" — entrada (F2.1) e portal do cliente (F2.3) — se renderizam
      sem sidebar nem topbar. Os slots são esvaziados de verdade, não só
@@ -23,8 +19,8 @@
      disso pode existir numa tela para quem ainda não entrou no sistema. */
   var cascaVisivel = true;
 
-  /* Estado do sino. Mora aqui, e não no store, porque é estado de casca —
-     mesma natureza de `badges`. */
+  /* Estado do sino. Mora aqui, e não no store, porque é estado de casca: só a
+     casca lê, e ele morre com ela. */
   var notificacoes = [];
   var naoLidas = 0;
   var notificacoesAbertas = false;
@@ -85,7 +81,6 @@
     renderizarCasca();
     ligarEventos();
     observarDegrau();
-    atualizarBadges();
     atualizarNotificacoes();
   }
 
@@ -108,7 +103,6 @@
 
     App.dom.render('#slot-sidebar', App.layout.Sidebar({
       rotaAtual: estado.rota && estado.rota.chave,
-      badges: badges,
       recolhida: estado.sidebarRecolhida,
       usuario: estado.usuarioAtual      // F2.1: o menu esconde o que o perfil não acessa
     }));
@@ -116,7 +110,6 @@
     App.dom.render('#slot-topbar', App.layout.Topbar({
       usuario: estado.usuarioAtual,
       tema: estado.tema,
-      prazosCriticos: badges.prazosCriticos,
       notificacoes: notificacoes,
       naoLidas: naoLidas,
       notificacoesAbertas: notificacoesAbertas
@@ -141,8 +134,11 @@
 
     App.services.notificacaoService.sincronizar();
 
+    /* Sem paginar: o painel reparte por categoria e mostra a lista inteira, e
+       uma categoria pequena não pode se perder por ter caído depois da vigésima
+       linha. São registros locais — não há ida ao servidor a economizar aqui. */
     return App.services.notificacaoService
-      .listar({ usuarioId: usuario.id, porPagina: 20 })
+      .listar({ usuarioId: usuario.id })
       .then(function (r) {
         notificacoes = r.itens;
         naoLidas = r.naoLidas;
@@ -191,10 +187,6 @@
       renderizarCasca();
     });
 
-    App.dom.delegate(raiz, 'click', '[data-action="ir-prazos"]', function () {
-      window.location.hash = '#/agenda';
-    });
-
     App.dom.delegate(raiz, 'click', '[data-action="sair"]', function () {
       App.services.sessaoService.sair().then(function () {
         App.router.ir('#/entrar');
@@ -215,6 +207,24 @@
       if (!usuario) return;
       App.services.notificacaoService.marcarTodasLidas(usuario.id)
         .then(atualizarNotificacoes);
+    });
+
+    /* Apagar um aviso. Sem confirmação de propósito: o aviso é derivado — o
+       prazo, a tarefa e a publicação continuam lá, e o pior que acontece é
+       perder um lembrete de algo que a própria tela mostra. Um modal por
+       lixeira clicada custaria mais do que o erro que evitaria.
+
+       O `stopPropagation` guarda o painel: sem ele, o clique subiria até o
+       fechamento por clique-fora e a gaveta sumiria a cada aviso apagado —
+       justamente quando a pessoa está limpando vários. */
+    App.dom.delegate(raiz, 'click', '[data-action="excluir-notificacao"]', function (evento, alvo) {
+      evento.preventDefault();
+      evento.stopPropagation();
+      App.services.notificacaoService.arquivar(alvo.getAttribute('data-value'))
+        .then(atualizarNotificacoes)
+        .catch(function (erro) {
+          App.components.Toast.erro('Não foi possível apagar o aviso', erro.message);
+        });
     });
 
     App.dom.delegate(raiz, 'click', '[data-action="abrir-notificacao"]', function (evento, alvo) {
@@ -245,7 +255,6 @@
         if (!confirmado) return;
         App.services.db.reset();
         App.components.Toast.sucesso('Dados restaurados', 'O conjunto fictício original foi regerado.');
-        atualizarBadges();
         App.router.recarregar();
       });
     });
@@ -262,26 +271,6 @@
 
   function aplicarTema(tema) {
     document.documentElement.setAttribute('data-theme', tema);
-  }
-
-  /** Recalcula os contadores da sidebar e do sino. */
-  function atualizarBadges() {
-    return Promise.all([
-      App.services.prazoService.resumo(),
-      App.services.tarefaService.resumo()
-    ]).then(function (resultados) {
-      badges = {
-        prazosCriticos: resultados[0].contagem.critico + resultados[0].contagem.vencido,
-        tarefasAtrasadas: resultados[1].atrasadas,
-        // Síncronos: os resumos são contagens locais, sem ida ao "servidor".
-        publicacoesPendentes: App.services.publicacaoService.resumo().pendentes,
-        followUpAtrasado: App.services.leadService.resumo().followUpAtrasado
-      };
-      renderizarCasca();
-      return badges;
-    }).catch(function (erro) {
-      console.warn('[shell] Falha ao atualizar contadores:', erro.message);
-    });
   }
 
   function conteudo() {
@@ -335,7 +324,6 @@
     trocarConteudo: trocarConteudo,
     renderizarCasca: renderizarCasca,
     aplicarTema: aplicarTema,
-    atualizarBadges: atualizarBadges,
     atualizarNotificacoes: atualizarNotificacoes,
     aoTrocarRota: aoTrocarRota
   };

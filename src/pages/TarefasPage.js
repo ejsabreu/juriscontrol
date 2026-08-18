@@ -124,7 +124,6 @@
           App.components.Toast.sucesso('Tarefa movida',
             tarefa.titulo + ' → ' +
             App.domain.enums.rotulo(App.domain.enums.STATUS_TAREFA, destino));
-          App.layout.AppShell.atualizarBadges();
           carregar();
         }).catch(function (erro) {
           App.components.Toast.erro('Não foi possível mover a tarefa', erro.message);
@@ -187,7 +186,6 @@
         App.services.tarefaService.mudarStatus(tarefa.id, 'concluida').then(function () {
           fechar();
           App.components.Toast.sucesso('Tarefa concluída', tarefa.titulo);
-          App.layout.AppShell.atualizarBadges();
           carregar();
         });
       }
@@ -257,7 +255,6 @@
         }).then(function () {
           fechar();
           App.components.Toast.sucesso('Tarefa criada');
-          App.layout.AppShell.atualizarBadges();
           carregar();
         }).catch(function (erro) {
           App.components.Toast.erro('Erro ao criar a tarefa', erro.message);

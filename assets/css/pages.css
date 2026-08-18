@@ -1218,23 +1218,94 @@
   overflow-y: auto;
 }
 
-.notif__item {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+/* Cabeçalho de categoria. Gruda no topo enquanto a gaveta rola: numa lista
+   repartida, o que se perde primeiro ao rolar é justamente saber de que
+   assunto é a linha que está sob os olhos. */
+.notif__group-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: block;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-alt);
   border-bottom: 1px solid var(--color-border);
-  color: inherit;
-  text-decoration: none;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-subtle);
+}
+
+/* Entre uma gaveta e a seguinte. A primeira não leva risco: já tem a borda do
+   cabeçalho do painel logo acima. */
+.notif__group + .notif__group .notif__group-label {
+  border-top: 1px solid var(--color-border);
+}
+
+/* A linha inteira: o aviso à esquerda, a lixeira à direita. O fundo e o risco
+   de baixo passaram do link para cá — se ficassem no link, o realce de "não
+   lida" pararia antes do botão e a borda deixaria um dente na direita. */
+.notif__linha {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--color-border);
   transition: background var(--transition);
 }
 
-.notif__item:last-child { border-bottom: 0; }
-.notif__item:hover { background: var(--color-surface-hover); }
-.notif__item--nova { background: var(--color-primary-50); }
+.notif__linha:last-child { border-bottom: 0; }
+.notif__linha:hover { background: var(--color-surface-hover); }
+.notif__linha--nova { background: var(--color-primary-50); }
 
-[data-theme="dark"] .notif__item--nova { background: var(--color-surface-alt); }
+[data-theme="dark"] .notif__linha--nova { background: var(--color-surface-alt); }
 
+.notif__item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4);
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Alinhada ao TOPO, na altura do título, e não centrada na linha: o aviso tem
+   três alturas possíveis (com mensagem, sem mensagem, com título de duas
+   linhas), e centrada ela dançaria de linha para linha. */
+.notif__excluir {
+  flex: none;
+  align-self: flex-start;
+  width: 30px;
+  height: 30px;
+  margin: var(--space-2) var(--space-2) 0 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.notif__excluir svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* O vermelho só no ponteiro em cima e no foco pelo teclado: sinaliza a
+   destruição na hora de agir, sem manchar de vermelho uma lista inteira que
+   está ali para ser lida. */
+.notif__excluir:hover,
+.notif__excluir:focus-visible {
+  background: var(--color-prazo-critico-bg);
+  color: var(--color-danger);
+}
+
+/* O `font-size` só alcança os dois ícones que são glifo e não desenho — o
+   cifrão do Financeiro e o ponto do tipo desconhecido. Em `--text-md` eles
+   ficam com o mesmo peso visual dos desenhos de 15px ao lado; em `--text-sm`
+   pareciam ter encolhido. */
 .notif__icon {
   display: grid;
   place-items: center;
@@ -1242,15 +1313,27 @@
   height: 26px;
   flex: none;
   border-radius: var(--radius-full);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   background: var(--color-surface-hover);
 }
 
-.notif__icon--critica { background: var(--color-prazo-critico-bg); }
-.notif__icon--atencao { background: var(--color-prazo-atencao-bg); }
-.notif__icon--info    { background: var(--color-primary-50); }
+/* A gravidade agora pinta o TRAÇO, não só o fundo. Com emoji isso era
+   impossível — a fonte trazia a própria cor e ignorava o `color`. O desenho
+   herda por `currentColor`, então o mesmo calendário sai vermelho no prazo
+   vencido e âmbar no que ainda dá tempo, sem virar dois desenhos. */
+.notif__icon--critica { background: var(--color-prazo-critico-bg); color: var(--color-danger); }
+.notif__icon--atencao { background: var(--color-prazo-atencao-bg); color: var(--color-warning); }
+.notif__icon--info    { background: var(--color-primary-50);       color: var(--color-primary-500); }
 
 [data-theme="dark"] .notif__icon--info { background: var(--color-surface-hover); }
+
+/* 15px, os mesmos do menu: é o mesmo desenho, e sair de tamanhos diferentes
+   nos dois lugares desfaz metade do reconhecimento que a unificação criou. */
+.notif__icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
 
 .notif__body {
   display: flex;
@@ -1293,67 +1376,41 @@
   font-size: var(--text-sm);
 }
 
+/* 28px, e não os 15px dos avisos: aqui o desenho não acompanha uma linha de
+   texto, é a figura do estado vazio. Fica esmaecido pelo mesmo motivo do
+   `.empty-state__icon` — ilustração de "não há nada" não deve competir com a
+   frase que explica o que apareceria ali. */
+.notif__empty-icone {
+  display: block;
+  margin: 0 auto var(--space-2);
+  opacity: 0.4;
+}
+
+/* `margin: 0 auto` é o que centra, e não o `text-align: center` do
+   `.notif__empty`: o SVG é `display: block`, e alinhamento de texto não
+   alcança bloco. Sem esta linha ele encosta na borda esquerda. */
+.notif__empty-icone svg {
+  width: 28px;
+  height: 28px;
+  margin: 0 auto;
+}
+
 .notif__empty p { margin: var(--space-2) 0 0; }
 
+/* Faixa de acabamento do painel. Já foi o "Ver todas"; hoje não leva a lugar
+   nenhum e não tem texto — mas continua aqui, com a MESMA altura de antes, que
+   é o que preserva o arremate do canto arredondado e a distância entre o
+   último aviso e a borda.
+
+   A altura vem do `min-height` porque sem conteúdo o `padding` sozinho
+   entregaria uma faixa mais baixa: a linha de texto que existia ali media uns
+   16px, e são eles que o `min-height` repõe. */
 .notif__footer {
   display: block;
+  min-height: 16px;
   padding: var(--space-3);
-  text-align: center;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface-alt);
-  font-size: var(--text-xs);
-  color: var(--color-primary-500);
-  text-decoration: none;
-}
-
-.notif__footer:hover { background: var(--color-surface-hover); }
-
-/* --- Tela cheia de notificações -------------------------------------------- */
-.notif-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.notif-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.notif-row:last-child { border-bottom: 0; }
-.notif-row--nova { background: var(--color-surface-alt); }
-
-.notif-row__body { flex: 1; min-width: 0; }
-
-.notif-row__title {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text);
-  text-decoration: none;
-}
-
-.notif-row__title:hover { color: var(--color-primary-500); }
-
-.notif-row__text {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  margin-top: 2px;
-}
-
-.notif-row__meta {
-  font-size: var(--text-xs);
-  color: var(--color-text-subtle);
-  margin-top: var(--space-1);
-}
-
-.notif-row__actions {
-  display: flex;
-  gap: var(--space-1);
-  flex: none;
 }
 
 /* --- Caixa de saída -------------------------------------------------------- */
@@ -2436,7 +2493,6 @@
 
 @media (max-width: 900px) {
   .outbox { grid-template-columns: 1fr; }
-  .notif { width: calc(100vw - 32px); }
 
   .audit__head {
     grid-template-columns: 1fr auto;
@@ -2603,4 +2659,49 @@
 @media (max-width: 900px) {
   .editor-doc__corpo { flex-direction: column; }
   .editor-vars { flex: none; width: 100%; max-height: 40vh; }
+}
+
+/* --- Painel do sino no telefone ------------------------------------------- */
+@media (max-width: 600px) {
+  /* O painel nasce ancorado no SINO (`right: 0` no botão), e é isso que o joga
+     para fora da tela aqui: o sino não está na borda direita — depois dele vêm
+     tema, restaurar dados, avatar e sair, uns 200px. Um painel de 360px pendurado
+     nessa âncora começa em -60px num telefone de 360, e o começo de cada linha
+     — que é onde mora o título do aviso — fica do lado de fora.
+
+     A correção não é estreitar o painel: é trocar a âncora. Preso à JANELA, com
+     a mesma margem dos dois lados, ele fica centrado por construção e não tem
+     como vazar, seja qual for a largura da tela ou quantos botões existam à
+     direita do sino amanhã.
+
+     `fixed` funciona porque nenhum ancestral tem `transform` — o que criaria um
+     berço e devolveria o problema. A barra é `sticky`, que não cria.
+
+     Só abaixo de 600px: acima disso os 360px cabem à direita sem encostar em
+     nada, e esticar o painel até a largura do tablet daria uma faixa enorme com
+     três linhas de texto dentro. */
+  .notif {
+    position: fixed;
+    top: var(--topbar-height);
+    left: var(--space-4);
+    right: var(--space-4);
+    width: auto;
+    max-width: none;
+
+    /* Preso à janela, o painel não rola mais junto com a página — então ele
+       não pode passar da altura dela, ou o fim da lista fica inalcançável.
+       Teto na altura visível e a lista rolando por dentro: é a regra do
+       projeto de conteúdo longo rolar no próprio container. */
+    max-height: calc(100vh - var(--topbar-height) - var(--space-4));
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* `min-height: 0` é o que deixa um filho flex encolher abaixo do próprio
+     conteúdo — sem ele a lista se recusa a rolar e estica o painel. */
+  .notif__list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
 }

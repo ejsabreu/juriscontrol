@@ -148,26 +148,8 @@
 }
 
 .sidebar--recolhida .nav-item {
-  position: relative;
   padding-left: 0;
   padding-right: 0;
-}
-
-/* Sem rótulo não há linha para o contador ocupar, então ele deixa de ser
-   número e vira sinal: um ponto no canto do ícone. O número volta inteiro ao
-   expandir — aqui ele não caberia legível, e um "12" espremido sobre o desenho
-   seria pior que a marca de que há algo a ver. */
-.sidebar--recolhida .nav-item__badge {
-  position: absolute;
-  top: 3px;
-  right: 12px;
-  min-width: 8px;
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  overflow: hidden;
-  text-indent: 100%;
-  white-space: nowrap;
 }
 
 .sidebar__logo {
@@ -258,19 +240,6 @@
   margin: 0 auto;
 }
 
-.nav-item__badge {
-  margin-left: auto;
-  min-width: 20px;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-full);
-  background: var(--color-danger);
-  color: #fff;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-align: center;
-  line-height: 18px;
-}
-
 .sidebar__footer {
   padding: var(--space-4);
   border-top: 1px solid rgba(255, 255, 255, 0.07);
@@ -354,6 +323,20 @@
 .topbar__icon-btn:hover {
   background: var(--color-surface-hover);
   color: var(--color-text);
+}
+
+/* Ícone desenhado no lugar de um glifo. `currentColor` no traço já resolve a
+   cor — inclusive o realce do hover, que é o `color` do botão mudando logo
+   acima. Aqui só resta o tamanho.
+
+   17px, e não os 34px do botão: metade da caixa é a área de clique, que
+   precisa dos 34px para o dedo, e não a tinta. O desenho fica um pouco maior
+   que os 15px do menu porque aqui não divide a linha com um rótulo — sozinho,
+   no meio de um botão, 15px pareceria perdido. */
+.topbar__icon-btn svg {
+  display: block;
+  width: 17px;
+  height: 17px;
 }
 
 .topbar__icon-btn[data-count]:not([data-count="0"])::after {
@@ -519,5 +502,37 @@
 
   .main {
     padding: var(--space-4);
+  }
+}
+
+/* --- Busca no telefone ---------------------------------------------------- */
+@media (max-width: 720px) {
+  /* Ao receber o foco, a busca SAI DO FLUXO e cobre a barra inteira.
+
+     Aqui ela divide uns 300px com quatro botões e o avatar, e sobra campo para
+     três ou quatro letras — pouco para "0801234-56.2025.8.26.0100". Expandir
+     por cima resolve sem esconder nada em definitivo: os ícones continuam onde
+     estavam, atrás do campo, e reaparecem assim que o foco sai.
+
+     Sem JavaScript de propósito. `:focus-within` cobre o toque no campo, o Tab
+     pelo teclado e o foco que volta ao fechar o painel de resultados — três
+     caminhos que um listener teria de tratar um a um, e que já custaram bugs de
+     "a busca ficou aberta para sempre" em muito sistema.
+
+     O que a torna opaca é o fundo do próprio input no foco (`--color-surface`,
+     mais acima): ele tem a mesma altura dos botões que cobre, então a faixa
+     fica limpa sem precisar pintar o container.
+
+     `.topbar` é `sticky`, logo posicionada — é ela o berço deste `absolute`.
+     Sem `top`, o campo fica onde já estava na vertical. */
+  .topbar__search:focus-within {
+    position: absolute;
+    left: var(--space-6);
+    right: var(--space-6);
+    max-width: none;
+    /* Um degrau acima do painel do sino: o clique no campo o fecha, mas o
+       Tab pelo teclado não, e sem isso o painel aberto ficaria por cima do
+       campo expandido — os dois estão no mesmo nível de dropdown. */
+    z-index: calc(var(--z-dropdown) + 1);
   }
 }

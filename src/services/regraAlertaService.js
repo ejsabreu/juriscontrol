@@ -47,7 +47,7 @@
             gatilho: r.gatilho,
             antecedenciaDias: r.antecedenciaDias.slice(),
             canais: r.canais.slice(),
-            horaEnvio: App.domain.alertas.HORA_DIGEST,
+            horaEnvio: App.domain.alertas.HORA_ENVIO_PADRAO,
             ativo: r.ativo !== false,
             usuarioId: null
           }, 'RGA');

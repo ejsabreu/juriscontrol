@@ -254,13 +254,24 @@
   ];
 
   // --- F2.4 Publicações --------------------------------------------------
+  /* `pendente` marca o que ainda EXIGE AÇÃO de alguém — e é a mesma marca que
+     o resumo da fila e o avaliador de alertas leem, para os dois nunca darem
+     números diferentes da mesma fila. Vinculada e sem vínculo contam: a
+     primeira ainda espera o prazo ser gerado, a segunda espera alguém achar o
+     processo. Só triada e descartada estão de fato encerradas. */
   var STATUS_PUBLICACAO = [
-    { id: 'nova',        label: 'Nova',            variante: 'primary' },
-    { id: 'vinculada',   label: 'Vinculada',       variante: 'primary' },
+    { id: 'nova',        label: 'Nova',            variante: 'primary', pendente: true },
+    { id: 'vinculada',   label: 'Vinculada',       variante: 'primary', pendente: true },
     { id: 'triada',      label: 'Triada',          variante: 'success' },
-    { id: 'sem_vinculo', label: 'Sem vínculo',     variante: 'warning' },
+    { id: 'sem_vinculo', label: 'Sem vínculo',     variante: 'warning', pendente: true },
     { id: 'descartada',  label: 'Descartada',      variante: 'neutral' }
   ];
+
+  /** Os status de publicação que ainda exigem ação, na ordem do catálogo. */
+  function statusPendentesPublicacao() {
+    return STATUS_PUBLICACAO.filter(function (s) { return s.pendente; })
+      .map(function (s) { return s.id; });
+  }
 
   var TIPOS_MONITORAMENTO = [
     { id: 'oab',      label: 'Número de OAB' },
@@ -269,17 +280,47 @@
     { id: 'processo', label: 'Processo específico' }
   ];
 
-  // --- F2.2 Notificações -------------------------------------------------
+  /* --- F2.2 Notificações ---------------------------------------------------
+
+     `iconeChave` aponta para o registro de `components/icones.js` — o MESMO
+     desenho que o item de menu daquele assunto usa. Não é economia de arquivo:
+     é o aviso e a tela para onde ele leva se reconhecerem à distância. Quem vê
+     o calendário-com-relógio no sino já sabe que vai parar na Agenda antes de
+     ler a linha.
+
+     Por isso prazo e compromisso dividem 'agenda': são a mesma tela. O que os
+     separa no painel é o cabeçalho da categoria, não o desenho. */
   var TIPOS_NOTIFICACAO = [
-    { id: 'prazo_proximo',   label: 'Prazo se aproximando', icone: '⏱', gravidade: 'atencao' },
-    { id: 'prazo_hoje',      label: 'Prazo vence hoje',     icone: '⏰', gravidade: 'critica' },
-    { id: 'prazo_vencido',   label: 'Prazo vencido',        icone: '🔴', gravidade: 'critica' },
-    { id: 'compromisso',     label: 'Compromisso próximo',  icone: '📅', gravidade: 'atencao' },
-    { id: 'tarefa_atrasada', label: 'Tarefa atrasada',      icone: '☑', gravidade: 'atencao' },
-    { id: 'publicacao_nova', label: 'Publicação nova',      icone: '📰', gravidade: 'info' },
-    { id: 'financeiro',      label: 'Financeiro',           icone: '💰', gravidade: 'info' },
-    { id: 'follow_up',       label: 'Follow-up de lead',    icone: '🤝', gravidade: 'info' },
-    { id: 'digest',          label: 'Resumo do dia',        icone: '📋', gravidade: 'info' }
+    { id: 'prazo_proximo',   label: 'Prazo se aproximando', iconeChave: 'agenda',       gravidade: 'atencao' },
+    { id: 'prazo_hoje',      label: 'Prazo vence hoje',     iconeChave: 'agenda',       gravidade: 'critica' },
+    { id: 'prazo_vencido',   label: 'Prazo vencido',        iconeChave: 'agenda',       gravidade: 'critica' },
+    { id: 'compromisso',     label: 'Compromisso próximo',  iconeChave: 'agenda',       gravidade: 'atencao' },
+    { id: 'tarefa_atrasada', label: 'Tarefa atrasada',      iconeChave: 'checklist',    gravidade: 'atencao' },
+    // O id ficou 'publicacao_nova' por causa dos avisos já gravados; o que ele
+    // conta hoje é a fila pendente inteira, não só as recém-chegadas.
+    { id: 'publicacao_nova', label: 'Publicação pendente',  iconeChave: 'jornal',       gravidade: 'info' },
+    { id: 'financeiro',      label: 'Financeiro',           iconeChave: 'cifrao',       gravidade: 'info' },
+    { id: 'follow_up',       label: 'Follow-up de lead',    iconeChave: 'busca-pessoa', gravidade: 'info' }
+  ];
+
+  /* As gavetas do sino. Um tipo cai em uma, e só uma.
+     A ORDEM É A DA TELA, e é ordem de urgência, não de alfabeto nem de
+     quantidade: prazo perdido custa direito da parte, follow-up esquecido
+     custa uma proposta. Uma categoria cheia nunca empurra outra para baixo —
+     é justamente disso que separar por categoria protege.
+
+     'outros' fecha a lista como rede de segurança: tipo novo que ninguém
+     categorizou aparece ali em vez de sumir do painel. Aparecer sob um
+     rótulo genérico é o que faz alguém notar e vir classificar. */
+  var CATEGORIAS_NOTIFICACAO = [
+    { id: 'prazos',      label: 'Prazos',
+      tipos: ['prazo_vencido', 'prazo_hoje', 'prazo_proximo'] },
+    { id: 'agenda',      label: 'Agenda',        tipos: ['compromisso'] },
+    { id: 'tarefas',     label: 'Tarefas',       tipos: ['tarefa_atrasada'] },
+    { id: 'publicacoes', label: 'Publicações',   tipos: ['publicacao_nova'] },
+    { id: 'financeiro',  label: 'Financeiro',    tipos: ['financeiro'] },
+    { id: 'prospeccao',  label: 'Prospecção',    tipos: ['follow_up'] },
+    { id: 'outros',      label: 'Outros',        tipos: [] }
   ];
 
   var GRAVIDADES = [
@@ -394,6 +435,7 @@
     STATUS_PUBLICACAO: STATUS_PUBLICACAO,
     TIPOS_MONITORAMENTO: TIPOS_MONITORAMENTO,
     TIPOS_NOTIFICACAO: TIPOS_NOTIFICACAO,
+    CATEGORIAS_NOTIFICACAO: CATEGORIAS_NOTIFICACAO,
     GRAVIDADES: GRAVIDADES,
     ACOES_AUDITORIA: ACOES_AUDITORIA,
     TIPOS_SOLICITACAO_TITULAR: TIPOS_SOLICITACAO_TITULAR,
@@ -403,6 +445,7 @@
     achar: achar,
     rotulo: rotulo,
     cor: cor,
-    opcoes: opcoes
+    opcoes: opcoes,
+    statusPendentesPublicacao: statusPendentesPublicacao
   };
 })(window.App = window.App || {});

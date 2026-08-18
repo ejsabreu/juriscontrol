@@ -9,7 +9,13 @@ const { criarAmbiente, criarPlacar } = require('./ambiente');
 /* O ambiente carrega o núcleo inteiro — utils, domínio, seed, store e
    services — na ordem de dependência. A lista mora em ambiente.js para
    que um módulo novo no seed não quebre seis suítes de uma vez. */
-const { App, janela } = criarAmbiente();
+/* `icones.js` e `Sidebar.js` entram como extras para conferir que o ícone de
+   cada aviso é o mesmo do item de menu daquele assunto. Os dois são string e
+   dado puros, sem DOM em tempo de definição, então carregam sob Node como o
+   resto do núcleo. */
+const { App, janela } = criarAmbiente({
+  extras: ['src/components/icones.js', 'src/layout/Sidebar.js']
+});
 const { ok, secao, encerrar } = criarPlacar();
 
 const alertas = App.domain.alertas;
@@ -18,8 +24,6 @@ const motor = App.domain.prazos;
 /* Data de referência fixa: 2026-08-12 é uma quarta-feira comum, sem feriado
    e fora do recesso — o avaliador se comporta de forma previsível nela. */
 const HOJE = '2026-08-12';
-const MANHA = new Date(2026, 7, 12, 9, 0, 0);
-const MADRUGADA = new Date(2026, 7, 12, 3, 0, 0);
 
 /* A data fatal é DERIVADA do próprio motor, não calculada à mão.
    Atenção a duas assinaturas que enganam:
@@ -61,38 +65,59 @@ function prazoEm(diasUteis, extras) {
 
   const base = { usuarios: [{ id: 'USR-1', perfil: 'advogado' }] };
 
-  const so5 = alertas.avaliar(Object.assign({ prazos: [prazoEm(5)] }, base), HOJE, MANHA);
+  const so5 = alertas.avaliar(Object.assign({ prazos: [prazoEm(5)] }, base), HOJE);
   ok('prazo a 5 dias úteis dispara (está na régua padrão)',
      so5.some(n => n.tipo === 'prazo_proximo'), JSON.stringify(so5.map(n => n.tipo)));
 
-  const so4 = alertas.avaliar(Object.assign({ prazos: [prazoEm(4)] }, base), HOJE, MANHA);
+  const so4 = alertas.avaliar(Object.assign({ prazos: [prazoEm(4)] }, base), HOJE);
   ok('prazo a 4 dias NÃO dispara (não está na régua)',
      !so4.some(n => n.tipo === 'prazo_proximo'), JSON.stringify(so4.map(n => n.tipo)));
 
-  const hoje0 = alertas.avaliar(Object.assign({ prazos: [prazoEm(0)] }, base), HOJE, MANHA);
+  const hoje0 = alertas.avaliar(Object.assign({ prazos: [prazoEm(0)] }, base), HOJE);
   ok('prazo que vence hoje vira aviso crítico',
      hoje0.some(n => n.tipo === 'prazo_hoje' && n.gravidade === 'critica'));
 
   const vencido = alertas.avaliar(Object.assign({
     prazos: [prazoEm(0, { id: 'PRZ-V', dataFatal: '2026-08-05' })]
-  }, base), HOJE, MANHA);
+  }, base), HOJE);
   ok('prazo vencido vira aviso crítico',
      vencido.some(n => n.tipo === 'prazo_vencido' && n.gravidade === 'critica'));
+
+  /* O vão da régua padrão. 2 dias úteis não está em [5,3,1,0], mas o semáforo
+     já pinta esse prazo de vermelho — e era o que o contador do menu contava.
+     Sem esta regra, o aviso mais caro do sistema ficava calado por um dia. */
+  const doisDias = alertas.avaliar(Object.assign({ prazos: [prazoEm(2)] }, base), HOJE);
+  ok('prazo crítico fora da régua avisa mesmo assim',
+     doisDias.some(n => n.tipo === 'prazo_proximo'),
+     JSON.stringify(doisDias.map(n => n.tipo)));
+  ok('e avisa como crítico, igual ao semáforo',
+     doisDias.filter(n => n.tipo === 'prazo_proximo').every(n => n.gravidade === 'critica'));
+  ok('o piso do vermelho é o de domain/prazos.js, não um número solto aqui',
+     motor.semaforo(2) === 'critico' && motor.semaforo(4) === 'atencao');
+
+  ok('fora do vermelho, quem manda continua sendo a régua',
+     !alertas.avaliar(Object.assign({ prazos: [prazoEm(4)] }, base), HOJE)
+       .some(n => n.tipo === 'prazo_proximo'));
+
+  ok('desligar a regra silencia até o crítico (é a única forma)',
+     !alertas.avaliar(Object.assign({ prazos: [prazoEm(2)],
+       regrasAlerta: [{ gatilho: 'prazo', antecedenciaDias: [5], ativo: false }] }, base),
+       HOJE).some(n => n.tipo.indexOf('prazo') === 0));
 
   ok('prazo cumprido não gera aviso',
      !alertas.avaliar(Object.assign({
        prazos: [prazoEm(1, { status: 'cumprido' })]
-     }, base), HOJE, MANHA).some(n => n.tipo.indexOf('prazo') === 0));
+     }, base), HOJE).some(n => n.tipo.indexOf('prazo') === 0));
 
   ok('prazo cancelado não gera aviso',
      !alertas.avaliar(Object.assign({
        prazos: [prazoEm(1, { status: 'cancelado' })]
-     }, base), HOJE, MANHA).some(n => n.tipo.indexOf('prazo') === 0));
+     }, base), HOJE).some(n => n.tipo.indexOf('prazo') === 0));
 
   ok('prazo sem responsável não gera aviso (não há para quem avisar)',
      alertas.avaliar(Object.assign({
        prazos: [prazoEm(1, { responsavelId: null })]
-     }, base), HOJE, MANHA).length === 0);
+     }, base), HOJE).length === 0);
 
   // A contagem do prazo é em dias ÚTEIS — é o mesmo motor do art. 219.
   const sexta = '2026-08-14';
@@ -106,8 +131,8 @@ function prazoEm(diasUteis, extras) {
   secao('Idempotência — rodar de novo não duplica');
 
   const estadoPrazos = Object.assign({ prazos: [prazoEm(5), prazoEm(1), prazoEm(0)] }, base);
-  const rodada1 = alertas.avaliar(estadoPrazos, HOJE, MANHA);
-  const rodada2 = alertas.avaliar(estadoPrazos, HOJE, MANHA);
+  const rodada1 = alertas.avaliar(estadoPrazos, HOJE);
+  const rodada2 = alertas.avaliar(estadoPrazos, HOJE);
 
   ok('duas avaliações no mesmo dia produzem a mesma lista',
      JSON.stringify(rodada1.map(n => n.chave)) === JSON.stringify(rodada2.map(n => n.chave)));
@@ -125,10 +150,10 @@ function prazoEm(diasUteis, extras) {
      diferentes, senão o segundo nunca seria criado. */
   const p5 = prazoEm(5);
   const doisDiasDepois = avancar(HOJE, 2);
-  const avisoHoje = alertas.avaliar({ prazos: [p5], usuarios: base.usuarios }, HOJE, MANHA)
+  const avisoHoje = alertas.avaliar({ prazos: [p5], usuarios: base.usuarios }, HOJE)
     .filter(n => n.tipo === 'prazo_proximo')[0];
   const avisoDepois = alertas.avaliar({ prazos: [p5], usuarios: base.usuarios },
-                                      doisDiasDepois, MANHA)
+                                      doisDiasDepois)
     .filter(n => n.tipo === 'prazo_proximo')[0];
   ok('o prazo volta a avisar no marco seguinte da régua', !!avisoDepois,
      'restam ' + motor.diasUteisEntre(doisDiasDepois, p5.dataFatal) + ' dias úteis');
@@ -141,8 +166,8 @@ function prazoEm(diasUteis, extras) {
   // Prazo vencido repete todo dia, e isso é intencional.
   const amanha = '2026-08-13';
   const pv = prazoEm(0, { id: 'PRZ-V2', dataFatal: '2026-08-05' });
-  const v1 = alertas.avaliar({ prazos: [pv], usuarios: base.usuarios }, HOJE, MANHA)[0];
-  const v2 = alertas.avaliar({ prazos: [pv], usuarios: base.usuarios }, amanha, MANHA)[0];
+  const v1 = alertas.avaliar({ prazos: [pv], usuarios: base.usuarios }, HOJE)[0];
+  const v2 = alertas.avaliar({ prazos: [pv], usuarios: base.usuarios }, amanha)[0];
   ok('prazo vencido tem chave nova a cada dia (repetição intencional)',
      v1.chave !== v2.chave, v1.chave + ' vs ' + v2.chave);
 
@@ -154,7 +179,7 @@ function prazoEm(diasUteis, extras) {
                      titulo: 'Audiência de instrução', dataHora: HOJE + 'T14:30',
                      local: 'Fórum', processoId: 'PRO-1', ativo: true }],
     usuarios: base.usuarios
-  }, HOJE, MANHA);
+  }, HOJE);
   ok('audiência de hoje vira aviso crítico',
      comp.some(n => n.tipo === 'compromisso' && n.gravidade === 'critica'));
 
@@ -163,14 +188,14 @@ function prazoEm(diasUteis, extras) {
        compromissos: [{ id: 'C2', status: 'realizado', responsavelId: 'USR-1',
                         dataHora: HOJE + 'T10:00', titulo: 'x', ativo: true }],
        usuarios: base.usuarios
-     }, HOJE, MANHA).some(n => n.tipo === 'compromisso'));
+     }, HOJE).some(n => n.tipo === 'compromisso'));
 
   ok('audiência de ontem não gera aviso',
      !alertas.avaliar({
        compromissos: [{ id: 'C3', status: 'agendado', responsavelId: 'USR-1',
                         dataHora: '2026-08-11T10:00', titulo: 'x', ativo: true }],
        usuarios: base.usuarios
-     }, HOJE, MANHA).some(n => n.tipo === 'compromisso'));
+     }, HOJE).some(n => n.tipo === 'compromisso'));
 
   // Compromisso conta em dias CORRIDOS — audiência não adia por ser sábado.
   const sabado = '2026-08-15';
@@ -179,37 +204,61 @@ function prazoEm(diasUteis, extras) {
        compromissos: [{ id: 'C4', status: 'agendado', responsavelId: 'USR-1',
                         dataHora: sabado + 'T10:00', titulo: 'Perícia', ativo: true }],
        usuarios: base.usuarios
-     }, HOJE, MANHA).some(n => n.tipo === 'compromisso'),
+     }, HOJE).some(n => n.tipo === 'compromisso'),
      'de ' + HOJE + ' a ' + sabado);
 
   const tarefa = alertas.avaliar({
     tarefas: [{ id: 'TRF-1', status: 'a_fazer', responsavelId: 'USR-1',
                 titulo: 'Reunir documentos', dataVencimento: '2026-08-01', ativo: true }],
     usuarios: base.usuarios
-  }, HOJE, MANHA);
+  }, HOJE);
   ok('tarefa atrasada vira aviso', tarefa.some(n => n.tipo === 'tarefa_atrasada'));
   ok('tarefa concluída não gera aviso',
      !alertas.avaliar({
        tarefas: [{ id: 'T2', status: 'concluida', responsavelId: 'USR-1',
                    dataVencimento: '2026-08-01', titulo: 'x', ativo: true }],
        usuarios: base.usuarios
-     }, HOJE, MANHA).some(n => n.tipo === 'tarefa_atrasada'));
+     }, HOJE).some(n => n.tipo === 'tarefa_atrasada'));
   ok('tarefa sem vencimento não gera aviso',
      !alertas.avaliar({
        tarefas: [{ id: 'T3', status: 'a_fazer', responsavelId: 'USR-1', titulo: 'x', ativo: true }],
        usuarios: base.usuarios
-     }, HOJE, MANHA).some(n => n.tipo === 'tarefa_atrasada'));
+     }, HOJE).some(n => n.tipo === 'tarefa_atrasada'));
 
   // Os gatilhos dos módulos futuros existem e ficam quietos até haver dados.
   ok('gatilhos de F2.4/F2.5/F2.6 não produzem nada com coleções vazias',
      alertas.avaliar({ publicacoes: [], lancamentos: [], leads: [],
-                       usuarios: base.usuarios }, HOJE, MANHA).length === 0);
+                       usuarios: base.usuarios }, HOJE).length === 0);
+
+  /* A fila de publicações inteira, e não só as recém-chegadas: a vinculada
+     ainda espera o prazo, a sem vínculo espera alguém achar o processo. É a
+     mesma conta que o contador do menu fazia. */
+  function pub(id, status) {
+    return { id: id, status: status, ativo: true };
+  }
+  const filaPub = alertas.avaliar({
+    publicacoes: [pub('P1', 'nova'), pub('P2', 'vinculada'), pub('P3', 'sem_vinculo'),
+                  pub('P4', 'triada'), pub('P5', 'descartada')],
+    usuarios: base.usuarios
+  }, HOJE).filter(n => n.tipo === 'publicacao_nova');
+
+  ok('publicação vinculada e sem vínculo entram na conta',
+     filaPub.length === 1 && filaPub[0].titulo.indexOf('3 publicações') === 0,
+     filaPub[0] && filaPub[0].titulo);
+  ok('triada e descartada ficam de fora — já foram resolvidas',
+     filaPub[0].titulo.indexOf('5 ') !== 0);
+  ok('a mensagem separa o que fazer com cada uma',
+     /1 aguardando triagem/.test(filaPub[0].mensagem) &&
+     /1 sem prazo gerado/.test(filaPub[0].mensagem) &&
+     /1 sem processo vinculado/.test(filaPub[0].mensagem), filaPub[0].mensagem);
+  ok('quem decide o que é pendente é o catálogo de status',
+     App.domain.enums.statusPendentesPublicacao().join(',') === 'nova,vinculada,sem_vinculo');
 
   const followUp = alertas.avaliar({
     leads: [{ id: 'LED-1', nome: 'Construtora Alfa', etapa: 'proposta',
               responsavelId: 'USR-1', proximoContatoEm: '2026-08-10', ativo: true }],
     usuarios: base.usuarios
-  }, HOJE, MANHA);
+  }, HOJE);
   ok('follow-up vencido de lead vira aviso (F2.6 já encontra pronto)',
      followUp.some(n => n.tipo === 'follow_up'));
   ok('lead ganho não gera follow-up',
@@ -217,25 +266,69 @@ function prazoEm(diasUteis, extras) {
        leads: [{ id: 'L2', nome: 'x', etapa: 'ganho', responsavelId: 'USR-1',
                  proximoContatoEm: '2026-08-01', ativo: true }],
        usuarios: base.usuarios
-     }, HOJE, MANHA).some(n => n.tipo === 'follow_up'));
+     }, HOJE).some(n => n.tipo === 'follow_up'));
 
-  // ===================== RESUMO DIÁRIO =====================
-  secao('Resumo do dia');
+  /* O resumo do dia foi removido: ele contava o que já estava logo abaixo dele
+     no painel, e com o número congelado na primeira geração do dia. Fica a
+     trava para ele não voltar por descuido — todo aviso hoje aponta para uma
+     entidade concreta, e é isso que o torna clicável para algum lugar útil. */
+  ok('nenhum aviso é um resumo de outros avisos',
+     alertas.avaliar(estadoPrazos, HOJE).every(n => n.tipo !== 'digest'));
+  ok('todo aviso aponta para uma entidade',
+     alertas.avaliar(estadoPrazos, HOJE).every(n => !!n.entidadeColecao));
 
-  const comDigest = alertas.avaliar(estadoPrazos, HOJE, MANHA);
-  const digests = comDigest.filter(n => n.tipo === 'digest');
-  ok('gera um resumo por usuário', digests.length === 1, String(digests.length));
-  ok('o resumo conta os itens do dia',
-     digests[0].titulo.indexOf(String(comDigest.length - 1)) !== -1, digests[0].titulo);
-  ok('o resumo destaca os críticos', digests[0].mensagem.indexOf('crítico') !== -1,
-     digests[0].mensagem);
+  // ===================== CATEGORIAS =====================
+  secao('Categorias do sino');
 
-  const semDigest = alertas.avaliar(estadoPrazos, HOJE, MADRUGADA);
-  ok('antes das 8h não há resumo (estaria incompleto)',
-     !semDigest.some(n => n.tipo === 'digest'));
-  ok('sem nada a avisar, não há resumo',
-     !alertas.avaliar({ prazos: [], usuarios: base.usuarios }, HOJE, MANHA)
-       .some(n => n.tipo === 'digest'));
+  ok('cada tipo do catálogo cai em alguma categoria',
+     App.domain.enums.TIPOS_NOTIFICACAO
+       .every(t => alertas.categoriaDe(t.id) !== 'outros'),
+     App.domain.enums.TIPOS_NOTIFICACAO
+       .filter(t => alertas.categoriaDe(t.id) === 'outros').map(t => t.id).join(', '));
+
+  ok('nenhum tipo cai em duas categorias',
+     App.domain.enums.CATEGORIAS_NOTIFICACAO
+       .reduce((todos, c) => todos.concat(c.tipos), [])
+       .every((t, i, lista) => lista.indexOf(t) === i));
+
+  ok('tipo desconhecido não some — vai para Outros',
+     alertas.categoriaDe('tipo_que_nao_existe') === 'outros');
+
+  /* O caso que motivou a separação: um lote de publicações e um único prazo
+     vencido. Numa lista só das mais recentes, o prazo cairia fora. */
+  const lote = [];
+  for (let i = 0; i < 30; i++) {
+    lote.push({ id: 'NTF-P' + i, tipo: 'publicacao_nova', lidaEm: null });
+  }
+  lote.push({ id: 'NTF-V', tipo: 'prazo_vencido', lidaEm: null });
+
+  const gavetas = alertas.agruparPorCategoria(lote);
+  const prazosGaveta = gavetas.find(g => g.id === 'prazos');
+  ok('o prazo vencido não se perde num lote de 30 publicações',
+     !!prazosGaveta && prazosGaveta.itens.some(n => n.id === 'NTF-V'));
+  ok('a categoria vem antes da que tem mais itens (ordem é urgência)',
+     gavetas.findIndex(g => g.id === 'prazos') <
+     gavetas.findIndex(g => g.id === 'publicacoes'));
+  ok('nada é cortado — o painel é o único lugar onde os avisos existem',
+     gavetas.find(g => g.id === 'publicacoes').itens.length === 30);
+  ok('categoria vazia não aparece', !gavetas.some(g => g.id === 'financeiro'));
+  ok('a gaveta devolve só o que a tela desenha',
+     JSON.stringify(Object.keys(gavetas[0]).sort()) === '["id","itens","label"]',
+     Object.keys(gavetas[0]).join(', '));
+
+  const misturadas = [
+    { id: 'NTF-L1', tipo: 'tarefa_atrasada', lidaEm: '2026-08-12T10:00:00Z' },
+    { id: 'NTF-L2', tipo: 'tarefa_atrasada', lidaEm: '2026-08-12T10:00:00Z' },
+    { id: 'NTF-L3', tipo: 'tarefa_atrasada', lidaEm: '2026-08-12T10:00:00Z' },
+    { id: 'NTF-N',  tipo: 'tarefa_atrasada', lidaEm: null }
+  ];
+  const tarefas = alertas.agruparPorCategoria(misturadas)[0];
+  ok('não lida passa na frente da lida',
+     tarefas.itens[0].id === 'NTF-N', tarefas.itens.map(n => n.id).join(', '));
+  ok('entre as lidas, a ordem de entrada se mantém (sort estável)',
+     tarefas.itens.slice(1).map(n => n.id).join(',') === 'NTF-L1,NTF-L2,NTF-L3');
+
+  ok('lista vazia devolve nenhuma gaveta', alertas.agruparPorCategoria([]).length === 0);
 
   // ===================== REGRAS =====================
   secao('Regras configuráveis');
@@ -252,11 +345,11 @@ function prazoEm(diasUteis, extras) {
   const regraApertada = [{ gatilho: 'prazo', antecedenciaDias: [1], canais: ['app'], ativo: true }];
   ok('régua personalizada substitui a padrão',
      !alertas.avaliar({ prazos: [prazoEm(5)], usuarios: base.usuarios,
-                        regrasAlerta: regraApertada }, HOJE, MANHA)
+                        regrasAlerta: regraApertada }, HOJE)
        .some(n => n.tipo === 'prazo_proximo'));
   ok('régua personalizada continua disparando no dia que ela define',
      alertas.avaliar({ prazos: [prazoEm(1)], usuarios: base.usuarios,
-                       regrasAlerta: regraApertada }, HOJE, MANHA)
+                       regrasAlerta: regraApertada }, HOJE)
        .some(n => n.tipo === 'prazo_proximo'));
 
   // ===================== SERVICE =====================
@@ -282,8 +375,33 @@ function prazoEm(diasUteis, extras) {
   const doAdvogado = await notif.listar({ usuarioId: advogado.id });
   ok('listar filtra por usuário',
      doAdvogado.itens.every(n => n.usuarioId === advogado.id));
-  ok('cada notificação traz ícone e destino',
-     doAdvogado.itens.every(n => !!n.icone && !!n.destino));
+  ok('cada notificação traz a chave do ícone e o destino',
+     doAdvogado.itens.every(n => !!n.iconeChave && !!n.destino));
+
+  /* O ícone do aviso é o MESMO do item de menu daquele assunto — é o que faz
+     alguém reconhecer para onde o aviso leva antes de ler a linha. Duas
+     armadilhas cobertas aqui: chave que não existe no registro (o painel cairia
+     no ponto genérico, calado) e chave que existe no registro mas não é usada
+     por menu nenhum (aí não é "o mesmo do menu", é um desenho paralelo). */
+  const doMenu = {};
+  App.layout.Sidebar.ITENS.forEach(i => { if (i.icone) doMenu[i.icone] = i.rotulo; });
+
+  ok('toda chave de ícone de aviso existe no registro de desenhos',
+     App.domain.enums.TIPOS_NOTIFICACAO
+       .every(t => App.icones.de(t.iconeChave) !== App.icones.REGISTRO.ponto),
+     App.domain.enums.TIPOS_NOTIFICACAO
+       .filter(t => App.icones.de(t.iconeChave) === App.icones.REGISTRO.ponto)
+       .map(t => t.id + '→' + t.iconeChave).join(', '));
+
+  ok('e é a mesma que algum item de menu usa',
+     App.domain.enums.TIPOS_NOTIFICACAO.every(t => !!doMenu[t.iconeChave]),
+     App.domain.enums.TIPOS_NOTIFICACAO
+       .filter(t => !doMenu[t.iconeChave])
+       .map(t => t.id + '→' + t.iconeChave).join(', '));
+
+  ok('prazo e compromisso apontam para a Agenda, que é onde eles vivem',
+     doMenu[App.domain.enums.achar(App.domain.enums.TIPOS_NOTIFICACAO, 'prazo_vencido').iconeChave] === 'Agenda' &&
+     doMenu[App.domain.enums.achar(App.domain.enums.TIPOS_NOTIFICACAO, 'compromisso').iconeChave] === 'Agenda');
   ok('notificação de prazo leva ao processo',
      doAdvogado.itens.filter(n => n.entidadeColecao === 'prazos')
        .every(n => n.destino.indexOf('#/processos/') === 0));

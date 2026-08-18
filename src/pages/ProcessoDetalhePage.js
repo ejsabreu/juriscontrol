@@ -728,7 +728,6 @@
         Toast.sucesso('Prazo baixado', exigeConferencia
           ? prazo.titulo + ' — aguardando conferência de outra pessoa.'
           : prazo.titulo + ' marcado como cumprido.');
-        App.layout.AppShell.atualizarBadges();
         carregar(processo.id);
       }).catch(function (erro) {
         Toast.erro('Não foi possível baixar o prazo', erro.message);
@@ -2143,7 +2142,6 @@
           fecharModal();
           App.components.Toast.aviso('Prazo registrado como perdido',
             'O motivo ficou na timeline do processo.');
-          App.layout.AppShell.atualizarBadges();
           carregar(processo.id);
         }).catch(function (erro) {
           App.components.Toast.erro('Não foi possível registrar', erro.message);
@@ -2253,7 +2251,6 @@
           fechar();
           App.components.Toast.sucesso('Prazo criado',
             'Data fatal: ' + App.format.data(prazo.dataFatal));
-          App.layout.AppShell.atualizarBadges();
           abaAtiva = 'prazos';
           carregar(processo.id);
         }).catch(function (erro) {

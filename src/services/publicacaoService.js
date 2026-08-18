@@ -112,12 +112,18 @@
     });
   }
 
-  /** Contadores da fila — alimentam as abas e o badge da sidebar. */
+  /** Contadores da fila — alimentam as abas da tela e o aviso do sino. */
   function resumo() {
     var todas = db().get('publicacoes');
     function contar(status) {
       return todas.filter(function (p) { return p.status === status; }).length;
     }
+
+    // Quem decide o que é pendente é o catálogo, não esta soma: o avaliador de
+    // alertas lê a mesma marca, e é assim que a fila e o sino contam igual.
+    var pendentes = App.domain.enums.statusPendentesPublicacao()
+      .reduce(function (soma, status) { return soma + contar(status); }, 0);
+
     return {
       total: todas.length,
       novas: contar('nova'),
@@ -125,8 +131,7 @@
       triadas: contar('triada'),
       semVinculo: contar('sem_vinculo'),
       descartadas: contar('descartada'),
-      // O badge conta o que exige ação, não o que existe.
-      pendentes: contar('nova') + contar('vinculada') + contar('sem_vinculo')
+      pendentes: pendentes
     };
   }
 

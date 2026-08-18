@@ -437,7 +437,6 @@
               App.components.Toast.sucesso('Convertido em cliente',
                 r.parcelasGeradas + ' parcela(s) no contas a receber' +
                 (r.processoId ? ' · processo cadastrado' : ''));
-              App.layout.AppShell.atualizarBadges();
               if (r.processoId) App.router.ir('#/processos/' + r.processoId);
               else carregar(lead.id);
             }).catch(function (erro) {

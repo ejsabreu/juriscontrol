@@ -71,7 +71,6 @@ arquivos como estão.
 | `#/publicacoes` | **Fila de triagem do diário** — texto, leitura do ato e geração do prazo |
 | `#/integracoes` | Monitoramentos, histórico de captura e integrações previstas |
 | `#/simulador` | Simulador de contagem de prazo com memória de cálculo |
-| `#/notificacoes` | Central de notificações do usuário |
 | `#/configuracoes` | Escritório · Usuários · Permissões · Alertas e tipos de prazo · **Feriados locais** · **Importar dados** *(só administrador)* |
 | `#/caixa-de-saida` | E-mails que teriam sido enviados *(só administrador)* |
 | `#/auditoria` | Trilha de auditoria com diff campo a campo *(só administrador)* |

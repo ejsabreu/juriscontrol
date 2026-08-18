@@ -41,8 +41,8 @@
    *
    * @returns {{ geradas: number, avaliadas: number }}
    */
-  function sincronizar(hoje, agora) {
-    var desejadas = App.domain.alertas.avaliar(estadoParaAvaliacao(), hoje, agora || new Date());
+  function sincronizar(hoje) {
+    var desejadas = App.domain.alertas.avaliar(estadoParaAvaliacao(), hoje);
     var existentes = db().getTodos('notificacoes');
     var novas = App.domain.alertas.novidades(desejadas, existentes);
 
@@ -71,20 +71,40 @@
     return { geradas: novas.length, avaliadas: desejadas.length };
   }
 
-  /** Link para onde a notificação leva — a razão de ela existir. */
+  /* Link para onde a notificação leva — a razão de ela existir.
+
+     Do mais específico para o mais geral: o processo é o melhor destino que
+     existe, porque o prazo, o compromisso e a tarefa moram dentro dele. Sem
+     processo, cai na tela do módulo — a Agenda para o que tem data, a lista
+     para o resto.
+
+     Não há mais fundo de poço para '#/notificacoes': aquela tela foi removida,
+     e um aviso que levasse a ela agora levaria a lugar nenhum. Por isso a
+     tabela abaixo cobre TODA coleção que gera aviso; se um gatilho novo
+     aparecer sem entrada aqui, o destino cai na Agenda em vez de quebrar. */
+  var TELA_DA_COLECAO = {
+    publicacoes:  '#/publicacoes',
+    lancamentos:  '#/financeiro',
+    prazos:       '#/agenda',
+    compromissos: '#/agenda',
+    tarefas:      '#/tarefas',
+    leads:        '#/crm'
+  };
+
   function destinoDe(n) {
     if (n.processoId) return '#/processos/' + n.processoId;
-    if (n.entidadeColecao === 'publicacoes') return '#/publicacoes';
-    if (n.entidadeColecao === 'lancamentos') return '#/financeiro';
     if (n.entidadeColecao === 'leads' && n.entidadeId) return '#/crm/' + n.entidadeId;
-    if (n.tipo === 'digest') return '#/notificacoes';
-    return '#/notificacoes';
+    return TELA_DA_COLECAO[n.entidadeColecao] || '#/agenda';
   }
 
   function enriquecer(n) {
     var tipo = App.domain.enums.achar(App.domain.enums.TIPOS_NOTIFICACAO, n.tipo);
     return Object.assign({}, n, {
-      icone: tipo ? tipo.icone : '•',
+      // A CHAVE do ícone, não o desenho: quem resolve é a tela, com
+      // `App.icones.de()`. Um service devolvendo SVG seria a camada de dados
+      // decidindo aparência — e a chave ainda tem a vantagem de estourar na
+      // cara de quem esquecer de resolvê-la, em vez de sumir em silêncio.
+      iconeChave: tipo ? tipo.iconeChave : 'ponto',
       rotuloTipo: tipo ? tipo.label : n.tipo,
       lida: !!n.lidaEm,
       destino: destinoDe(n)
@@ -159,6 +179,17 @@
     });
   }
 
+  /**
+   * O "apagar" da lixeira do sino.
+   *
+   * Na tela o aviso some para sempre — não há mais onde ver arquivados. No
+   * banco ele fica: `arquivadaEm` preenchido, registro intacto. É a regra de
+   * soft delete do projeto, e aqui ela não é só princípio — é o que impede o
+   * avaliador de recriar o aviso na sincronização seguinte. Ele decide o que é
+   * novo comparando CHAVES contra `getTodos()`, que enxerga o arquivado; se o
+   * registro sumisse de verdade, o mesmo prazo vencido voltaria em cinco
+   * minutos e a lixeira pareceria não funcionar.
+   */
   function arquivar(id) {
     return http().requisicao(function () {
       var agora = new Date().toISOString();

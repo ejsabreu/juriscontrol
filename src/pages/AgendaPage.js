@@ -75,12 +75,6 @@
                  ' no período exibido' +
                '</p>' +
              '</div>' +
-             '<div class="page-header__actions">' +
-               App.components.ui.Button({
-                 rotulo: 'Simulador de prazo', variante: 'secondary',
-                 icone: '🗓', href: '#/simulador'
-               }) +
-             '</div>' +
            '</div>';
   }
 
@@ -102,7 +96,11 @@
         { tipo: 'toggle', nome: 'apenasAbertos', rotulo: 'Somente prazos em aberto',
           valor: f.apenasAbertos }
       ],
-      totalAtivos: App.selectors.filtrosAtivos(f, ['apenasAbertos'])
+      totalAtivos: App.selectors.filtrosAtivos(f, ['apenasAbertos']),
+      direita: App.components.ui.Button({
+        rotulo: 'Simulador de prazo', variante: 'secondary',
+        icone: '🗓', href: '#/simulador'
+      })
     });
   }
 

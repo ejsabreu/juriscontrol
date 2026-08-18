@@ -268,6 +268,32 @@ async function ate(condicao, limite = 3000, passo = 50) {
   ok('painel de próximos prazos', texto().includes('Próximos prazos'));
   ok('legenda de dias sem contagem', texto().includes('não contam prazo'));
 
+  console.log('\nAgenda — resumo do evento em modal (sem sair da tela)');
+  const cardEvento = doc.querySelector('.calendar__event');
+  cardEvento.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(300);
+  ok('o clique NÃO navegou para fora da agenda', window.location.hash === '#/agenda', window.location.hash);
+  const modalEvento = doc.querySelector('.modal-backdrop .modal');
+  ok('o modal de resumo abriu', !!modalEvento);
+  ok('o modal traz um resumo (prazo ou compromisso)',
+     !!modalEvento && !!modalEvento.querySelector('.prazo-card, .def-list'));
+
+  const btnVerProcesso = modalEvento && modalEvento.querySelector('[data-action="ver-processo"]');
+  if (btnVerProcesso) {
+    btnVerProcesso.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await esperar(300);
+    ok('"Ver processo completo" fechou o modal', !doc.querySelector('.modal-backdrop'));
+    ok('"Ver processo completo" navegou para o processo',
+       /^#\/processos\//.test(window.location.hash), window.location.hash);
+    await irPara('#/agenda', 900);
+  } else if (modalEvento) {
+    const btnFecharResumo = modalEvento.querySelector('[data-action="fechar"]');
+    btnFecharResumo.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await esperar(300);
+    ok('"Fechar" fechou o modal sem navegar',
+       !doc.querySelector('.modal-backdrop') && window.location.hash === '#/agenda');
+  }
+
   const btnProximo = doc.querySelector('[data-action="mes-proximo"]');
   btnProximo.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   await esperar(700);

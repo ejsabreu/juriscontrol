@@ -284,6 +284,7 @@ const LINHAS_DE_ACAO = [
   ['components.css', '.daterange__custom'], // dois campos de data
   ['components.css', '.chart__header'],
   ['components.css', '.filter-bar'],
+  ['components.css', '.prazo-card__actions'],  // Baixar + Perdido + avatar
   ['layout.css', '.page-header'],
   ['pages.css', '.form-actions'],           // rodapé fixo do formulário
   ['pages.css', '.cliente-hero']

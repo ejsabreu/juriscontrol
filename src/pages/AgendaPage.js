@@ -128,7 +128,7 @@
     if (vencidos.length) {
       html += ui.Card({
         titulo: 'Vencidos sem baixa',
-        subtitulo: vencidos.length + ' item(ns)',
+        subtitulo: vencidos.length + ' item(s)',
         semPadding: true,
         classe: 'agenda-vencidos',
         conteudo: App.components.PrazoList({

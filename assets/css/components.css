@@ -1318,6 +1318,83 @@ a.kpi:hover {
   font-weight: 600;
 }
 
+/* --- Calendário: lista em telas estreitas ---------------------------------
+   Abaixo de 720px a grade de 7 colunas vira ilegível (~50px por dia) — em
+   vez de espremer, o calendário troca de forma: uma lista só dos dias que
+   têm prazo ou compromisso, com o texto inteiro, sem truncar. As duas
+   marcações nascem juntas no HTML (Calendar.js); o CSS decide qual mostrar,
+   sem JS de resize. */
+.calendar__agenda { display: none; }
+
+.calendar__agenda-dia {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.calendar__agenda-dia:last-child { border-bottom: none; }
+
+.calendar__agenda-data {
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
+
+.calendar__agenda-dow {
+  display: block;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+}
+
+.calendar__agenda-num {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 2px auto 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.calendar__agenda-dia--today .calendar__agenda-num {
+  background: var(--color-primary-600);
+  color: #fff;
+  border-radius: var(--radius-full);
+}
+
+.calendar__agenda-eventos {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Dentro da lista o evento tem a largura toda pra ele — texto quebra em
+   vez de truncar, ao contrário do `.calendar__event` na grade. */
+.calendar__agenda-eventos .calendar__event {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.calendar__event-sub {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+@media (max-width: 720px) {
+  .calendar__grid { display: none; }
+  .calendar__agenda { display: block; }
+
+  /* "Sombreado" é linguagem da grade — some junto com ela. */
+  .calendar__legend { display: none; }
+}
+
 /* --- Barra de progresso --------------------------------------------------- */
 .progress {
   height: 6px;

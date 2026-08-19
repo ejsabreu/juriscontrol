@@ -25,6 +25,7 @@
     var prazos = App.domain.prazos;
     var feriados = App.domain.feriados;
     var fmt = App.format;
+    var ui = App.components.ui;
 
     var referencia = prazos.paraDate(p.mes || prazos.hojeISO());
     var ano = referencia.getFullYear();
@@ -51,14 +52,23 @@
                 apenasIcone: true, acao: 'mes-proximo', titulo: 'Próximo mês'
               }) +
               '<span class="u-spacer"></span>' +
-              '<span class="u-xs u-subtle">Dias sombreados não contam prazo</span>' +
+              '<span class="calendar__legend u-xs u-subtle">Dias sombreados não contam prazo</span>' +
             '</div>';
 
-    // --- Grade ---
+    // --- Grade (telas largas) ---
     html += '<div class="calendar__grid">';
     SIGLAS_SEMANA.forEach(function (sigla) {
       html += '<div class="calendar__weekday">' + sigla + '</div>';
     });
+
+    /* --- Agenda (telas estreitas) ---
+       Um grid de 7 colunas fica ilegível em ~50px de largura por dia — o
+       CSS troca a grade por esta lista abaixo de 720px (ver components.css).
+       É só o que tem prazo ou compromisso, na ordem do mês: a grade mostra
+       o mês inteiro porque tem espaço para isso, a lista mostra só o que
+       importa porque não tem. */
+    var agenda = '';
+    var agendaTemDia = false;
 
     var cursor = new Date(inicioGrade.getTime());
 
@@ -69,6 +79,7 @@
       var feriado = feriados.ehFeriado(iso);
       var recesso = feriados.estaEmRecesso(cursor);
       var contavel = prazos.ehDiaContavel(cursor);
+      var eventos = (p.eventosPorDia && p.eventosPorDia[iso]) || [];
 
       var classes = ['calendar__day'];
       if (!doMes) classes.push('calendar__day--outside');
@@ -86,7 +97,6 @@
         html += '<span class="calendar__holiday-label" title="Recesso forense — art. 220 do CPC">recesso</span>';
       }
 
-      var eventos = (p.eventosPorDia && p.eventosPorDia[iso]) || [];
       eventos.slice(0, MAX_EVENTOS_POR_DIA).forEach(function (evento) {
         var modificador = evento.categoria === 'prazo'
           ? (evento.semaforo || 'ok')
@@ -106,10 +116,51 @@
       }
 
       html += '</div>';
+
+      if (doMes && eventos.length) {
+        agendaTemDia = true;
+
+        var classesAgenda = ['calendar__agenda-dia'];
+        if (iso === hoje) classesAgenda.push('calendar__agenda-dia--today');
+
+        agenda += '<div class="' + classesAgenda.join(' ') + '" data-dia="' + iso + '">' +
+          '<div class="calendar__agenda-data">' +
+            '<span class="calendar__agenda-dow">' + SIGLAS_SEMANA[cursor.getDay()] + '</span>' +
+            '<span class="calendar__agenda-num">' + cursor.getDate() + '</span>' +
+          '</div>' +
+          '<div class="calendar__agenda-eventos">';
+
+        eventos.forEach(function (evento) {
+          var modificadorAgenda = evento.categoria === 'prazo'
+            ? (evento.semaforo || 'ok')
+            : 'compromisso';
+
+          agenda += '<button type="button" class="calendar__event calendar__event--' + modificadorAgenda + '"' +
+                      ' data-action="ver-evento" data-id="' + esc(evento.id) + '">' +
+                      (evento.hora ? '<strong>' + esc(evento.hora) + '</strong> ' : '') +
+                      esc(evento.titulo) +
+                      (evento.subtitulo
+                        ? ' <span class="calendar__event-sub">· ' + esc(evento.subtitulo) + '</span>'
+                        : '') +
+                    '</button>';
+        });
+
+        agenda += '</div></div>';
+      }
+
       cursor = prazos.addDias(cursor, 1);
     }
 
-    html += '</div></div>';
+    html += '</div>'; // fecha calendar__grid
+
+    html += '<div class="calendar__agenda">' +
+              (agendaTemDia ? agenda : ui.EmptyState({
+                icone: '🗓', titulo: 'Nada neste mês',
+                texto: 'Nenhum prazo ou compromisso no período exibido.'
+              })) +
+            '</div>';
+
+    html += '</div>'; // fecha .calendar
     return html;
   }
 

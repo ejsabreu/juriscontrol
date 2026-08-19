@@ -908,6 +908,11 @@
 .login {
   display: grid;
   place-items: center;
+  /* Centro "seguro": em janela baixa o cartão fica mais alto que a tela, e o
+     centro comum empurra o topo dele para fora — para uma área que NÃO se
+     alcança rolando. Com `safe` o alinhamento cede para o início nesse caso.
+     A linha acima fica como reserva para navegador sem suporte à palavra. */
+  place-items: safe center;
   min-height: 100vh;
   padding: var(--space-6);
   background:

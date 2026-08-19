@@ -49,8 +49,11 @@ lembrar.
 Tudo no Notion, sob a página **Protótipo ERP Advogados**.
 
 - Uma página por funcionalidade, criada **como subpágina** dela.
-- Nome no formato `<Funcionalidade> - Exemplo` — hífen simples, com espaços.
-  Exemplos: `Financeiro - Exemplo`, `Publicações - Exemplo`.
+- Nome: **só o nome da funcionalidade**, como ela aparece no menu.
+  Exemplos: `Financeiro`, `Publicações`, `Cabeçalho`. Sem sufixo, sem
+  "- Exemplo", sem versão no título — o índice da página-mãe já diz que
+  aquilo é a documentação do protótipo, e o sufixo só empurrava o nome
+  para longe da palavra que alguém procura.
 - Ícone: um emoji que represente a tela (📅 para a Agenda, 💲 para o
   Financeiro). O mesmo emoji da barra lateral, quando houver.
 

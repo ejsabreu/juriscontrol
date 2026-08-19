@@ -25,6 +25,19 @@
   grid-template-areas: "main";
 }
 
+/* "Ocupa a tela inteira" só vale se o <main> parar de se comportar como área
+   de trabalho. Ele carrega `max-width: var(--content-max)` e `padding`, e sem
+   desfazer os dois a entrada fica centrada dentro da faixa de 1600px, não da
+   TELA: em monitor largo o quadro aparece visivelmente à esquerda do centro.
+   O padding ainda soma 100vh + 48px de altura, e a página passa a rolar o
+   suficiente para desalinhar o centro vertical também.
+
+   Quem monta rota nua desenha o próprio respiro (`.login`, `.portal`). */
+.app--nu .main {
+  max-width: none;
+  padding: 0;
+}
+
 /* Os slots do AppShell são ponto de montagem, não caixa: eles existem só para
    o `render()` ter um alvo estável. Sem `display: contents` quem vira item da
    grade é o SLOT, e aí o `grid-area` da sidebar e da topbar não vale nada — a

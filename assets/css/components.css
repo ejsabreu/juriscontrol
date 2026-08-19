@@ -997,6 +997,7 @@ a.kpi:hover {
 .prazo-card {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-left: 3px solid var(--prazo-accent, var(--color-border-strong));
@@ -1099,6 +1100,41 @@ a.kpi:hover {
   border-radius: var(--radius-sm);
 }
 
+/* Sem hover (toque): não há como "passar o mouse" para revelar o título
+   cortado, e tocar no link já navega para o processo em vez de revelar o
+   texto. Sem o mouse pra pedir o texto completo sob demanda, a única saída
+   honesta é mostrar tudo — quebra linha em vez de truncar.
+   `overflow-wrap: anywhere` (em vez de `overflow: visible`) é o que garante
+   isso sem vazar: um token sem espaço (CNJ, data) quebra no meio da palavra
+   se precisar, em vez de estourar por cima do vizinho quando o card fica
+   estreito — foi exatamente essa combinação (visible + coluna de ações que
+   não cede espaço) que sobrepunha texto em cima do botão em telas pequenas. */
+@media (hover: none) {
+  .prazo-card__title > a,
+  .prazo-card__title > span,
+  .prazo-card__sub > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* `min-width: 0` (regra base) existe pra deixar o corpo encolher até
+     caber a reticência do desktop — sem isso, o título de uma linha só
+     empurrava o avatar pra fora (o bug que a regra original corrigia). No
+     toque o texto já quebra linha, então o corpo pode voltar ao mínimo
+     automático: a largura do maior token sem espaço (um CNJ, uma data). É
+     esse piso que faz `.prazo-card` decidir jogar as ações pra uma segunda
+     linha em vez de espremer o corpo até sobrepor texto em cima do botão. */
+  .prazo-card__body {
+    min-width: auto;
+  }
+}
+
+/* As ações não cediam espaço nenhum (flex-shrink: 0) e empurravam o corpo do
+   card até sobrar quase nada pra ele — em telas estreitas, com "Baixar" +
+   "Perdido" + avatar juntos (só acontece em prazo vencido, como no card
+   "Vencidos sem baixa" da Agenda), isso é o bastante pra colidir com o
+   texto. `flex-wrap` no `.prazo-card` deixa as ações caírem pra uma segunda
+   linha quando não cabem, em vez de espremer o corpo até estourar. */
 .prazo-card__actions {
   display: flex;
   align-items: center;
@@ -1106,6 +1142,7 @@ a.kpi:hover {
   flex-wrap: wrap;
   justify-content: flex-end;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* --- Timeline ------------------------------------------------------------- */

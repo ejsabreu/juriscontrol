@@ -285,6 +285,7 @@ const LINHAS_DE_ACAO = [
   ['components.css', '.chart__header'],
   ['components.css', '.filter-bar'],
   ['components.css', '.prazo-card__actions'],  // Baixar + Perdido + avatar
+  ['components.css', '.prazo-card'],  // corpo + ações — quebra pra ações não espremerem o texto
   ['layout.css', '.page-header'],
   ['pages.css', '.form-actions'],           // rodapé fixo do formulário
   ['pages.css', '.cliente-hero']

@@ -116,11 +116,11 @@
              '<div class="prazo-card__body">' +
                '<div class="prazo-card__title">' +
                  (href
-                   ? '<a href="' + esc(href) + '">' + esc(prazo.titulo) + '</a>'
-                   : '<span>' + esc(prazo.titulo) + '</span>') +
+                   ? '<a href="' + esc(href) + '" title="' + esc(prazo.titulo) + '">' + esc(prazo.titulo) + '</a>'
+                   : '<span title="' + esc(prazo.titulo) + '">' + esc(prazo.titulo) + '</span>') +
                '</div>' +
-               '<div class="prazo-card__sub"><span>' + esc(subtitulo.join(' · ')) +
-                 (selo ? ' ' + selo : '') + '</span></div>' +
+               '<div class="prazo-card__sub"><span title="' + esc(subtitulo.join(' · ')) + '">' +
+                 esc(subtitulo.join(' · ')) + (selo ? ' ' + selo : '') + '</span></div>' +
              '</div>' +
              '<div class="prazo-card__actions">' +
                acoes +

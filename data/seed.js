@@ -568,13 +568,16 @@
       // Prazos antigos em geral já foram baixados. Uma fração fica em aberto
       // com a data fatal no passado — é o "vencido sem baixa", o caso que o
       // dashboard e a agenda precisam gritar. Sem ele o protótipo não mostra
-      // o pior cenário real de um escritório.
+      // o pior cenário real de um escritório. A fração é deliberadamente
+      // generosa (nem toda maioria some em "cumprido") para o card "Vencidos
+      // sem baixa" da agenda ter itens o bastante pra exercitar a rolagem
+      // interna no dia a dia, não só num mês excepcionalmente ruim.
       var venceu = calculo.dataFatal < iso(hoje);
       var sorteio = rand();
       var status;
 
       if (venceu) {
-        if (sorteio < 0.72) status = 'cumprido';
+        if (sorteio < 0.55) status = 'cumprido';
         else if (sorteio < 0.86) status = 'pendente';      // vencido sem baixa
         else status = 'perdido';
       } else {

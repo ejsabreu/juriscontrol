@@ -1015,6 +1015,7 @@ a.kpi:hover {
 .prazo-card {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-left: 3px solid var(--prazo-accent, var(--color-border-strong));
@@ -1058,21 +1059,108 @@ a.kpi:hover {
   font-weight: 500;
   font-size: var(--text-base);
   color: var(--color-text);
+  max-width: 100%;
 }
 
-.prazo-card__sub {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+/* Título e subtítulo truncam em vez de quebrar linha — um título comprido
+   quebrando colidia visualmente com o avatar do responsável, à direita.
+   No hover/foco, o texto se expande por cima do layout (sem empurrar os
+   vizinhos) para continuar legível sem perder o link para o processo. */
+.prazo-card__title > a,
+.prazo-card__title > span {
+  display: inline-block;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  vertical-align: bottom;
+  color: inherit;
 }
 
+.prazo-card__title > a:hover,
+.prazo-card__title > a:focus-visible,
+.prazo-card__title > span:hover {
+  position: relative;
+  z-index: var(--z-dropdown);
+  max-width: none;
+  overflow: visible;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  padding: 2px var(--space-2);
+  margin: -2px calc(var(--space-2) * -1);
+  border-radius: var(--radius-sm);
+}
+
+.prazo-card__sub {
+  max-width: 100%;
+}
+
+.prazo-card__sub > span {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.prazo-card__sub > span:hover {
+  position: relative;
+  z-index: var(--z-dropdown);
+  max-width: none;
+  overflow: visible;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  padding: 2px var(--space-2);
+  margin: -2px calc(var(--space-2) * -1);
+  border-radius: var(--radius-sm);
+}
+
+/* Sem hover (toque): não há como "passar o mouse" para revelar o título
+   cortado, e tocar no link já navega para o processo em vez de revelar o
+   texto. Sem o mouse pra pedir o texto completo sob demanda, a única saída
+   honesta é mostrar tudo — quebra linha em vez de truncar.
+   `overflow-wrap: anywhere` (em vez de `overflow: visible`) é o que garante
+   isso sem vazar: um token sem espaço (CNJ, data) quebra no meio da palavra
+   se precisar, em vez de estourar por cima do vizinho quando o card fica
+   estreito — foi exatamente essa combinação (visible + coluna de ações que
+   não cede espaço) que sobrepunha texto em cima do botão em telas pequenas. */
+@media (hover: none) {
+  .prazo-card__title > a,
+  .prazo-card__title > span,
+  .prazo-card__sub > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* `min-width: 0` (regra base) existe pra deixar o corpo encolher até
+     caber a reticência do desktop — sem isso, o título de uma linha só
+     empurrava o avatar pra fora (o bug que a regra original corrigia). No
+     toque o texto já quebra linha, então o corpo pode voltar ao mínimo
+     automático: a largura do maior token sem espaço (um CNJ, uma data). É
+     esse piso que faz `.prazo-card` decidir jogar as ações pra uma segunda
+     linha em vez de espremer o corpo até sobrepor texto em cima do botão. */
+  .prazo-card__body {
+    min-width: auto;
+  }
+}
+
+/* As ações não cediam espaço nenhum (flex-shrink: 0) e empurravam o corpo do
+   card até sobrar quase nada pra ele — em telas estreitas, com "Baixar" +
+   "Perdido" + avatar juntos (só acontece em prazo vencido, como no card
+   "Vencidos sem baixa" da Agenda), isso é o bastante pra colidir com o
+   texto. `flex-wrap` no `.prazo-card` deixa as ações caírem pra uma segunda
+   linha quando não cabem, em vez de espremer o corpo até estourar. */
 .prazo-card__actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* --- Timeline ------------------------------------------------------------- */
@@ -1246,6 +1334,83 @@ a.kpi:hover {
   color: var(--color-text-subtle);
   padding-left: var(--space-2);
   font-weight: 600;
+}
+
+/* --- Calendário: lista em telas estreitas ---------------------------------
+   Abaixo de 720px a grade de 7 colunas vira ilegível (~50px por dia) — em
+   vez de espremer, o calendário troca de forma: uma lista só dos dias que
+   têm prazo ou compromisso, com o texto inteiro, sem truncar. As duas
+   marcações nascem juntas no HTML (Calendar.js); o CSS decide qual mostrar,
+   sem JS de resize. */
+.calendar__agenda { display: none; }
+
+.calendar__agenda-dia {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.calendar__agenda-dia:last-child { border-bottom: none; }
+
+.calendar__agenda-data {
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
+
+.calendar__agenda-dow {
+  display: block;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+}
+
+.calendar__agenda-num {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 2px auto 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.calendar__agenda-dia--today .calendar__agenda-num {
+  background: var(--color-primary-600);
+  color: #fff;
+  border-radius: var(--radius-full);
+}
+
+.calendar__agenda-eventos {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Dentro da lista o evento tem a largura toda pra ele — texto quebra em
+   vez de truncar, ao contrário do `.calendar__event` na grade. */
+.calendar__agenda-eventos .calendar__event {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.calendar__event-sub {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+@media (max-width: 720px) {
+  .calendar__grid { display: none; }
+  .calendar__agenda { display: block; }
+
+  /* "Sombreado" é linguagem da grade — some junto com ela. */
+  .calendar__legend { display: none; }
 }
 
 /* --- Barra de progresso --------------------------------------------------- */

@@ -140,7 +140,14 @@
     return '<' + tag + ' class="kpi"' + atributoHref +
            ' style="--kpi-accent:' + (p.cor || 'var(--color-primary-400)') + '">' +
              '<div class="kpi__label">' +
-               (p.icone ? '<span aria-hidden="true">' + p.icone + '</span>' : '') +
+               (p.icone
+                 ? '<span class="kpi__icon" aria-hidden="true"' +
+                   // Cor opcional so do desenho. O SVG pinta com
+                   // `currentColor`, entao mexer no `color` do span basta —
+                   // e o mesmo caminho que o sino usa para o prazo vencido.
+                   (p.corIcone ? ' style="color:' + e(p.corIcone) + '"' : '') +
+                   '>' + p.icone + '</span>'
+                 : '') +
                e(p.rotulo) +
              '</div>' +
              '<div class="kpi__value">' + e(p.valor) + '</div>' +

@@ -15,6 +15,32 @@
   function http()   { return App.services.http; }
   function motor()  { return App.domain.prazos; }
 
+  /**
+   * Prazo herda a visibilidade do processo a que pertence.
+   *
+   * Nao existe regra de segredo propria do prazo: o que o CPC protege e o
+   * processo, e o prazo so expoe o que ja esta la — numero CNJ, nome do
+   * cliente, o que se tem a fazer e quando. Por isso a checagem delega em
+   * `podeVerProcesso`, a mesma que `processoService` usa; duas regras para a
+   * mesma pergunta acabariam divergindo.
+   *
+   * Prazo sem processo localizavel fica FORA. Isso cobre dois casos: o
+   * processo soft-deletado, que `db.get` nao devolve, e o orfao por dado
+   * inconsistente. Nos dois, mostrar um prazo cujo processo ninguem consegue
+   * abrir e pior que omitir — e omitir e o lado seguro de errar quando a
+   * duvida e sobre segredo de justica.
+   */
+  function visiveisPara(usuario, prazos, processos) {
+    var porId = {};
+    (processos || []).forEach(function (p) { porId[p.id] = p; });
+
+    return (prazos || []).filter(function (pz) {
+      var processo = porId[pz.processoId];
+      if (!processo) return false;
+      return App.domain.permissoes.podeVerProcesso(usuario, processo);
+    });
+  }
+
   function enriquecer(prazo, ctx) {
     var contexto = ctx || {
       processos: db().get('processos'),
@@ -51,7 +77,11 @@
         pessoas: db().get('pessoas')
       };
 
-      var lista = db().get('prazos').map(function (pz) { return enriquecer(pz, contexto); });
+      /* Mesmo recorte do `resumo()`: os dois pontos de entrada do modulo
+         respondem a mesma pergunta e nao podem responder diferente. */
+      var lista = visiveisPara(App.store.getState().usuarioAtual,
+                               db().get('prazos'), contexto.processos)
+        .map(function (pz) { return enriquecer(pz, contexto); });
 
       lista = lista.filter(function (pz) {
         if (f.apenasAbertos && pz.status !== 'pendente' && pz.status !== 'em_andamento') return false;
@@ -296,7 +326,14 @@
         pessoas: db().get('pessoas')
       };
 
-      var abertos = db().get('prazos')
+      /* O recorte de permissao vem ANTES de qualquer contagem: se saisse
+         depois, a lista respeitaria o segredo de justica mas o subtitulo
+         "N em risco" continuaria contando o que a pessoa nao pode ver — e um
+         numero que nao bate com a lista abaixo dele e pior que nenhum. */
+      var usuario = App.store.getState().usuarioAtual;
+      var meusPrazos = visiveisPara(usuario, db().get('prazos'), contexto.processos);
+
+      var abertos = meusPrazos
         .filter(function (pz) { return pz.status === 'pendente' || pz.status === 'em_andamento'; })
         .map(function (pz) { return enriquecer(pz, contexto); });
 
@@ -309,7 +346,7 @@
         totalAbertos: abertos.length,
         contagem: contagem,
         vencendoHoje: abertos.filter(function (pz) { return pz.dataFatal === hoje; }).length,
-        perdidos: db().get('prazos').filter(function (pz) { return pz.status === 'perdido'; }).length,
+        perdidos: meusPrazos.filter(function (pz) { return pz.status === 'perdido'; }).length,
         criticos: abertos
           .filter(function (pz) { return pz.semaforo === 'critico' || pz.semaforo === 'vencido'; })
           .sort(function (a, b) { return a.dataFatal < b.dataFatal ? -1 : 1; })

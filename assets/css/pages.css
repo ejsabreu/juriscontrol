@@ -7,6 +7,14 @@
   margin-top: var(--space-6);
 }
 
+/* Os quadros de resumo do dashboard nao levam a faixa colorida lateral:
+   sao cinco lado a lado, e cinco faixas de cores diferentes competem com o
+   numero, que e o que a tela precisa mostrar. O acento continua valendo nas
+   demais telas, onde o KPI aparece isolado. */
+.dashboard__kpis .kpi::before {
+  content: none;
+}
+
 .dash-list {
   max-height: 420px;
   overflow-y: auto;

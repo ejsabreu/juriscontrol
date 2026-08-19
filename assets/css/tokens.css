@@ -54,6 +54,16 @@
   --color-danger:  #c53030;
   --color-info:    #2b6cb0;
 
+  /* Um degrau acima do `--color-danger`, para desenho — nao para texto.
+     O #c53030 foi escolhido para palavra critica sobre fundo claro, onde
+     precisa de peso; num traco de 1.6px em 14px ele fecha demais e o icone
+     vira uma mancha escura. Este e o mesmo vermelho puxado para a faixa dos
+     graficos (`--chart-8`), que existe justamente para area pintada.
+
+     Nao use em texto: o contraste cai abaixo de 4.5:1 sobre superficie
+     clara. Icone decorativo, com `aria-hidden`, nao esta sujeito a isso. */
+  --color-danger-soft: #e05252;
+
   /* --- Superfícies e texto ----------------------------------------------- */
   --color-bg:            #f4f6f9;
   --color-surface:       #ffffff;
@@ -185,6 +195,10 @@
 
   --color-border:        #263447;
   --color-border-strong: #35485f;
+
+  /* No escuro o vermelho precisa subir mais, e nao descer: o fundo e que
+     mudou de lado. Mesmo salto do `--chart-8` entre os dois temas. */
+  --color-danger-soft: #ef7a7a;
 
   --color-prazo-ok-bg:      #163024;
   --color-prazo-atencao-bg: #33240f;

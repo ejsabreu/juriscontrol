@@ -228,6 +228,24 @@ a.kpi:hover {
   gap: var(--space-2);
 }
 
+/* O rotulo aceita tanto glifo quanto desenho de `icones.js`. O glifo se
+   dimensiona pela fonte; o SVG, nao — sem medida ele assume o tamanho padrao
+   do elemento e ocupa a largura do cartao. Daqui sai so o tamanho: a cor vem
+   de `currentColor`, herdada do proprio rotulo.
+
+   14px, um pouco abaixo dos 15px do menu, porque aqui o vizinho e texto de
+   `--text-sm`, e nao outro icone. */
+.kpi__icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.kpi__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
 .kpi__value {
   font-size: var(--text-3xl);
   font-weight: 600;

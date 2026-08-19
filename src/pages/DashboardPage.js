@@ -50,12 +50,6 @@
                      App.format.dataExtenso(App.domain.prazos.hojeISO())) +
                '</p>' +
              '</div>' +
-             '<div class="page-header__actions">' +
-               App.components.ui.Button({
-                 rotulo: 'Novo processo', variante: 'primary',
-                 icone: '+', href: '#/processos/novo'
-               }) +
-             '</div>' +
            '</div>';
   }
 
@@ -90,16 +84,25 @@
     var criticos = dados.prazos.contagem.critico + dados.prazos.contagem.vencido;
 
     // --- KPIs ---
-    var kpis = '<div class="grid grid--kpi">' +
+    var kpis = '<div class="grid grid--kpi dashboard__kpis">' +
       ui.Kpi({
-        rotulo: 'Processos ativos', icone: '⚖',
+        // O mesmo desenho do item Processos no menu: o cartao e a porta de
+        // entrada da lista, e dois simbolos para o mesmo lugar fazem o olho
+        // procurar duas coisas diferentes.
+        rotulo: 'Processos ativos', icone: App.icones.de('balanca'),
         valor: dados.processos.ativos,
         dica: dados.processos.suspensos + ' suspensos · ' + dados.processos.arquivados + ' arquivados',
         cor: 'var(--color-primary-500)',
         href: '#/processos'
       }) +
       ui.Kpi({
-        rotulo: 'Prazos críticos', icone: '⏱',
+        // Calendario do menu Agenda, no vermelho do sino. Fixo, e nao
+        // condicional: aqui a cor identifica o cartao — e o cartao dos
+        // prazos criticos —, nao o estado do numero. Quem conta o estado e
+        // o proprio valor.
+        rotulo: 'Prazos críticos',
+        icone: App.icones.de('agenda'),
+        corIcone: 'var(--color-danger-soft)',
         valor: criticos,
         dica: dados.prazos.vencendoHoje + ' vencendo hoje · ' +
               dados.prazos.contagem.vencido + ' vencidos',
@@ -107,14 +110,21 @@
         href: '#/agenda'
       }) +
       ui.Kpi({
-        rotulo: 'Prazos em aberto', icone: '▤',
+        // Mesmo calendario da Agenda, sem `corIcone`: herda a cor do rotulo.
+        // Prazo em aberto e o estado normal — nada aqui pede destaque.
+        rotulo: 'Prazos em aberto', icone: App.icones.de('agenda'),
         valor: dados.prazos.totalAbertos,
         dica: dados.prazos.contagem.atencao + ' exigindo atenção',
         cor: 'var(--color-prazo-atencao)',
         href: '#/agenda'
       }) +
       ui.Kpi({
-        rotulo: 'Tarefas atrasadas', icone: '☑',
+        // Checklist do menu Tarefas, no vermelho fixo do sino — mesma regra
+        // do cartao de prazos criticos: a cor diz de que cartao se trata,
+        // nao como esta o numero.
+        rotulo: 'Tarefas atrasadas',
+        icone: App.icones.de('checklist'),
+        corIcone: 'var(--color-danger-soft)',
         valor: dados.tarefas.atrasadas,
         dica: dados.tarefas.abertas + ' tarefas abertas',
         cor: dados.tarefas.atrasadas ? 'var(--color-prazo-critico)' : 'var(--color-prazo-ok)',

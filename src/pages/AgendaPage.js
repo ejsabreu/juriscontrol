@@ -102,7 +102,7 @@
         icone: '+', acao: 'novo-compromisso'
       }) + App.components.ui.Button({
         rotulo: 'Simulador de prazo', variante: 'secondary',
-        icone: '🗓', href: '#/simulador'
+        icone: App.icones.de('agenda'), href: '#/simulador'
       })
     });
   }

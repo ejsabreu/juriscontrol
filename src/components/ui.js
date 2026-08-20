@@ -40,7 +40,7 @@
       p.tipo ? 'type="' + e(p.tipo) + '"' : 'type="button"'
     ].filter(Boolean).join(' ');
 
-    var conteudo = (p.icone ? '<span aria-hidden="true">' + p.icone + '</span>' : '') +
+    var conteudo = (p.icone ? '<span class="btn__icon" aria-hidden="true">' + p.icone + '</span>' : '') +
                    (p.rotulo ? '<span>' + e(p.rotulo) + '</span>' : '');
 
     if (p.href) {

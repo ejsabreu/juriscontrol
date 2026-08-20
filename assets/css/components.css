@@ -78,6 +78,16 @@
   width: 28px;
 }
 
+/* Ícone desenhado (App.icones.de), e não glifo: mesma lógica do
+   `.nav-item__icon svg` — o <svg> não tem largura própria, então o
+   dimensionamento é daqui. `1em` em vez de um px fixo pra acompanhar o
+   `.btn`/`.btn--sm` sozinho, sem regra separada por tamanho de botão. */
+.btn__icon svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
 .btn--block {
   width: 100%;
 }

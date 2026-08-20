@@ -5,10 +5,22 @@
 /* `position: relative` existe para o menu expandido do celular: ele se
    posiciona contra esta caixa, e é isto que lhe dá a altura da PÁGINA em vez
    da altura da janela. Ver o bloco de 900px lá embaixo. */
+/* `minmax(0, 1fr)`, não `1fr` puro: a coluna do conteúdo herda o automatic
+   minimum size do que tem dentro dela (mesmo bug do `.agenda-layout`, ver o
+   comentário lá). Ficou invisível aqui por acidente — `.main` tinha
+   `overflow-x: hidden`, e isso também suprimia essa contribuição de largura,
+   então a coluna nunca chegava a estourar. No dia em que `.main` precisou
+   virar `overflow-x: clip` (pro sticky funcionar — ver o comentário na regra
+   de `.main`), essa proteção acidental caiu junto, e a grade do app inteiro
+   passou a ficar mais larga que a viewport sempre que alguma tela tivesse
+   conteúdo largo por dentro (o Kanban de Tarefas, por exemplo). `minmax(0,
+   1fr)` tira essa dependência escondida: a coluna encolhe até o espaço
+   disponível de verdade, não importa o que exista lá dentro nem o que
+   `.main` declare de overflow. */
 .app {
   position: relative;
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   grid-template-rows: var(--topbar-height) 1fr;
   grid-template-areas:
     "sidebar topbar"
@@ -20,7 +32,7 @@
    ocupa a tela inteira. Os slots já vêm vazios do AppShell — aqui só se
    desfaz a grade que existia para acomodá-los. */
 .app--nu {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 1fr;
   grid-template-areas: "main";
 }
@@ -130,7 +142,7 @@
    O que muda por largura é só o PADRÃO (o celular começa recolhido) e o que
    acontece ao expandir (no celular, sobreposição) — ambos mais abaixo. */
 .app--menu-recolhido {
-  grid-template-columns: var(--sidebar-width-min) 1fr;
+  grid-template-columns: var(--sidebar-width-min) minmax(0, 1fr);
 }
 
 /* Some tudo que só existe para explicar o ícone. O que fica é o próprio
@@ -420,12 +432,24 @@
 }
 
 /* --- Área principal ------------------------------------------------------- */
+/* `clip`, não `hidden`: os dois cortam o estouro horizontal do mesmo jeito,
+   mas `overflow-x: hidden` sozinho tem um efeito colateral que não tem nada
+   a ver com layout — quando só um eixo declara algo diferente de `visible`,
+   o navegador força o OUTRO eixo (aqui, `overflow-y`, que ninguém pediu) a
+   virar `auto`. E um ancestral com `overflow-y: auto` — mesmo sem barra de
+   rolagem própria, mesmo sem jamais rolar sozinho — vira o contêiner de
+   referência de QUALQUER `position: sticky` lá dentro, no lugar da janela.
+   Foi isso que impedia `.filter-bar` de grudar ao rolar: não faltava
+   `position: sticky`, sobrava um `overflow-y: auto` que ninguém via.
+   `overflow-x: clip` não entra nesse par — corta o eixo X sem arrastar o Y
+   junto, e o sticky dentro de `<main>` volta a colar na janela, como já
+   fazia a topbar (que está FORA do `<main>`, por isso nunca teve o problema). */
 .main {
   grid-area: main;
   padding: var(--space-6);
   max-width: var(--content-max);
   width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .page-header {
@@ -491,7 +515,7 @@
      O `:not(.app--nu)` protege as rotas nuas (entrada e portal), que não têm
      menu nenhum e cuja grade de coluna única é definida antes desta regra. */
   .app:not(.app--nu) {
-    grid-template-columns: var(--sidebar-width-min) 1fr;
+    grid-template-columns: var(--sidebar-width-min) minmax(0, 1fr);
   }
 
   /* Expandido no celular é sobreposição, mas `absolute` e não `fixed`, e a

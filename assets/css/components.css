@@ -494,6 +494,14 @@ a.kpi:hover {
 }
 
 /* --- Filtros -------------------------------------------------------------- */
+/* Gruda logo abaixo da topbar ao rolar — é onde moram os filtros e as ações
+   principais da tela (ex.: "Novo compromisso" na Agenda), e sem isso quem
+   rola a lista até o fim precisa voltar ao topo pra usar qualquer um dos
+   dois. `background` sólido porque o conteúdo passa por baixo; `top` bate
+   exatamente a altura da topbar, que também é sticky, pra uma colar onde a
+   outra termina. (Exige `.main { overflow-x: clip }`, não `hidden` — ver o
+   comentário lá: `hidden` força `overflow-y` a `auto` e quebra todo sticky
+   dentro de `<main>`.) */
 .filter-bar {
   display: flex;
   align-items: center;
@@ -504,6 +512,9 @@ a.kpi:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-4);
+  position: sticky;
+  top: var(--topbar-height);
+  z-index: var(--z-sticky);
 }
 
 .filter-bar__search {

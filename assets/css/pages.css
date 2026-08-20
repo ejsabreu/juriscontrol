@@ -488,7 +488,14 @@
 }
 
 @media (max-width: 1100px) {
-  .agenda-layout { grid-template-columns: 1fr; }
+  /* `1fr` puro NÃO encolhe abaixo do conteúdo — é o mesmo problema de
+     `min-width: auto` do flexbox, só que pra grid: sem `minmax(0, 1fr)`,
+     a trilha trava no maior conteúdo que não quebra linha lá dentro (aqui,
+     bem acima de 360px) e tudo que mora nela — calendário, prazo-card,
+     botão — fica largo demais e nunca acompanha o viewport estreitando.
+     Foi isso, não o prazo-card, que causava a sobreposição relatada em
+     telas de telefone: o card nem estava encolhendo, só ficava cortado. */
+  .agenda-layout { grid-template-columns: minmax(0, 1fr); }
 
   /* Empilhado, o calendário sozinho já passa de 500px de altura — quem abre
      a Agenda com pressa (celular, corredor do fórum) precisa ver primeiro o

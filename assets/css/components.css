@@ -1129,13 +1129,17 @@ a.kpi:hover {
 
   /* `min-width: 0` (regra base) existe pra deixar o corpo encolher até
      caber a reticência do desktop — sem isso, o título de uma linha só
-     empurrava o avatar pra fora (o bug que a regra original corrigia). No
-     toque o texto já quebra linha, então o corpo pode voltar ao mínimo
-     automático: a largura do maior token sem espaço (um CNJ, uma data). É
-     esse piso que faz `.prazo-card` decidir jogar as ações pra uma segunda
-     linha em vez de espremer o corpo até sobrepor texto em cima do botão. */
+     empurrava o avatar pra fora (o bug que a regra original corrigia).
+     `min-width: auto` sozinho não bastava aqui: com `overflow-wrap:
+     anywhere` ligado, o mínimo automático do navegador desce a quase zero
+     (a palavra pode quebrar em qualquer letra), e `.prazo-card` nunca
+     decidia jogar as ações pra segunda linha — o corpo ficava espremido a
+     uns poucos pixels com "Baixar" + "Perdido" + avatar juntos (o caso de
+     prazo vencido), e o texto voltava a colidir com o botão. Um piso fixo
+     em px não depende de quanto o texto consegue encolher — é o que faz a
+     conta de "cabe ou não cabe" disparar a quebra de linha de verdade. */
   .prazo-card__body {
-    min-width: auto;
+    min-width: 140px;
   }
 }
 

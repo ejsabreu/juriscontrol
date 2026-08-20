@@ -1247,6 +1247,26 @@ a.kpi:hover {
   min-width: 170px;
 }
 
+/* ‹ Hoje › andam juntos: sem agrupar, `.calendar__header` (flex-wrap) podia
+   quebrar linha NO MEIO do grupo — "Hoje" ficava numa linha e › sozinho na
+   de baixo, parecendo um "\n" solto no meio do cabeçalho. Um `<div>` só faz
+   os três contarem como um item de cada vez: ou cabem juntos, ou quebram
+   juntos. */
+.calendar__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+@media (max-width: 600px) {
+  /* 170px de piso pro nome do mês sozinho já passa de metade da tela num
+     telefone em pé — é o que empurrava ‹ Hoje › pra fora da primeira linha
+     na maioria das larguras de celular. Cabe reduzir aqui porque o motivo do
+     piso (não pular de layout entre "maio" e "setembro") importa bem menos
+     numa coluna onde tudo já quebra linha o tempo todo. */
+  .calendar__month { min-width: 0; }
+}
+
 .calendar__grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));

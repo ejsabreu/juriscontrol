@@ -40,17 +40,19 @@
     // --- Cabeçalho de navegação ---
     html += '<div class="calendar__header">' +
               '<span class="calendar__month">' + esc(fmt.MESES[mes] + ' de ' + ano) + '</span>' +
-              App.components.ui.Button({
-                icone: '‹', variante: 'secondary', tamanho: 'sm',
-                apenasIcone: true, acao: 'mes-anterior', titulo: 'Mês anterior'
-              }) +
-              App.components.ui.Button({
-                rotulo: 'Hoje', variante: 'secondary', tamanho: 'sm', acao: 'mes-hoje'
-              }) +
-              App.components.ui.Button({
-                icone: '›', variante: 'secondary', tamanho: 'sm',
-                apenasIcone: true, acao: 'mes-proximo', titulo: 'Próximo mês'
-              }) +
+              '<div class="calendar__nav">' +
+                App.components.ui.Button({
+                  icone: '‹', variante: 'secondary', tamanho: 'sm',
+                  apenasIcone: true, acao: 'mes-anterior', titulo: 'Mês anterior'
+                }) +
+                App.components.ui.Button({
+                  rotulo: 'Hoje', variante: 'secondary', tamanho: 'sm', acao: 'mes-hoje'
+                }) +
+                App.components.ui.Button({
+                  icone: '›', variante: 'secondary', tamanho: 'sm',
+                  apenasIcone: true, acao: 'mes-proximo', titulo: 'Próximo mês'
+                }) +
+              '</div>' +
               '<span class="u-spacer"></span>' +
               '<span class="calendar__legend u-xs u-subtle">Dias sombreados não contam prazo</span>' +
             '</div>';

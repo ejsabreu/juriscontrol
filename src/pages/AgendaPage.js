@@ -12,6 +12,15 @@
   var eventos = null;
   var usuarios = [];
 
+  /* Troca de mês por arrastar o dedo — só no calendário, e só um gesto
+     bem horizontal: abaixo do limiar, ou mais vertical que horizontal, é
+     rolagem normal da lista, não navegação. Sem tocar em touchmove nem
+     em preventDefault — a rolagem vertical nunca fica em risco de travar
+     por causa disso, porque só medimos onde o toque começou e onde
+     terminou. */
+  var LIMIAR_SWIPE_PX = 60;
+  var toqueInicio = null;
+
   function esc(v) { return App.dom.esc(v); }
   function filtros() { return App.store.getState().agendaFiltros; }
 
@@ -47,13 +56,18 @@
     return { de: prazos.paraISO(inicio), ate: prazos.paraISO(fim) };
   }
 
-  function carregar() {
+  /** @param {boolean} [voltarAoCalendario]  troca de mês: o alvo do scroll
+      depende da altura da coluna lateral do mês NOVO (varia com a
+      quantidade de vencidos/próximos), então só dá pra calcular depois do
+      redesenho — nunca antes, com a altura do mês que está saindo. */
+  function carregar(voltarAoCalendario) {
     var limites = limitesDoMes();
 
     App.services.agendaService.porDia(limites.de, limites.ate, filtros())
       .then(function (resultado) {
         eventos = resultado;
         desenhar();
+        if (voltarAoCalendario) voltarParaCalendario();
       })
       .catch(function (erro) {
         container.innerHTML = App.components.ui.EmptyState({
@@ -102,7 +116,7 @@
         icone: '+', acao: 'novo-compromisso'
       }) + App.components.ui.Button({
         rotulo: 'Simulador de prazo', variante: 'secondary',
-        icone: '🗓', href: '#/simulador'
+        icone: App.icones.de('agenda'), href: '#/simulador'
       })
     });
   }
@@ -171,11 +185,52 @@
       '</div>';
   }
 
+  /** Volta pro calendário, não pro início da página — o cabeçalho da Agenda
+      (título, contagem) não ajuda quem só quer ver o mês seguinte, e como a
+      barra de filtros agora é sticky, ela continua visível de qualquer jeito.
+      O alvo soma a altura da topbar com a da barra de filtros (as duas
+      sticky, empilhadas) pra o topo do calendário não ficar por baixo delas. */
+  function voltarParaCalendario() {
+    var calendario = App.dom.qs('.calendar', container);
+    if (!calendario) { window.scrollTo(0, 0); return; }
+
+    var topbar = document.querySelector('.topbar');
+    var barraFiltros = App.dom.qs('.filter-bar', container);
+    var fixo = (topbar ? topbar.getBoundingClientRect().height : 0) +
+               (barraFiltros ? barraFiltros.getBoundingClientRect().height : 0);
+
+    var alvo = calendario.getBoundingClientRect().top + window.scrollY - fixo;
+    window.scrollTo(0, Math.max(alvo, 0));
+  }
+
   function mudarMes(delta) {
     var prazos = App.domain.prazos;
     var referencia = prazos.paraDate(mesAtual);
     mesAtual = prazos.paraISO(new Date(referencia.getFullYear(), referencia.getMonth() + delta, 1));
-    carregar();
+    carregar(true);
+  }
+
+  function aoTocarInicio(evento) {
+    var toque = evento.touches[0];
+    toqueInicio = { x: toque.clientX, y: toque.clientY };
+  }
+
+  function aoTocarFim(evento) {
+    if (!toqueInicio) return;
+
+    var toque = evento.changedTouches[0];
+    var deltaX = toque.clientX - toqueInicio.x;
+    var deltaY = toque.clientY - toqueInicio.y;
+    toqueInicio = null;
+
+    // Horizontal de verdade: precisa vencer o limiar E ser mais deitado
+    // que em pé, senão um scroll vertical com leve deriva lateral vira
+    // troca de mês sem querer.
+    if (Math.abs(deltaX) < LIMIAR_SWIPE_PX || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
+
+    // Arrastar para a esquerda revela o que vem depois — mesma convenção
+    // dos apps de calendário (Google Agenda, Apple Calendar).
+    mudarMes(deltaX < 0 ? 1 : -1);
   }
 
   function ligarEventos() {
@@ -198,8 +253,11 @@
     App.dom.delegate(container, 'click', '[data-action="mes-proximo"]', function () { mudarMes(1); });
     App.dom.delegate(container, 'click', '[data-action="mes-hoje"]', function () {
       mesAtual = primeiroDiaDoMes(App.domain.prazos.hojeISO());
-      carregar();
+      carregar(true);
     });
+
+    App.dom.delegate(container, 'touchstart', '.calendar', aoTocarInicio);
+    App.dom.delegate(container, 'touchend', '.calendar', aoTocarFim);
 
     App.dom.delegate(container, 'click', '[data-action="cumprir-prazo"]', function (evento, botao) {
       App.services.prazoService.cumprir(botao.dataset.value).then(function (prazo) {

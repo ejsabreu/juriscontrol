@@ -78,6 +78,16 @@
   width: 28px;
 }
 
+/* Ícone desenhado (App.icones.de), e não glifo: mesma lógica do
+   `.nav-item__icon svg` — o <svg> não tem largura própria, então o
+   dimensionamento é daqui. `1em` em vez de um px fixo pra acompanhar o
+   `.btn`/`.btn--sm` sozinho, sem regra separada por tamanho de botão. */
+.btn__icon svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
 .btn--block {
   width: 100%;
 }
@@ -502,6 +512,14 @@ a.kpi:hover {
 }
 
 /* --- Filtros -------------------------------------------------------------- */
+/* Gruda logo abaixo da topbar ao rolar — é onde moram os filtros e as ações
+   principais da tela (ex.: "Novo compromisso" na Agenda), e sem isso quem
+   rola a lista até o fim precisa voltar ao topo pra usar qualquer um dos
+   dois. `background` sólido porque o conteúdo passa por baixo; `top` bate
+   exatamente a altura da topbar, que também é sticky, pra uma colar onde a
+   outra termina. (Exige `.main { overflow-x: clip }`, não `hidden` — ver o
+   comentário lá: `hidden` força `overflow-y` a `auto` e quebra todo sticky
+   dentro de `<main>`.) */
 .filter-bar {
   display: flex;
   align-items: center;
@@ -512,6 +530,9 @@ a.kpi:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-4);
+  position: sticky;
+  top: var(--topbar-height);
+  z-index: var(--z-sticky);
 }
 
 .filter-bar__search {
@@ -1137,13 +1158,17 @@ a.kpi:hover {
 
   /* `min-width: 0` (regra base) existe pra deixar o corpo encolher até
      caber a reticência do desktop — sem isso, o título de uma linha só
-     empurrava o avatar pra fora (o bug que a regra original corrigia). No
-     toque o texto já quebra linha, então o corpo pode voltar ao mínimo
-     automático: a largura do maior token sem espaço (um CNJ, uma data). É
-     esse piso que faz `.prazo-card` decidir jogar as ações pra uma segunda
-     linha em vez de espremer o corpo até sobrepor texto em cima do botão. */
+     empurrava o avatar pra fora (o bug que a regra original corrigia).
+     `min-width: auto` sozinho não bastava aqui: com `overflow-wrap:
+     anywhere` ligado, o mínimo automático do navegador desce a quase zero
+     (a palavra pode quebrar em qualquer letra), e `.prazo-card` nunca
+     decidia jogar as ações pra segunda linha — o corpo ficava espremido a
+     uns poucos pixels com "Baixar" + "Perdido" + avatar juntos (o caso de
+     prazo vencido), e o texto voltava a colidir com o botão. Um piso fixo
+     em px não depende de quanto o texto consegue encolher — é o que faz a
+     conta de "cabe ou não cabe" disparar a quebra de linha de verdade. */
   .prazo-card__body {
-    min-width: auto;
+    min-width: 140px;
   }
 }
 
@@ -1238,6 +1263,26 @@ a.kpi:hover {
   font-weight: 600;
   text-transform: capitalize;
   min-width: 170px;
+}
+
+/* ‹ Hoje › andam juntos: sem agrupar, `.calendar__header` (flex-wrap) podia
+   quebrar linha NO MEIO do grupo — "Hoje" ficava numa linha e › sozinho na
+   de baixo, parecendo um "\n" solto no meio do cabeçalho. Um `<div>` só faz
+   os três contarem como um item de cada vez: ou cabem juntos, ou quebram
+   juntos. */
+.calendar__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+@media (max-width: 600px) {
+  /* 170px de piso pro nome do mês sozinho já passa de metade da tela num
+     telefone em pé — é o que empurrava ‹ Hoje › pra fora da primeira linha
+     na maioria das larguras de celular. Cabe reduzir aqui porque o motivo do
+     piso (não pular de layout entre "maio" e "setembro") importa bem menos
+     numa coluna onde tudo já quebra linha o tempo todo. */
+  .calendar__month { min-width: 0; }
 }
 
 .calendar__grid {

@@ -128,6 +128,23 @@
       '</div>';
   }
 
+  /* Trocar o usuário escolhido NÃO redesenha a tela. `innerHTML` destrói e
+     recria tudo, e com isso o navegador manda a rolagem de volta para o topo
+     e apaga o foco do botão que acabou de ser clicado — num celular, onde a
+     lista de usuários não cabe inteira, o clique no último cartão jogava a
+     tela para cima. Só o que muda de estado é atualizado no lugar. */
+  function atualizarSelecao() {
+    var cartoes = container.querySelectorAll('[data-action="selecionar-usuario"]');
+    for (var i = 0; i < cartoes.length; i++) {
+      var ativo = cartoes[i].getAttribute('data-value') === selecionado;
+      cartoes[i].classList.toggle('login__user--active', ativo);
+      cartoes[i].setAttribute('aria-pressed', ativo);
+    }
+
+    var botao = container.querySelector('[data-action="entrar"]');
+    if (botao) botao.disabled = !selecionado || entrando;
+  }
+
   function entrar() {
     if (!selecionado || entrando) return;
     entrando = true;
@@ -149,7 +166,7 @@
     App.dom.delegate(container, 'click', '[data-action="selecionar-usuario"]',
       function (evento, alvo) {
         selecionado = alvo.getAttribute('data-value');
-        desenhar();
+        atualizarSelecao();
       });
 
     App.dom.delegate(container, 'click', '[data-action="entrar"]', entrar);

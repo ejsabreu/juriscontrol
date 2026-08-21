@@ -299,6 +299,33 @@
     return novo;
   }
 
+  /* Toda troca de rota começa no topo.
+
+     No desktop `scrollTo` sozinho bastava; no celular, não. Ali o menu
+     expandido é uma sobreposição `absolute` que estica o documento para além
+     da altura de `.app`, e o toque num item dispara três coisas encadeadas no
+     mesmo instante: o menu recolhe (o documento encolhe de uma vez), o hash
+     muda, a tela nova é montada (o documento cresce de novo). O `scrollTo`
+     cai no meio dessa sequência, e a posição que ele grava é reajustada
+     quando o layout assenta — a página abre no meio.
+
+     Reafirmar no quadro seguinte resolve, porque aí a altura final já é
+     conhecida. Só reafirma se algo de fato tirou a página do topo: quem já
+     está em zero não é tocado, e uma rolagem deliberada de quem acabou de
+     chegar na tela nova ainda não teve tempo de acontecer — é o quadro
+     seguinte, uns 16ms. */
+  function irParaOTopo() {
+    window.scrollTo(0, 0);
+
+    // O jsdom dos testes não implementa rAF em toda versão; sem ele, fica o
+    // comportamento antigo, que já servia no desktop.
+    if (typeof window.requestAnimationFrame !== 'function') return;
+
+    window.requestAnimationFrame(function () {
+      if (window.pageYOffset !== 0) window.scrollTo(0, 0);
+    });
+  }
+
   /**
    * Chamado pelo router a cada troca de rota. Devolve o container limpo.
    * @param {object} [rota]  quando `rota.semCasca`, renderiza sem shell
@@ -314,7 +341,7 @@
        `sincronizar()` é idempotente: só grava o que ainda não existe. */
     if (cascaVisivel) atualizarNotificacoes();
 
-    window.scrollTo(0, 0);
+    irParaOTopo();
     return trocarConteudo();
   }
 

@@ -560,6 +560,32 @@
     box-shadow: var(--shadow-xl);
   }
 
+  /* A topbar sai da grade e passa a se medir pela JANELA.
+
+     `sticky` gruda só até o fim do próprio contêiner, e no celular o documento
+     passa disso: o menu expandido é `absolute`, cresce além da altura de
+     `.app` e leva a rolagem junto. Ao passar desse ponto a topbar descolava e
+     subia com o sino junto — exatamente onde a lista de itens é mais longa e
+     mais se rola. `fixed` não tem esse teto: a referência é a janela.
+
+     `left` é a tira de ícones, que no celular é SEMPRE a largura da coluna do
+     menu — expandido aqui é sobreposição, não coluna (ver `.sidebar` acima).
+
+     A linha 1 da grade continua reservando `--topbar-height` mesmo agora que
+     ninguém a ocupa, porque a trilha está declarada em px e não depende do
+     conteúdo: o `<main>`, que fica na linha 2, não sobe para debaixo dela.
+     Pelo mesmo motivo a `.filter-bar`, que gruda em `top: var(--topbar-height)`,
+     segue parando na altura certa.
+
+     O z-index continua em `--z-sticky`, abaixo do `--z-modal` do menu: com o
+     menu aberto é ele que cobre a barra, como sempre foi. */
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: var(--sidebar-width-min);
+    right: 0;
+  }
+
   .main {
     padding: var(--space-4);
   }

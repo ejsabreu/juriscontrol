@@ -15,30 +15,10 @@
   function http()   { return App.services.http; }
   function motor()  { return App.domain.prazos; }
 
-  /**
-   * Prazo herda a visibilidade do processo a que pertence.
-   *
-   * Nao existe regra de segredo propria do prazo: o que o CPC protege e o
-   * processo, e o prazo so expoe o que ja esta la — numero CNJ, nome do
-   * cliente, o que se tem a fazer e quando. Por isso a checagem delega em
-   * `podeVerProcesso`, a mesma que `processoService` usa; duas regras para a
-   * mesma pergunta acabariam divergindo.
-   *
-   * Prazo sem processo localizavel fica FORA. Isso cobre dois casos: o
-   * processo soft-deletado, que `db.get` nao devolve, e o orfao por dado
-   * inconsistente. Nos dois, mostrar um prazo cujo processo ninguem consegue
-   * abrir e pior que omitir — e omitir e o lado seguro de errar quando a
-   * duvida e sobre segredo de justica.
-   */
-  function visiveisPara(usuario, prazos, processos) {
-    var porId = {};
-    (processos || []).forEach(function (p) { porId[p.id] = p; });
-
-    return (prazos || []).filter(function (pz) {
-      var processo = porId[pz.processoId];
-      if (!processo) return false;
-      return App.domain.permissoes.podeVerProcesso(usuario, processo);
-    });
+  /** Prazo herda a visibilidade do processo. A regra vive no dominio. */
+  function visiveisPara(prazos, processos) {
+    return App.domain.permissoes.filtrarPorProcesso(
+      App.store.getState().usuarioAtual, prazos, processos);
   }
 
   function enriquecer(prazo, ctx) {
@@ -79,8 +59,7 @@
 
       /* Mesmo recorte do `resumo()`: os dois pontos de entrada do modulo
          respondem a mesma pergunta e nao podem responder diferente. */
-      var lista = visiveisPara(App.store.getState().usuarioAtual,
-                               db().get('prazos'), contexto.processos)
+      var lista = visiveisPara(db().get('prazos'), contexto.processos)
         .map(function (pz) { return enriquecer(pz, contexto); });
 
       lista = lista.filter(function (pz) {
@@ -330,8 +309,7 @@
          depois, a lista respeitaria o segredo de justica mas o subtitulo
          "N em risco" continuaria contando o que a pessoa nao pode ver — e um
          numero que nao bate com a lista abaixo dele e pior que nenhum. */
-      var usuario = App.store.getState().usuarioAtual;
-      var meusPrazos = visiveisPara(usuario, db().get('prazos'), contexto.processos);
+      var meusPrazos = visiveisPara(db().get('prazos'), contexto.processos);
 
       var abertos = meusPrazos
         .filter(function (pz) { return pz.status === 'pendente' || pz.status === 'em_andamento'; })

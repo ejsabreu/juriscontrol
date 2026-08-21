@@ -12,6 +12,17 @@
   function db()   { return App.services.db; }
   function http() { return App.services.http; }
 
+  /**
+   * Tarefa herda a visibilidade do processo a que pertence. Sem isso, o KPI
+   * "Tarefas atrasadas" contava — e a lista mostrava — tarefa de processo em
+   * segredo de justica para quem nao pode abrir o processo. A tarefa carrega
+   * numero CNJ e nome do cliente no proprio enriquecimento.
+   */
+  function visiveisPara(tarefas, processos) {
+    return App.domain.permissoes.filtrarPorProcesso(
+      App.store.getState().usuarioAtual, tarefas, processos);
+  }
+
   function enriquecer(tarefa, ctx) {
     var contexto = ctx || {
       processos: db().get('processos'),
@@ -50,7 +61,8 @@
         pessoas: db().get('pessoas')
       };
 
-      var lista = db().get('tarefas').map(function (t) { return enriquecer(t, contexto); });
+      var lista = visiveisPara(db().get('tarefas'), contexto.processos)
+        .map(function (t) { return enriquecer(t, contexto); });
 
       lista = lista.filter(function (t) {
         if (f.status && t.status !== f.status) return false;
@@ -120,7 +132,9 @@
   function resumo() {
     return http().requisicao(function () {
       var hoje = App.domain.prazos.hojeISO();
-      var todas = db().get('tarefas');
+      /* O recorte vem antes das contagens: numero que nao bate com a lista
+         da tela de Tarefas seria pior que numero nenhum. */
+      var todas = visiveisPara(db().get('tarefas'), db().get('processos'));
       var abertas = todas.filter(function (t) { return t.status !== 'concluida'; });
 
       return {

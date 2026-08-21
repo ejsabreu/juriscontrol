@@ -114,6 +114,36 @@
   }
 
   /**
+   * Filtra registros PENDURADOS num processo — prazo, tarefa, compromisso,
+   * documento — pela visibilidade do processo a que pertencem.
+   *
+   * Não existe regra de sigilo própria desses registros, e não deve existir:
+   * o que o CPC protege é o processo, e eles só expõem o que já está lá —
+   * número CNJ, cliente, assunto, vara. Uma regra por coleção acabaria
+   * divergindo da regra do processo no primeiro ajuste que alguém fizesse
+   * em só uma delas.
+   *
+   * Registro sem processo localizável fica FORA. Cobre o processo
+   * soft-deletado, que `db.get` não devolve, e o órfão por dado
+   * inconsistente. Nos dois casos, omitir é o lado seguro de errar quando a
+   * dúvida é sigilo.
+   *
+   * @param {Object}   usuario
+   * @param {Array}    registros  qualquer coisa com `processoId`
+   * @param {Array}    processos  os processos já lidos do banco
+   */
+  function filtrarPorProcesso(usuario, registros, processos) {
+    var porId = {};
+    (processos || []).forEach(function (p) { porId[p.id] = p; });
+
+    return (registros || []).filter(function (r) {
+      var processo = porId[r.processoId];
+      if (!processo) return false;
+      return podeVerProcesso(usuario, processo);
+    });
+  }
+
+  /**
    * Edição do processo: além do recurso, ninguém edita o que não pode ver.
    * Processo encerrado ou arquivado só é editado por quem administra.
    */
@@ -163,6 +193,7 @@
     podeAlgum: podeAlgum,
     podeVerProcesso: podeVerProcesso,
     filtrarProcessos: filtrarProcessos,
+    filtrarPorProcesso: filtrarPorProcesso,
     podeEditarProcesso: podeEditarProcesso,
     nivelDocumento: nivelDocumento,
     podeConferirPrazo: podeConferirPrazo,

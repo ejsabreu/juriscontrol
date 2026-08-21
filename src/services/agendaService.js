@@ -16,6 +16,19 @@
   function motor() { return App.domain.prazos; }
 
   /**
+   * Prazo e compromisso herdam a visibilidade do processo.
+   *
+   * Aqui o vazamento era pior que uma contagem errada: o titulo do
+   * compromisso traz o assunto do processo, e o item ainda mostra vara e
+   * comarca. Processo em segredo de justica aparecia por extenso na agenda
+   * de quem nao pode abri-lo.
+   */
+  function visiveisPara(registros, processos) {
+    return App.domain.permissoes.filtrarPorProcesso(
+      App.store.getState().usuarioAtual, registros, processos);
+  }
+
+  /**
    * Eventos do período, já normalizados: { id, tipo, data, titulo, ... }.
    * @param {string} de   ISO
    * @param {string} ate  ISO
@@ -41,7 +54,7 @@
       var lista = [];
 
       if (f.tipo !== 'compromisso') {
-        db().get('prazos').forEach(function (pz) {
+        visiveisPara(db().get('prazos'), processos).forEach(function (pz) {
           if (pz.dataFatal < de || pz.dataFatal > ate) return;
           if (f.responsavelId && pz.responsavelId !== f.responsavelId) return;
           if (f.apenasAbertos && pz.status !== 'pendente' && pz.status !== 'em_andamento') return;
@@ -69,7 +82,7 @@
       }
 
       if (f.tipo !== 'prazo') {
-        db().get('compromissos').forEach(function (cp) {
+        visiveisPara(db().get('compromissos'), processos).forEach(function (cp) {
           var dataCp = String(cp.dataHora).slice(0, 10);
           if (dataCp < de || dataCp > ate) return;
           if (f.responsavelId && cp.responsavelId !== f.responsavelId) return;
@@ -143,7 +156,7 @@
       var processos = db().get('processos');
       var pessoas = db().get('pessoas');
 
-      return db().get('compromissos')
+      return visiveisPara(db().get('compromissos'), processos)
         .filter(function (cp) {
           return String(cp.dataHora).slice(0, 10) >= hoje && cp.status === 'agendado';
         })

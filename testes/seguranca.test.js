@@ -44,6 +44,14 @@ const FINANCEIRO = { id: 'U5', nome: 'Elis',  perfil: 'financeiro' };
   ok('só admin abre a auditoria',
      perm.pode(ADMIN, 'auditoria') && !perm.pode(SOCIO, 'auditoria'));
 
+  // A visão do escritório é de quem coordena a carteira. Para o advogado a
+  // tela inicial é o painel PESSOAL, e carteira total não muda o dia dele.
+  ok('admin vê o painel do escritório', perm.pode(ADMIN, 'escritorio.ver'));
+  ok('sócio vê o painel do escritório', perm.pode(SOCIO, 'escritorio.ver'));
+  ok('advogado NÃO vê o painel do escritório', !perm.pode(ADVOGADO, 'escritorio.ver'));
+  ok('estagiário NÃO vê o painel do escritório', !perm.pode(ESTAGIARIO, 'escritorio.ver'));
+  ok('financeiro NÃO vê o painel do escritório', !perm.pode(FINANCEIRO, 'escritorio.ver'));
+
   ok('usuário nulo não pode nada', !perm.pode(null, 'processos.ver'));
   ok('usuário sem perfil não pode nada', !perm.pode({ id: 'X' }, 'processos.ver'));
   ok('recurso inexistente é negado', !perm.pode(SOCIO, 'recurso.que.nao.existe'));
@@ -136,6 +144,15 @@ const FINANCEIRO = { id: 'U5', nome: 'Elis',  perfil: 'financeiro' };
   ok('advogado NÃO vê nenhum item de administração',
      ['Configurações', 'Auditoria', 'Privacidade'].every(r => rotulos(ADVOGADO).indexOf(r) === -1));
   ok('advogado continua vendo Processos', rotulos(ADVOGADO).indexOf('Processos') !== -1);
+
+  ok('admin e sócio veem o item Escritório',
+     rotulos(ADMIN).indexOf('Escritório') !== -1 &&
+     rotulos(SOCIO).indexOf('Escritório') !== -1);
+  ok('advogado, estagiário e financeiro NÃO veem o item Escritório',
+     [ADVOGADO, ESTAGIARIO, FINANCEIRO].every(u => rotulos(u).indexOf('Escritório') === -1));
+  ok('todos veem Meu painel — é a tela inicial de qualquer perfil',
+     [ADMIN, SOCIO, ADVOGADO, ESTAGIARIO, FINANCEIRO]
+       .every(u => rotulos(u).indexOf('Meu painel') !== -1));
 
   const secoesAdvogado = Sidebar.itensVisiveis(ADVOGADO).filter(i => i.secao).map(i => i.secao);
   ok('seção "Administração" some quando fica vazia',
@@ -254,6 +271,214 @@ const FINANCEIRO = { id: 'U5', nome: 'Elis',  perfil: 'financeiro' };
     responsavelId: alvo.responsavelId,
     equipeIds: alvo.equipeIds
   });
+
+  // ============ SIGILO HERDADO POR PRAZO, TAREFA E COMPROMISSO ============
+  /* O que o CPC protege é o PROCESSO. Prazo, tarefa e compromisso só expõem
+     o que já está lá — número CNJ, cliente, assunto, vara — e por isso
+     herdam a visibilidade dele. Antes disso, os três serviços liam a coleção
+     direto e o cartão do dashboard contava (e a agenda MOSTRAVA) caso
+     sigiloso para quem não podia abrir o processo. */
+  secao('Sigilo herdado — prazo, tarefa e compromisso');
+
+  const prazoService  = App.services.prazoService;
+  const tarefaService = App.services.tarefaService;
+  const agendaService = App.services.agendaService;
+
+  // Um processo que tenha os três pendurados, senão o teste não mede nada.
+  const comTudo = db.get('processos').filter(p =>
+    db.get('prazos').some(x => x.processoId === p.id) &&
+    db.get('tarefas').some(x => x.processoId === p.id) &&
+    db.get('compromissos').some(x => x.processoId === p.id))[0];
+
+  ok('há processo com prazo, tarefa e compromisso para medir', !!comTudo);
+
+  const donoAlheio = usuarios.filter(u =>
+    u.id !== comTudo.responsavelId && u.perfil === 'advogado')[0];
+  const forasteiro = usuarios.filter(u =>
+    u.perfil === 'advogado' && u.id !== donoAlheio.id && u.id !== comTudo.responsavelId)[0];
+
+  const estadoOriginal = {
+    segredoJustica: comTudo.segredoJustica,
+    responsavelId: comTudo.responsavelId,
+    equipeIds: comTudo.equipeIds,
+    diasAcessoUrgencia: comTudo.diasAcessoUrgencia
+  };
+
+  db.update('processos', comTudo.id, {
+    segredoJustica: true, responsavelId: donoAlheio.id, equipeIds: []
+  });
+
+  const idsPrazo = db.get('prazos').filter(x => x.processoId === comTudo.id).map(x => x.id);
+  const idsTarefa = db.get('tarefas').filter(x => x.processoId === comTudo.id).map(x => x.id);
+  const idsComp = db.get('compromissos').filter(x => x.processoId === comTudo.id).map(x => x.id);
+
+  await sessao.entrar(forasteiro.id);
+
+  const prazosForasteiro = await prazoService.listar({});
+  ok('prazo de processo sigiloso some para quem não atua',
+     !prazosForasteiro.itens.some(x => idsPrazo.indexOf(x.id) !== -1));
+
+  const tarefasForasteiro = await tarefaService.listar({});
+  ok('tarefa de processo sigiloso some para quem não atua',
+     !tarefasForasteiro.itens.some(x => idsTarefa.indexOf(x.id) !== -1));
+
+  /* A agenda é o vazamento mais grave dos três: o título do compromisso
+     carrega o assunto do processo, e o item mostra vara e comarca. Aqui não
+     era contagem errada — era conteúdo sigiloso na tela. */
+  const proximosForasteiro = await agendaService.proximos(200);
+  ok('compromisso de processo sigiloso some da agenda de quem não atua',
+     !proximosForasteiro.some(x => idsComp.indexOf(x.id) !== -1));
+
+  const eventosForasteiro = await agendaService.eventos('1900-01-01', '2999-12-31', {});
+  ok('e some também do calendário, que é a outra porta do mesmo dado',
+     !eventosForasteiro.itens.some(ev => idsComp.indexOf(ev.id) !== -1 ||
+                                         idsPrazo.indexOf(ev.id) !== -1));
+
+  ok('o resumo do painel não LISTA prazo crítico de caso sigiloso',
+     !(await prazoService.resumo()).criticos.some(x => idsPrazo.indexOf(x.id) !== -1));
+
+  await sessao.entrar(donoAlheio.id);
+  const prazosDono = await prazoService.listar({});
+  ok('quem é o responsável continua vendo os prazos do próprio caso',
+     idsPrazo.every(id => prazosDono.itens.some(x => x.id === id)));
+
+  /* A equipe é o que torna o sigilo praticável — sem ela, dar acesso a
+     alguém exigiria trocar o responsável do processo.
+
+     A entrada e a saída da equipe também são a régua para medir a CONTAGEM:
+     o mesmo usuário, o mesmo instante, um processo de diferença. Verificar
+     só a lista deixaria passar o defeito que importa — recortar depois de
+     contar, que produz um total que não bate com o que está logo abaixo
+     dele na tela. */
+  const abertosDoCaso = db.get('prazos').filter(x =>
+    x.processoId === comTudo.id &&
+    (x.status === 'pendente' || x.status === 'em_andamento'));
+
+  ok('o caso tem prazo em aberto para a contagem enxergar', abertosDoCaso.length > 0);
+
+  db.update('processos', comTudo.id, { equipeIds: [forasteiro.id] });
+  await sessao.entrar(forasteiro.id);
+  const prazosNaEquipe = await prazoService.listar({});
+  ok('entrar na EQUIPE devolve o acesso ao prazo, sem trocar o responsável',
+     idsPrazo.every(id => prazosNaEquipe.itens.some(x => x.id === id)));
+  const resumoComAcesso = await prazoService.resumo();
+
+  db.update('processos', comTudo.id, { equipeIds: [] });
+  const resumoSemAcesso = await prazoService.resumo();
+
+  ok('a CONTAGEM do resumo cai exatamente os prazos que a pessoa deixou de ver',
+     resumoComAcesso.totalAbertos - resumoSemAcesso.totalAbertos === abertosDoCaso.length,
+     resumoComAcesso.totalAbertos + ' → ' + resumoSemAcesso.totalAbertos +
+     ' (esperado -' + abertosDoCaso.length + ')');
+
+  // ===================== ACESSO DE URGÊNCIA =====================
+  /* A válvula do sigilo. Escritório tem plantão: prazo vence hoje e o
+     responsável está em audiência. Em vez de barrar, REGISTRA. */
+  secao('Acesso de urgência');
+
+  const acesso = App.services.acessoService;
+  const motivoBom = 'Prazo de contestacao vence hoje e a responsavel esta em audiencia.';
+
+  await sessao.entrar(forasteiro.id);
+
+  let e400 = null;
+  try { await acesso.liberar({ numero: comTudo.numeroInterno, motivo: 'urgente' }); }
+  catch (e) { e400 = e; }
+  ok('motivo curto é recusado — clique não é justificativa',
+     e400 && e400.codigo === 400, e400 && String(e400.codigo));
+
+  /* Não pode virar detector de processo sigiloso: número inexistente e
+     número que a pessoa JÁ podia ver têm de responder igual, senão a
+     diferença entre as mensagens confirma a existência do caso. */
+  let msgInexistente = null, msgJaVisivel = null;
+  try { await acesso.liberar({ numero: 'ZZZ-0000-0000', motivo: motivoBom }); }
+  catch (e) { msgInexistente = e.codigo + '|' + e.message; }
+
+  const jaVisivel = db.get('processos').filter(p => !p.segredoJustica)[0];
+  try { await acesso.liberar({ numero: jaVisivel.numeroInterno, motivo: motivoBom }); }
+  catch (e) { msgJaVisivel = e.codigo + '|' + e.message; }
+
+  ok('número inexistente e número já visível respondem IGUAL — sem vazar existência',
+     !!msgInexistente && msgInexistente === msgJaVisivel,
+     msgInexistente + '  ≠  ' + msgJaVisivel);
+
+  const liberacao = await acesso.liberar({ numero: comTudo.numeroInterno, motivo: motivoBom });
+  ok('a liberação devolve o processo pedido', liberacao.processo.id === comTudo.id);
+
+  const abriu = await processoService.obter(comTudo.id);
+  ok('depois de liberar, o processo abre', abriu.id === comTudo.id);
+
+  const prazosLiberado = await prazoService.listar({});
+  ok('e os prazos dele vêm junto — sem isso a liberação não serviria para nada',
+     idsPrazo.every(id => prazosLiberado.itens.some(x => x.id === id)));
+
+  /* Quem chega pela válvula LÊ. A lista de liberados não é passada para
+     editar, vincular nem compartilhar. */
+  ok('acesso de urgência NÃO dá poder de escrita',
+     !perm.podeEditarProcesso(forasteiro, db.get('processos')
+       .filter(p => p.id === comTudo.id)[0]));
+
+  const trilha = db.get('logsAuditoria').filter(l => l.acao === 'consultar');
+  ok('a consulta vira linha na trilha de auditoria', trilha.length > 0);
+  ok('e a linha guarda o motivo escrito pela pessoa',
+     trilha.some(l => String(l.resumo).indexOf('audiencia') !== -1));
+
+  ok('a liberação é de quem abriu, e não do escritório',
+     acesso.liberados(forasteiro.id).indexOf(comTudo.id) !== -1 &&
+     acesso.liberados(donoAlheio.id).indexOf(comTudo.id) === -1);
+
+  // --- validade ---------------------------------------------------------
+  ok('a validade padrão sai do processo', acesso.diasDe(comTudo) === acesso.DIAS_PADRAO);
+  ok('e o processo pode encurtá-la',
+     acesso.diasDe({ diasAcessoUrgencia: 2 }) === 2);
+
+  const motor = App.domain.prazos;
+  const oitoDiasAtras = motor.paraISO(motor.addDias(new Date(), -8));
+  db.update('liberacoesAcesso', liberacao.id, { quando: oitoDiasAtras + 'T09:00:00.000Z' });
+
+  ok('liberação além da validade deixa de valer',
+     acesso.liberados(forasteiro.id).indexOf(comTudo.id) === -1);
+
+  let voltou404 = null;
+  try { await processoService.obter(comTudo.id); } catch (e) { voltou404 = e; }
+  ok('e o processo volta a responder 404',
+     voltou404 && voltou404.codigo === 404, voltou404 && String(voltou404.codigo));
+
+  /* Vencida não se reaproveita: a trilha precisa mostrar que a pessoa
+     voltou, e com que motivo desta vez. */
+  const segunda = await acesso.liberar({ numero: comTudo.numeroInterno, motivo: motivoBom });
+  ok('liberação vencida gera registro NOVO, não reaproveita o antigo',
+     segunda.id !== liberacao.id, segunda.id + ' vs ' + liberacao.id);
+
+  await acesso.encerrar(segunda.id);
+  ok('encerrar devolve o acesso na hora',
+     acesso.liberados(forasteiro.id).indexOf(comTudo.id) === -1);
+  ok('e o registro continua na coleção — encerrar não apaga a trilha',
+     db.get('liberacoesAcesso').some(l => l.id === segunda.id));
+
+  await sessao.entrar(donoAlheio.id);
+  let e403 = null;
+  try { await acesso.encerrar(segunda.id); } catch (e) { e403 = e; }
+  ok('só quem abriu o acesso pode encerrá-lo',
+     e403 && e403.codigo === 403, e403 && String(e403.codigo));
+
+  // --- válvula fechada --------------------------------------------------
+  db.update('processos', comTudo.id, { diasAcessoUrgencia: 0 });
+  await sessao.entrar(forasteiro.id);
+  let eFechada = null;
+  try { await acesso.liberar({ numero: comTudo.numeroInterno, motivo: motivoBom }); }
+  catch (e) { eFechada = e; }
+  ok('processo com zero dia recusa acesso de urgência',
+     eFechada && eFechada.codigo === 404, eFechada && String(eFechada.codigo));
+  ok('e recusa com a MESMA mensagem — nem a válvula fechada confirma existência',
+     eFechada && (eFechada.codigo + '|' + eFechada.message) === msgInexistente);
+
+  // Devolve o processo ao estado original para não contaminar o resto.
+  db.update('processos', comTudo.id, estadoOriginal);
+  db.get('liberacoesAcesso')
+    .filter(l => l.processoId === comTudo.id)
+    .forEach(l => db.remove('liberacoesAcesso', l.id));
+  await sessao.entrar(umAdmin.id);
 
   // ===================== AUDITORIA =====================
   secao('Trilha de auditoria');

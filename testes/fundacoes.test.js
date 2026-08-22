@@ -454,7 +454,7 @@ ok('a chave do banco é versionada', /^jurisctrl\.db\.v\d+$/.test(db.CHAVE), db.
 
 const estado = db.init(true);
 ok('init gera o seed', estado.processos.length > 0);
-ok('COLECOES_FASE2 declara 24 coleções', db.COLECOES_FASE2.length === 24,
+ok('COLECOES_FASE2 declara 25 coleções', db.COLECOES_FASE2.length === 25,
    String(db.COLECOES_FASE2.length));
 ok('toda coleção da fase 2 existe após o init',
    db.COLECOES_FASE2.every(nome => Array.isArray(estado[nome])),

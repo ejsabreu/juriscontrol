@@ -18,7 +18,8 @@
   /** Prazo herda a visibilidade do processo. A regra vive no dominio. */
   function visiveisPara(prazos, processos) {
     return App.domain.permissoes.filtrarPorProcesso(
-      App.store.getState().usuarioAtual, prazos, processos);
+      App.store.getState().usuarioAtual, prazos, processos,
+      App.services.acessoService.liberados());
   }
 
   function enriquecer(prazo, ctx) {

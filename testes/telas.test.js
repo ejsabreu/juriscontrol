@@ -100,7 +100,7 @@ async function ate(condicao, limite = 3000, passo = 50) {
   await esperar(900);
 
   console.log('\nBootstrap — sistema aberto');
-  ok('entrou e foi para o dashboard', window.location.hash === '#/', window.location.hash);
+  ok('entrou e foi para o meu painel', window.location.hash === '#/', window.location.hash);
   ok('casca renderizada (.app)', !!doc.querySelector('.app'));
   ok('sidebar renderizada', !!doc.querySelector('.sidebar'));
   ok('topbar renderizada', !!doc.querySelector('.topbar'));
@@ -111,8 +111,24 @@ async function ate(condicao, limite = 3000, passo = 50) {
   ok('o menu de administração aparece para o admin',
      doc.querySelector('.sidebar').textContent.includes('Auditoria'));
 
-  console.log('\nDashboard (#/)');
+  console.log('\nMeu painel (#/)');
   await irPara('#/', 900);
+  /* A tela inicial e a PESSOAL. O admin do seed nao tem prazo nem tarefa
+     no proprio nome — e por isso mesmo que o painel precisa da faixa da
+     equipe: sem ela a tela de quem administra nasce vazia. */
+  ok('KPIs do painel renderizados', doc.querySelectorAll('.kpi').length >= 3,
+     String(doc.querySelectorAll('.kpi').length));
+  ok('bloco de prazos pessoais', texto().includes('Prazos sob minha responsabilidade'));
+  ok('bloco de tarefas pessoais', texto().includes('Minhas tarefas'));
+  ok('bloco dos proximos 7 dias', texto().includes('Meus próximos 7 dias'));
+  ok('a faixa da equipe aparece para quem nada tem no proprio nome',
+     texto().includes('Da minha equipe'));
+  ok('a carteira do escritorio NAO aparece no painel pessoal',
+     !texto().includes('Composição da carteira'));
+  ok('sem esqueleto residual', doc.querySelectorAll('#conteudo .skeleton').length === 0);
+
+  console.log('\nVisão do escritório (#/escritorio)');
+  await irPara('#/escritorio', 900);
   ok('KPIs renderizados', doc.querySelectorAll('.kpi').length >= 5,
      String(doc.querySelectorAll('.kpi').length));
   ok('card de prazos presente', texto().includes('Prazos que exigem ação'));
@@ -436,8 +452,8 @@ async function ate(condicao, limite = 3000, passo = 50) {
 
   await window.App.services.sessaoService.entrar(usuarioAdmin.id);
 
-  console.log('\nDashboard liga aos relatórios (F2.9)');
-  await irPara('#/', 900);
+  console.log('\nVisão do escritório liga aos relatórios (F2.9)');
+  await irPara('#/escritorio', 900);
   ok('o dashboard leva ao relatório da carteira',
      !!doc.querySelector('a[href="#/relatorios/carteira"]'));
   ok('e ao de contingência, para quem pode',

@@ -63,6 +63,8 @@ const NUCLEO = [
   'src/services/db.js',
 
   // Services
+  'src/services/acessoService.js',
+  'src/services/painelService.js',
   'src/services/processoService.js',
   'src/services/prazoService.js',
   'src/services/clienteService.js',

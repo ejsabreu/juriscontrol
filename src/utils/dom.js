@@ -73,15 +73,35 @@
     return node;
   }
 
-  /** Serializa um <form> em objeto simples (checkbox vira boolean). */
+  /**
+   * Serializa um <form> em objeto simples.
+   *
+   * Checkbox sem `value` proprio vira boolean — e o caso do "sim ou nao".
+   * Checkbox COM `value` vira item de array, sempre, mesmo quando so um
+   * esta marcado: e o grupo de escolha multipla, e um campo que ora devolve
+   * string ora devolve lista obriga quem consome a testar o tipo. Nao
+   * marcado nenhum devolve array vazio, nao `undefined`.
+   */
   function formToObject(form) {
     var data = {};
+
     Array.prototype.forEach.call(form.elements, function (field) {
       if (!field.name || field.disabled) return;
-      if (field.type === 'checkbox') data[field.name] = field.checked;
-      else if (field.type === 'radio') { if (field.checked) data[field.name] = field.value; }
-      else data[field.name] = field.value;
+
+      if (field.type === 'checkbox') {
+        if (field.hasAttribute('value')) {
+          if (!Array.isArray(data[field.name])) data[field.name] = [];
+          if (field.checked) data[field.name].push(field.value);
+        } else {
+          data[field.name] = field.checked;
+        }
+      } else if (field.type === 'radio') {
+        if (field.checked) data[field.name] = field.value;
+      } else {
+        data[field.name] = field.value;
+      }
     });
+
     return data;
   }
 

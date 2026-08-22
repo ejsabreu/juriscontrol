@@ -114,7 +114,7 @@
         icone: '🧭',
         titulo: 'Página não encontrada',
         texto: 'A rota "' + App.dom.esc(caminho) + '" não existe neste protótipo.',
-        acao: App.components.ui.Button({ rotulo: 'Ir para o dashboard', variante: 'primary', href: '#/' })
+        acao: App.components.ui.Button({ rotulo: 'Ir para o meu painel', variante: 'primary', href: '#/' })
       });
       return;
     }

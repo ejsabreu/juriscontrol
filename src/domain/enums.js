@@ -367,6 +367,7 @@
     { id: 'financeiro.ver',      label: 'Ver o financeiro',         grupo: 'Financeiro' },
     { id: 'financeiro.lancar',   label: 'Lançar e baixar títulos',  grupo: 'Financeiro' },
     { id: 'crm.ver',             label: 'Ver o CRM',                grupo: 'CRM' },
+    { id: 'escritorio.ver',      label: 'Ver o painel do escritório', grupo: 'Escritório' },
     { id: 'relatorios.ver',      label: 'Ver relatórios',           grupo: 'Relatórios' },
     { id: 'relatorios.todos',    label: 'Ver números de toda a equipe', grupo: 'Relatórios' },
     { id: 'portal.compartilhar', label: 'Compartilhar com cliente', grupo: 'Portal' },

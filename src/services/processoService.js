@@ -35,8 +35,13 @@
     return App.store.getState().usuarioAtual;
   }
 
+  /** Ids liberados por acesso de urgência — leitura, nunca escrita. */
+  function liberados() {
+    return App.services.acessoService.liberados();
+  }
+
   function visiveis(lista) {
-    return App.domain.permissoes.filtrarProcessos(usuarioDaSessao(), lista);
+    return App.domain.permissoes.filtrarProcessos(usuarioDaSessao(), lista, liberados());
   }
 
   /** Anexa cliente, responsável e o prazo pendente mais próximo. */
@@ -166,7 +171,7 @@
 
       // 404, não 403: dizer "sem permissão" já revelaria que o processo em
       // segredo existe, e para quem não pode vê-lo ele não existe.
-      if (!App.domain.permissoes.podeVerProcesso(usuarioDaSessao(), processo)) {
+      if (!App.domain.permissoes.podeVerProcesso(usuarioDaSessao(), processo, liberados())) {
         throw http().ErroApi('Processo não encontrado.', 404);
       }
 
@@ -254,6 +259,7 @@
         faseId: 'distribuicao',
         segredoJustica: false,
         equipeIds: [],
+        diasAcessoUrgencia: App.services.acessoService.DIAS_PADRAO,
         tags: [],
         valorProvisao: 0,
         processoPaiId: null

@@ -22,7 +22,12 @@
     R.registrar('/portal/:token',          'portal',    P.PortalClientePage,    'Acompanhamento',
                 { publica: true, semCasca: true });
 
-    R.registrar('/',                       'dashboard', P.DashboardPage,        'Dashboard');
+    /* A tela inicial e o painel PESSOAL. O do escritorio continua existindo,
+       um clique ao lado — sao perguntas diferentes, e quem abre o sistema de
+       manha esta fazendo a primeira. */
+    R.registrar('/',                       'painel',    P.MeuPainelPage,        'Meu painel');
+    R.registrar('/escritorio',             'dashboard', P.DashboardPage,        'Visão do escritório',
+                { permissao: 'escritorio.ver' });
     R.registrar('/processos',              'processos', P.ProcessosListPage,    'Processos',
                 { permissao: 'processos.ver' });
     R.registrar('/processos/novo',         'processos', P.ProcessoFormPage,     'Novo processo',

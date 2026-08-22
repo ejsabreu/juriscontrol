@@ -243,8 +243,11 @@ a.kpi:hover {
    do elemento e ocupa a largura do cartao. Daqui sai so o tamanho: a cor vem
    de `currentColor`, herdada do proprio rotulo.
 
-   14px, um pouco abaixo dos 15px do menu, porque aqui o vizinho e texto de
-   `--text-sm`, e nao outro icone. */
+   17.25px, os mesmos do item de menu (`.nav-item__icon svg`). E o mesmo
+   desenho nos dois lugares, e tamanhos diferentes desfazem metade do
+   reconhecimento que unificar criou. Se o menu mudar, este numero muda
+   junto — custom property nao serve aqui porque o valor do menu vive em
+   `layout.css`, e nenhum dos dois e dono do outro. */
 .kpi__icon {
   display: inline-flex;
   align-items: center;
@@ -252,8 +255,8 @@ a.kpi:hover {
 }
 
 .kpi__icon svg {
-  width: 14px;
-  height: 14px;
+  width: 17.25px;
+  height: 17.25px;
 }
 
 .kpi__value {
@@ -488,6 +491,18 @@ a.kpi:hover {
   height: 15px;
   accent-color: var(--color-primary-600);
   cursor: pointer;
+}
+
+/* Grupo de escolha multipla. `auto-fit` resolve a quebra sozinho: em campo
+   largo sao tres colunas, no celular vira uma, sem media query. */
+.checkbox-grupo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
 }
 
 .fieldset {

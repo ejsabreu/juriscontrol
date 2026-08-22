@@ -25,7 +25,8 @@
    */
   function visiveisPara(registros, processos) {
     return App.domain.permissoes.filtrarPorProcesso(
-      App.store.getState().usuarioAtual, registros, processos);
+      App.store.getState().usuarioAtual, registros, processos,
+      App.services.acessoService.liberados());
   }
 
   /**

@@ -271,6 +271,25 @@
     } else if (p.tipo === 'textarea') {
       controle = '<textarea class="textarea" ' + comum + ' rows="' + (p.linhas || 3) + '">' +
                  e(p.valor || '') + '</textarea>';
+    } else if (p.tipo === 'checkboxes') {
+      /* Escolha multipla como grupo de caixas, e nao <select multiple>: o
+         select multiplo exige arrastar ou segurar Ctrl, gesto que nao existe
+         no celular — e metade do uso deste sistema e no celular. */
+      return '<div class="' + classes.join(' ') + '">' +
+               '<span class="field__label">' + e(p.rotulo) + '</span>' +
+               '<div class="checkbox-grupo" role="group" aria-label="' + e(p.rotulo) + '">' +
+                 (p.itens || []).map(function (item) {
+                   return '<label class="checkbox">' +
+                            '<input type="checkbox" name="' + e(p.nome) + '"' +
+                              ' value="' + e(item.id) + '"' +
+                              (item.marcado ? ' checked' : '') +
+                              (p.desabilitado ? ' disabled' : '') + '>' +
+                            '<span>' + e(item.label) + '</span>' +
+                          '</label>';
+                 }).join('') +
+               '</div>' +
+               (p.dica ? '<div class="field__hint">' + e(p.dica) + '</div>' : '') +
+             '</div>';
     } else if (p.tipo === 'checkbox') {
       return '<div class="' + classes.join(' ') + '">' +
                '<label class="checkbox">' +

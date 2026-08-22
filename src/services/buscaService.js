@@ -189,7 +189,8 @@
         // Processo em segredo tira da busca tudo o que pende dele.
         var processo = db().find('processos', reg.processoId);
         if (!processo) return false;
-        return permissoes.podeVerProcesso(usuario, processo);
+        return permissoes.podeVerProcesso(usuario, processo,
+                                         App.services.acessoService.liberados());
       }).slice(0, op.limite || 20);
 
       return {

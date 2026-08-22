@@ -61,6 +61,10 @@
   <!-- Camada de dados (trocada por fetch na migração) -->
   <script src="src/services/http.js"></script>
   <script src="src/services/db.js"></script>
+  <!-- acessoService vem antes dos demais: eles consultam as liberações
+       dentro da própria checagem de permissão. -->
+  <script src="src/services/acessoService.js"></script>
+  <script src="src/services/painelService.js"></script>
   <script src="src/services/processoService.js"></script>
   <script src="src/services/prazoService.js"></script>
   <script src="src/services/clienteService.js"></script>
@@ -140,6 +144,7 @@
   <script src="src/layout/AppShell.js"></script>
 
   <!-- Páginas -->
+  <script src="src/pages/MeuPainelPage.js"></script>
   <script src="src/pages/DashboardPage.js"></script>
   <script src="src/pages/ProcessosListPage.js"></script>
   <script src="src/pages/ProcessoDetalhePage.js"></script>

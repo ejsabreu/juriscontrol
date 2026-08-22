@@ -30,6 +30,7 @@
 
     socio: [
       'processos.ver', 'processos.editar', 'processos.segredo',
+      'escritorio.ver',
       'prazos.baixar', 'prazos.conferir',
       'documentos.editar', 'documentos.excluir',
       'financeiro.ver',
@@ -39,6 +40,10 @@
       'publicacoes.triar'
     ],
 
+    /* Sem `escritorio.ver`: a tela inicial do advogado e o painel PESSOAL, e
+       carteira total, provisao contabil e distribuicao por fase nao mudam o
+       que ele faz hoje. Quem coordena a carteira e quem precisa do retrato
+       dela — e e quem administra ou tem sociedade no escritorio. */
     advogado: [
       'processos.ver', 'processos.editar',
       'prazos.baixar', 'prazos.conferir',
@@ -98,19 +103,27 @@
    * participação — advogado e estagiário veem o processo em segredo apenas
    * quando são o responsável ou estão na equipe dele.
    */
-  function podeVerProcesso(usuario, processo) {
+  function podeVerProcesso(usuario, processo, liberados) {
     if (!usuario || !processo) return false;
     if (!pode(usuario, 'processos.ver')) return false;
     if (!processo.segredoJustica) return true;
     if (pode(usuario, 'processos.segredo')) return true;
 
     if (processo.responsavelId === usuario.id) return true;
-    return (processo.equipeIds || []).indexOf(usuario.id) !== -1;
+    if ((processo.equipeIds || []).indexOf(usuario.id) !== -1) return true;
+
+    /* Acesso de urgência já registrado (F2.1). Vem por último de propósito:
+       é a exceção, não um quinto caminho normal. Quem chega por aqui LÊ e
+       nada mais — editar, vincular e compartilhar não recebem esta lista,
+       então continuam exigindo que a pessoa realmente atue no processo. */
+    return (liberados || []).indexOf(processo.id) !== -1;
   }
 
   /** Filtra uma lista de processos pelo que o usuário pode enxergar. */
-  function filtrarProcessos(usuario, lista) {
-    return (lista || []).filter(function (p) { return podeVerProcesso(usuario, p); });
+  function filtrarProcessos(usuario, lista, liberados) {
+    return (lista || []).filter(function (p) {
+      return podeVerProcesso(usuario, p, liberados);
+    });
   }
 
   /**
@@ -131,15 +144,16 @@
    * @param {Object}   usuario
    * @param {Array}    registros  qualquer coisa com `processoId`
    * @param {Array}    processos  os processos já lidos do banco
+   * @param {Array}   [liberados] ids de processo com acesso de urgência
    */
-  function filtrarPorProcesso(usuario, registros, processos) {
+  function filtrarPorProcesso(usuario, registros, processos, liberados) {
     var porId = {};
     (processos || []).forEach(function (p) { porId[p.id] = p; });
 
     return (registros || []).filter(function (r) {
       var processo = porId[r.processoId];
       if (!processo) return false;
-      return podeVerProcesso(usuario, processo);
+      return podeVerProcesso(usuario, processo, liberados);
     });
   }
 

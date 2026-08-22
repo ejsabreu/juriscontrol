@@ -74,6 +74,8 @@
       valorProvisao: 0,
       risco: 'possivel',
       responsavelId: usuarios.length ? usuarios[0].id : '',
+      equipeIds: [],
+      diasAcessoUrgencia: App.services.acessoService.DIAS_PADRAO,
       descricao: ''
     };
   }
@@ -238,7 +240,37 @@
               ui.Field({
                 nome: 'segredoJustica', rotulo: 'Processo em segredo de justiça',
                 tipo: 'checkbox', valor: processo.segredoJustica, largura: 4,
-                dica: 'Restringe a visualização a quem tem permissão'
+                dica: 'Restringe a visualização a quem atua no processo'
+              }) +
+              /* Quanto tempo vale um acesso de urgencia NESTE caso. Fica ao
+                 lado do segredo porque so faz sentido junto com ele: e o
+                 responsavel dizendo quanto de folga o plantao tem antes de
+                 a porta fechar sozinha. Zero fecha a valvula de vez. */
+              ui.Field({
+                nome: 'diasAcessoUrgencia', rotulo: 'Acesso de urgência (dias)',
+                tipo: 'number', largura: 4,
+                valor: processo.diasAcessoUrgencia,
+                atributos: ' min="0" max="90" inputmode="numeric"',
+                dica: 'Validade da liberação de plantão para quem não atua no ' +
+                      'caso. 0 desliga o acesso de urgência neste processo'
+              }) +
+              /* A equipe e o que torna o segredo de justica praticavel. Sem
+                 este campo, a unica forma de dar acesso a alguem era trocar
+                 o responsavel — e quem sai de licenca levava junto a
+                 visibilidade dos proprios prazos criticos. */
+              ui.Field({
+                nome: 'equipeIds', rotulo: 'Equipe que atua no processo',
+                tipo: 'checkboxes', largura: 12,
+                itens: usuarios.map(function (u) {
+                  return {
+                    id: u.id,
+                    label: u.nome,
+                    marcado: (processo.equipeIds || []).indexOf(u.id) !== -1
+                  };
+                }),
+                dica: 'Em processo sob segredo de justiça, só o responsável, a ' +
+                      'equipe marcada aqui e quem administra enxergam o caso — ' +
+                      'inclusive os prazos e compromissos dele'
               }) +
               ui.Field({
                 nome: 'processoPaiId', rotulo: 'Apenso a', tipo: 'select', largura: 6,
@@ -387,6 +419,10 @@
       faseId: dados.faseId,
       status: dados.status,
       responsavelId: dados.responsavelId,
+      equipeIds: dados.equipeIds || [],
+      diasAcessoUrgencia: dados.diasAcessoUrgencia === ''
+        ? App.services.acessoService.DIAS_PADRAO
+        : Math.max(0, Number(dados.diasAcessoUrgencia) || 0),
       risco: dados.risco,
       segredoJustica: dados.segredoJustica,
       dataDistribuicao: dados.dataDistribuicao,

@@ -77,6 +77,64 @@
     });
   }
 
+  /**
+   * Acesso de urgência a processo em segredo de justiça.
+   *
+   * Parte do NÚMERO, que a pessoa já tinha de outra fonte — o colega que
+   * ligou, o cliente, a intimação. Não lista, não sugere, não confirma
+   * existência: digitar o número é a prova de que já se sabia do caso, e é
+   * o que mantém de pé o 404 que `processoService.obter()` devolve para
+   * quem apenas navega.
+   */
+  function abrirAcessoUrgencia() {
+    var ui = App.components.ui;
+
+    App.components.Modal.abrir({
+      titulo: 'Acesso de urgência',
+      conteudo:
+        '<p class="u-sm u-muted">Para agir em processo sob segredo de justiça em que ' +
+        'você não consta como responsável nem na equipe. O acesso é imediato e ' +
+        '<strong>fica registrado na auditoria</strong> com o seu nome e o motivo.</p>' +
+        '<div class="form-grid" style="margin-top:var(--space-4)">' +
+          ui.Field({
+            nome: 'numero', rotulo: 'Número do processo', largura: 12,
+            obrigatorio: true,
+            placeholder: '0000000-00.0000.0.00.0000 ou ADV-2026-0001',
+            dica: 'Número CNJ ou número interno'
+          }) +
+          ui.Field({
+            nome: 'motivo', rotulo: 'Motivo do acesso', tipo: 'textarea',
+            largura: 12, linhas: 3, obrigatorio: true,
+            placeholder: 'Ex.: prazo de contestação vence hoje e a responsável ' +
+                         'está em audiência — vou protocolar.',
+            dica: 'Quem for auditar isso depois precisa entender sem ligar para você'
+          }) +
+        '</div>',
+      acoes: [
+        { rotulo: 'Cancelar', variante: 'secondary', acao: 'cancelar', fechar: true },
+        { rotulo: 'Registrar e abrir', variante: 'primary', acao: 'confirmar' }
+      ],
+      aoAcao: function (acao, corpo, fechar) {
+        if (acao !== 'confirmar') return;
+
+        var numero = App.dom.qs('#numero', corpo);
+        var motivo = App.dom.qs('#motivo', corpo);
+
+        App.services.acessoService.liberar({
+          numero: numero ? numero.value : '',
+          motivo: motivo ? motivo.value : ''
+        }).then(function (liberacao) {
+          fechar();
+          App.components.Toast.sucesso('Acesso registrado',
+            'A consulta a ' + liberacao.processo.numeroInterno + ' está na trilha de auditoria.');
+          window.location.hash = '#/processos/' + liberacao.processo.id;
+        }).catch(function (erro) {
+          App.components.Toast.erro('Não foi possível liberar o acesso', erro.message);
+        });
+      }
+    });
+  }
+
   function cabecalho() {
     var ui = App.components.ui;
     return '<div class="page-header">' +
@@ -96,6 +154,10 @@
                    { id: 'kanban', label: 'Kanban', icone: '▩', titulo: 'Visão em quadro — acompanhar o andamento' }
                  ]
                }) +
+               /* Discreto de proposito, e sem dizer que existe processo
+                  escondido: quem precisa disto ja chegou sabendo o numero. */
+               ui.Button({ rotulo: 'Acesso de urgência', variante: 'ghost',
+                           acao: 'acesso-urgencia' }) +
                ui.Button({ rotulo: 'Novo processo', variante: 'primary', icone: '+', href: '#/processos/novo' }) +
              '</div>' +
            '</div>';
@@ -315,6 +377,11 @@
     });
 
     // Alternar tabela ⇄ kanban
+    App.dom.delegate(container, 'click', '[data-action="acesso-urgencia"]', function (evento) {
+      evento.preventDefault();
+      abrirAcessoUrgencia();
+    });
+
     App.dom.delegate(container, 'click', '[data-action="trocar-visao"]', function (evento, botao) {
       var nova = botao.dataset.value;
       if (nova === visao()) return;

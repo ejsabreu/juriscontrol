@@ -20,7 +20,8 @@
    */
   function visiveisPara(tarefas, processos) {
     return App.domain.permissoes.filtrarPorProcesso(
-      App.store.getState().usuarioAtual, tarefas, processos);
+      App.store.getState().usuarioAtual, tarefas, processos,
+      App.services.acessoService.liberados());
   }
 
   function enriquecer(tarefa, ctx) {

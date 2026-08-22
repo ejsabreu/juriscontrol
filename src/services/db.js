@@ -34,7 +34,8 @@
     'linksCompartilhados', 'acessosPortal',                               // F2.3
     'logsAuditoria', 'consentimentos', 'solicitacoesTitular',             // F2.1
     'modelosPeca', 'assinaturas', 'acessosDocumento',                     // F2.7
-    'feriadosEscritorio', 'configuracoes'                                 // F2.10
+    'feriadosEscritorio', 'configuracoes',                                // F2.10
+    'liberacoesAcesso'                                                    // acesso de urgência
   ];
 
   /* Gancho de auditoria — nasce desligado e é plugado em F2.1. Existe desde

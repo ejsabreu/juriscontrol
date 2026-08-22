@@ -125,6 +125,24 @@
     '<path d="M18.5 5.6L15.5 12.5h6Z"/>'
   );
 
+  /* Triângulo de alerta. O desenho de origem tem a borda do triângulo mais
+     grossa que o miolo, e um traço de exclamação com pé afilado; a 15px a
+     diferença de espessura vira sujeira, e o afilamento some. Ficou tudo na
+     mesma espessura da moldura.
+
+     O triângulo ocupa a grade quase inteira de propósito — os outros ícones
+     desta escala têm silhueta alta e estreita, e um triângulo pequeno no
+     meio da caixa pareceria meio tamanho ao lado deles.
+
+     O ponto é um `path` de comprimento quase zero, e não um `circle`: com
+     `stroke-linecap: round` da moldura ele sai redondo e com a espessura do
+     traço, acompanhando o resto do desenho sem virar um segundo raio. */
+  var ALERTA = moldura(
+    '<path d="M12 3 1.9 20.6h20.2Z"/>' +
+    '<path d="M12 9.4v4.4"/>' +
+    '<path d="M12 17.3h.01"/>'
+  );
+
   /* As três barras. Não muda de desenho entre recolhido e expandido de
      propósito: é sempre o mesmo botão, no mesmo lugar, e o estado de quem
      aperta já está visível no menu inteiro ao lado. Seta que inverte serve
@@ -258,6 +276,26 @@
      São três linhas e três barras, e não as cinco e quatro do desenho de
      origem — a 15px, cinco linhas separadas por menos de dois pixels viram um
      retângulo cheio. */
+  /* Casa: telhado, corpo e porta. O ponto de partida do sistema.
+
+     Fica ao lado de PAINEL no menu e por isso precisa se distinguir dele à
+     primeira vista — daí o telhado em diagonal cheia, que nenhum outro
+     desenho desta escala tem. A silhueta triangular sobre retângulo é
+     reconhecível mesmo quando o traço fecha.
+
+     O desenho de origem traz também uma janela e uma chaminé; as duas caem.
+     A 17px a janela vira um borrão colado na porta, e a chaminé desequilibra
+     o telhado para a direita sem acrescentar significado — casa se reconhece
+     pelo telhado, não pela chaminé.
+
+     A porta encosta na base de propósito, sem fechar embaixo: porta com
+     quatro lados lê como janela baixa. */
+  var CASA = moldura(
+    '<path d="M2.6 10.2 12 2.7l9.4 7.5"/>' +
+    '<path d="M4.9 9.1v10.6a1.8 1.8 0 0 0 1.8 1.8h10.6a1.8 1.8 0 0 0 1.8-1.8V9.1"/>' +
+    '<path d="M9.5 21.5v-6.3h5v6.3"/>'
+  );
+
   var PAINEL = moldura(
     '<path d="M2.5 3.5h19v17h-19z"/>' +
     '<path d="M2.5 8h19"/>' +
@@ -335,8 +373,10 @@
      redesenhá-los seria trabalho sem ganho. Entram no registro para que quem
      pede um ícone pela chave receba SEMPRE algo renderizável. */
   var REGISTRO = {
+    casa:           CASA,
     painel:         PAINEL,
     balanca:        BALANCA,
+    alerta:         ALERTA,
     agenda:         AGENDA,
     checklist:      CHECKLIST,
     jornal:         JORNAL,

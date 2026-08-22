@@ -22,7 +22,9 @@
      "Administração" sobre lugar nenhum seria pior que menu nenhum. */
   var ITENS = [
     { secao: 'Acompanhamento' },
-    { rota: '#/',          icone: 'painel', rotulo: 'Dashboard',  chave: 'dashboard' },
+    { rota: '#/',            icone: 'casa', rotulo: 'Meu painel', chave: 'painel' },
+    { rota: '#/escritorio',  icone: 'painel', rotulo: 'Escritório', chave: 'dashboard',
+      permissao: 'escritorio.ver' },
     { rota: '#/processos', icone: 'balanca', rotulo: 'Processos',  chave: 'processos',
       permissao: 'processos.ver' },
     { rota: '#/agenda',    icone: 'agenda', rotulo: 'Agenda',     chave: 'agenda' },

@@ -131,7 +131,9 @@
         href: '#/tarefas'
       }) +
       ui.Kpi({
-        rotulo: 'Provisão de risco', icone: '⚠',
+        // Ultimo emoji dos cartoes. Fica sem `corIcone`: provisao e o retrato
+        // contabil, nao um alarme — quem alarma sao os dois de cima.
+        rotulo: 'Provisão de risco', icone: App.icones.de('alerta'),
         valor: fmt.moedaCompacta(dados.processos.provisaoTotal),
         dica: 'de ' + fmt.moedaCompacta(dados.processos.valorTotal) + ' em causa',
         cor: 'var(--color-accent-500)'

@@ -44,6 +44,19 @@
     '<path d="M5.5 17.5h8"/>'
   );
 
+  /* Lupa simples: a lente e o cabo. É o ícone da caixa de busca.
+
+     Convive com BUSCA_PESSOA sem conflito porque as duas dizem coisas
+     diferentes — aquela é prospecção, um lugar do sistema; esta é o gesto de
+     procurar, e aparece dentro do campo.
+
+     O cabo sai a 45° e para antes da borda: encostado no canto ele parece
+     cortado quando o campo tem pouca altura. */
+  var LUPA = moldura(
+    '<circle cx="10.5" cy="10.5" r="7"/>' +
+    '<path d="M15.6 15.6L21 21"/>'
+  );
+
   /* Lupa com uma pessoa dentro: procurar quem ainda não é cliente.
 
      O desenho de origem apoia a lupa sobre uma mão aberta. A mão não veio: ela
@@ -380,6 +393,7 @@
     agenda:         AGENDA,
     checklist:      CHECKLIST,
     jornal:         JORNAL,
+    lupa:           LUPA,
     'busca-pessoa': BUSCA_PESSOA,
     pessoa:         PESSOA,
     relatorio:      RELATORIO,

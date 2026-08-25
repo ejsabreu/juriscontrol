@@ -89,7 +89,14 @@
 
       var sessao = montar(usuario);
       gravar(sessao);
-      App.store.setState({ usuarioAtual: usuario, sessao: sessao });
+      /* Entrar é sempre o mesmo começo: Meu painel na tela e o menu todo
+         fechado. Zerar aqui cobre a troca de usuário sem recarregar a
+         página, em que o estado da sessão anterior sobreviveria. */
+      App.store.setState({
+        usuarioAtual: usuario,
+        sessao: sessao,
+        sidebarSecoesAbertas: []
+      });
 
       if (App.services.auditoriaService) {
         App.services.auditoriaService.registrar({

@@ -27,13 +27,13 @@
     });
 
     ligarEventos();   // delegação no container: uma vez por rota
-    carregar();
+    carregar(true);
   }
 
-  function carregar() {
+  function carregar(completo) {
     App.services.tarefaService.listar(filtros()).then(function (resultado) {
       tarefas = resultado.itens;
-      desenhar();
+      if (completo || !atualizarMiolo()) desenhar();
     }).catch(function (erro) {
       container.innerHTML = App.components.ui.EmptyState({
         icone: '⚠', titulo: 'Erro ao carregar tarefas', texto: erro.message
@@ -81,7 +81,10 @@
     });
   }
 
-  function desenhar() {
+  /* Só o miolo muda a cada busca. Cabeçalho e barra de filtros ficam de pé,
+     e com eles o campo, o cursor e o foco de quem está digitando — sem isso
+     a tela pisca a cada tecla e o `<input>` é destruído debaixo dos dedos. */
+  function miolo() {
     var colunas = App.selectors.colunasKanbanTarefas(tarefas);
 
     colunas.forEach(function (coluna) {
@@ -90,10 +93,7 @@
         : '';
     });
 
-    container.innerHTML =
-      cabecalho() +
-      barraFiltros() +
-      '<p class="u-xs u-subtle" style="margin-bottom:var(--space-3)">' +
+    return '<p class="u-xs u-subtle" style="margin-bottom:var(--space-3)">' +
         'Arraste um card entre as colunas para alterar o status da tarefa.' +
       '</p>' +
       App.components.KanbanBoard({
@@ -102,6 +102,17 @@
         arrastavel: true,
         vazio: 'Nenhuma tarefa'
       });
+  }
+
+  function desenhar() {
+    container.innerHTML =
+      cabecalho() + barraFiltros() + '<div data-miolo>' + miolo() + '</div>';
+  }
+
+  function atualizarMiolo() {
+    return App.components.FilterBar.trocarMiolo(container, miolo(), {
+      totalAtivos: App.selectors.filtrosAtivos(filtros())
+    });
   }
 
   function ligarEventos() {

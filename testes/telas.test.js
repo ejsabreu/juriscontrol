@@ -325,9 +325,35 @@ async function ate(condicao, limite = 3000, passo = 50) {
 
   console.log('\nClientes');
   await irPara('#/clientes', 900);
-  ok('cartões de cliente renderizados', doc.querySelectorAll('.card').length >= 12,
-     String(doc.querySelectorAll('.card').length));
+  /* A lista de clientes usa a MESMA tabela de Processos — mesmas asserções,
+     por isso. Cartão em grade mostrava os mesmos campos em três vezes mais
+     altura, e comparar dois clientes exigia rolar. */
+  ok('barra de filtros renderizada', !!doc.querySelector('.filter-bar'));
+  ok('tabela de clientes renderizada', !!doc.querySelector('table.table'));
+  const linhasClientes = doc.querySelectorAll('table.table tbody tr').length;
+  ok('15 linhas na primeira página', linhasClientes === 15, String(linhasClientes));
+  ok('a tabela rola dentro do próprio container', !!doc.querySelector('.table-wrap'));
   ok('paginação de clientes', !!doc.querySelector('.pagination'));
+  ok('a ordenação saiu da barra de filtros e foi para o cabeçalho',
+     !doc.querySelector('[name="ordenarPor"]') &&
+     doc.querySelectorAll('table.table thead th[data-sort]').length > 0);
+
+  /* Ordenar pelo cabeçalho tem de REORDENAR de verdade — antes a direção nem
+     existia no serviço de clientes, e um clique não mudaria nada. */
+  const antesOrdenar = Array.from(doc.querySelectorAll('table.table tbody tr'))
+    .slice(0, 3).map(tr => tr.textContent.slice(0, 24));
+  const thProcessos = Array.from(doc.querySelectorAll('table.table thead th[data-sort]'))
+    .find(th => th.textContent.includes('Processos'));
+  ok('há coluna Processos ordenável', !!thProcessos);
+  thProcessos.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await esperar(800);
+  const depoisOrdenar = Array.from(doc.querySelectorAll('table.table tbody tr'))
+    .slice(0, 3).map(tr => tr.textContent.slice(0, 24));
+  ok('clicar no cabeçalho reordena a lista',
+     JSON.stringify(antesOrdenar) !== JSON.stringify(depoisOrdenar));
+  ok('e o estado guarda a coluna e a direção',
+     window.App.store.getState().clientesFiltros.ordenarPor === 'totalProcessos' &&
+     !!window.App.store.getState().clientesFiltros.direcao);
 
   const cliente = window.App.services.db.get('pessoas').find(p => p.ehCliente);
   await irPara('#/clientes/' + cliente.id, 900);

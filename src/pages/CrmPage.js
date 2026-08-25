@@ -26,18 +26,20 @@
     container = elemento;
     container.innerHTML = App.components.ui.Skeleton({ linhas: 6 });
     ligarEventos();
-    carregar();
+    carregar(true);
   }
 
   function destroy() {
     if (desmontarKanban) { desmontarKanban(); desmontarKanban = null; }
   }
 
-  function carregar() {
+  function carregar(completo) {
     App.services.leadService.listar(filtros).then(function (lista) {
       leads = lista;
       resumo = App.services.leadService.resumo();
-      desenhar();
+      /* Os KPIs e o subtítulo saem do `resumo`, que é do funil INTEIRO e não
+         do filtro — por isso ficam fora do miolo e não precisam de acerto. */
+      if (completo || !atualizarMiolo()) desenhar();
     }).catch(function (erro) {
       container.innerHTML = App.components.ui.EmptyState({
         icone: '⚠', titulo: 'Erro ao carregar o funil', texto: erro.message
@@ -115,6 +117,27 @@
     '</div>';
   }
 
+  /* Só o miolo muda a cada busca. Cabeçalho e barra de filtros ficam de pé,
+     e com eles o campo, o cursor e o foco de quem está digitando — sem isso
+     a tela pisca a cada tecla e o `<input>` é destruído debaixo dos dedos. */
+  function miolo() {
+    return App.components.KanbanBoard({
+      colunas: colunas(),
+      renderCard: LeadCard,
+      arrastavel: true,
+      vazio: 'Nenhum interessado'
+    });
+  }
+
+  function atualizarMiolo() {
+    /* O quadro é remontado a cada troca, então o listener de arrastar
+       precisa ser desligado antes — senão sobra um por busca. */
+    if (desmontarKanban) { desmontarKanban(); desmontarKanban = null; }
+    return App.components.FilterBar.trocarMiolo(container, miolo(), {
+      totalAtivos: App.selectors.filtrosAtivos(filtros, [])
+    });
+  }
+
   function desenhar() {
     var ui = App.components.ui;
     var enums = App.domain.enums;
@@ -154,12 +177,7 @@
         totalAtivos: App.selectors.filtrosAtivos(filtros, [])
       }) +
 
-      App.components.KanbanBoard({
-        colunas: colunas(),
-        renderCard: LeadCard,
-        arrastavel: true,
-        vazio: 'Nenhum interessado'
-      });
+      '<div data-miolo>' + miolo() + '</div>';
 
     desmontarKanban = App.components.KanbanBoard.mount(container, {
       aoMover: moverLead

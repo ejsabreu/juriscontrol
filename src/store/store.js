@@ -97,6 +97,13 @@
        montagem e a cada vez que a janela cruza os 900px — o padrão depende da
        largura, e largura não é assunto do store. */
     sidebarRecolhida: false,
+    /* Seções do menu ABERTAS, por rótulo. Guardar as abertas, e não as
+       fechadas, é o que faz o padrão ser "tudo dobrado": lista vazia =
+       nenhuma aberta. Também vale para seção nova — ela nasce fechada, junto
+       com as outras, em vez de aparecer aberta sozinha.
+
+       Não é gravada entre sessões: ver `salvarPreferencias`. */
+    sidebarSecoesAbertas: [],
 
     // Filtros da tela de Processos — sobrevivem à troca tabela ⇄ kanban
     processosFiltros: {
@@ -118,7 +125,8 @@
     agendaFiltros: { responsavelId: '', tipo: '', apenasAbertos: true },
 
     tarefasFiltros: { busca: '', responsavelId: '', prioridade: '' },
-    clientesFiltros: { busca: '', tipo: '', ordenarPor: 'nome', pagina: 1, porPagina: 12 },
+    clientesFiltros: { busca: '', tipo: '', ordenarPor: 'nome', direcao: 'asc',
+                       pagina: 1, porPagina: 15 },
 
     carregando: false,
     erro: null
@@ -142,6 +150,11 @@
         // `sidebarRecolhida` NÃO entra aqui: o menu começa recolhido a cada
         // abertura, por decisão de projeto. Gravar o estado faria a segunda
         // sessão abrir expandida.
+        //
+        // `sidebarSecoesAbertas` fica de fora pela MESMA razão: entrar no
+        // sistema é sempre o mesmo começo — a tela inicial é Meu painel e o
+        // menu está todo fechado. Guardar as seções abertas faria a segunda
+        // sessão herdar a arrumação da primeira e deixar de ser um começo.
         processosVisao: s.processosVisao,
         processosAgruparPor: s.processosAgruparPor
       }));

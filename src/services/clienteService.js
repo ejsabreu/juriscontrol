@@ -26,6 +26,31 @@
     });
   }
 
+  /* Mesma forma do `COMPARADORES` de processoService: cada um ordena
+     CRESCENTE, e a direção é aplicada depois, invertendo. Comparador que já
+     devolve descendente — como o antigo `b.total - a.total` daqui — não
+     compõe com um botão de direção: clicar no cabeçalho inverteria o sentido
+     de umas colunas e não de outras. */
+  var COMPARADORES = {
+    nome:            function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); },
+    tipo:            function (a, b) { return a.tipo.localeCompare(b.tipo); },
+    documento:       function (a, b) {
+      return String(a.documento).replace(/\D/g, '')
+        .localeCompare(String(b.documento).replace(/\D/g, ''));
+    },
+    cidade:          function (a, b) {
+      return (a.endereco.cidade + a.endereco.uf)
+        .localeCompare(b.endereco.cidade + b.endereco.uf, 'pt-BR');
+    },
+    totalProcessos:  function (a, b) { return a.totalProcessos - b.totalProcessos; },
+    valorEnvolvido:  function (a, b) { return a.valorEnvolvido - b.valorEnvolvido; }
+  };
+
+  /**
+   * @param {Object} [filtros] busca, tipo, uf, apenasComProcessoAtivo,
+   *                           incluirNaoClientes, ordenarPor, direcao,
+   *                           pagina, porPagina
+   */
   function listar(filtros) {
     return http().requisicao(function () {
       var f = filtros || {};
@@ -51,12 +76,11 @@
         return true;
       });
 
-      var ordem = f.ordenarPor || 'nome';
-      lista.sort(function (a, b) {
-        if (ordem === 'totalProcessos') return b.totalProcessos - a.totalProcessos;
-        if (ordem === 'valorEnvolvido') return b.valorEnvolvido - a.valorEnvolvido;
-        return a.nome.localeCompare(b.nome, 'pt-BR');
-      });
+      var comparador = COMPARADORES[f.ordenarPor || 'nome'];
+      if (comparador) {
+        lista.sort(comparador);
+        if (f.direcao === 'desc') lista.reverse();
+      }
 
       var total = lista.length;
       var pagina = f.pagina || 1;

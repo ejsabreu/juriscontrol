@@ -83,6 +83,7 @@
    * @param {Object} props
    * @param {string} props.rotaAtual
    * @param {boolean} props.recolhida  menu na tira de ícones, em qualquer largura
+   * @param {Array}  [props.secoesAbertas]  rótulos das seções abertas
    * @param {Object} props.usuario  define quais itens aparecem
    */
   function Sidebar(props) {
@@ -113,9 +114,72 @@
 
     html += '<nav class="sidebar__nav" aria-label="Navegação principal">';
 
-    itensVisiveis(p.usuario).forEach(function (item) {
+    /* Seções dobráveis. O padrão é FECHADO: só abre o que está na lista.
+
+       Recolhido, o menu é uma tira de ícones e os rótulos de seção somem —
+       então dobrar não pode valer ali: os itens sumiriam sem nada visível
+       para trazê-los de volta. Nesse estado tudo conta como aberto, e não
+       porque a preferência tenha sido perdida: ela volta inteira ao expandir. */
+    var abertas = p.secoesAbertas || [];
+    var grupoAberto = false;
+
+    var visiveis = itensVisiveis(p.usuario);
+
+    /* Qual item ATIVO cada seção guarda. Dobrada, a seção some com a cápsula
+       do item aberto e leva junto o "você está aqui" — então ela mesma passa
+       a carregar o ícone da tela em que se está.
+
+       Precisa de uma passada antes do desenho: quando o título da seção é
+       escrito, os itens dela ainda não foram percorridos. */
+    var ativoDaSecao = {};
+    var secaoCorrente = null;
+
+    visiveis.forEach(function (item) {
+      if (item.secao) { secaoCorrente = item.secao; return; }
+      if (secaoCorrente && item.chave === p.rotaAtual) {
+        ativoDaSecao[secaoCorrente] = item;
+      }
+    });
+
+    function fecharGrupo() {
+      if (grupoAberto) { html += '</div></div>'; grupoAberto = false; }
+    }
+
+    visiveis.forEach(function (item) {
       if (item.secao) {
-        html += '<div class="sidebar__section-label">' + esc(item.secao) + '</div>';
+        fecharGrupo();
+
+        var dobrada = !p.recolhida && abertas.indexOf(item.secao) === -1;
+        var atual = ativoDaSecao[item.secao];
+
+        /* O ícone é escrito SEMPRE que a seção guarda a tela atual, e quem
+           decide se ele aparece é o CSS, pelo estado de dobrada. Tem de ser
+           assim porque o clique não repinta o menu — ele só troca classes,
+           para a abertura poder ser animada. Se o ícone dependesse do
+           desenho, ele só surgiria na próxima troca de rota. */
+        html += '<button type="button" class="sidebar__section' +
+                  (dobrada ? ' sidebar__section--dobrada' : '') +
+                  (atual ? ' sidebar__section--tem-atual' : '') + '"' +
+                  ' data-action="alternar-secao" data-value="' + esc(item.secao) + '"' +
+                  ' aria-expanded="' + (dobrada ? 'false' : 'true') + '"' +
+                  (atual ? ' aria-label="' + esc(item.secao) + ' — ' +
+                           esc(atual.rotulo) + '"' : '') + '>' +
+                  '<span class="sidebar__section-label">' + esc(item.secao) + '</span>' +
+                  (atual
+                    ? '<span class="sidebar__section-atual" aria-hidden="true"' +
+                      ' title="' + esc(atual.rotulo) + '">' +
+                        App.icones.de(atual.icone) + '</span>'
+                    : '') +
+                  '<span class="sidebar__section-seta" aria-hidden="true"></span>' +
+                '</button>';
+
+        /* Duas camadas: a de fora anima a altura (de `0fr` a `1fr`), a de
+           dentro segura os itens e corta o que sobra enquanto encolhe.
+           `display: none` não anima — por isso não se usa `u-hidden` aqui. */
+        html += '<div class="sidebar__grupo' +
+                  (dobrada ? ' sidebar__grupo--dobrado' : '') + '">' +
+                '<div class="sidebar__grupo-interno">';
+        grupoAberto = true;
         return;
       }
 
@@ -136,6 +200,7 @@
               '</a>';
     });
 
+    fecharGrupo();
     html += '</nav>';
 
     html += '<div class="sidebar__footer">' +

@@ -31,14 +31,20 @@
     container = elemento;
     container.innerHTML = App.components.ui.Skeleton({ linhas: 8 });
     ligarEventos();
-    carregar();
+    carregar(true);
   }
 
   function destroy() {
     if (desmontarGrafico) { desmontarGrafico(); desmontarGrafico = null; }
   }
 
-  function carregar() {
+  function atualizarMiolo() {
+    return App.components.FilterBar.trocarMiolo(container, cardLancamentos(), {
+      totalAtivos: App.selectors.filtrosAtivos(filtros, ['tipo'])
+    });
+  }
+
+  function carregar(completo) {
     var pedidos = [App.services.lancamentoService.resumo({ regime: regime })];
 
     if (aba === 'receber' || aba === 'pagar') {
@@ -55,7 +61,9 @@
       if (aba === 'receber' || aba === 'pagar') lista = r[1];
       if (aba === 'contratos') contratos = r[1];
       if (aba === 'repasses') repasses = r[1];
-      desenhar();
+      /* Só a aba de títulos tem miolo marcado; nas outras `trocarMiolo`
+         devolve falso e a tela é redesenhada, que é o certo. */
+      if (completo || !atualizarMiolo()) desenhar();
     }).catch(function (erro) {
       container.innerHTML = App.components.ui.EmptyState({
         icone: '⚠', titulo: 'Erro ao carregar o financeiro', texto: erro.message
@@ -246,7 +254,24 @@
       ],
       totalAtivos: App.selectors.filtrosAtivos(filtros, ['tipo'])
     }) +
-    ui.Card({
+    '<div data-miolo>' + cardLancamentos() + '</div>';
+  }
+
+  /* O miolo da aba de títulos: só ele muda quando se busca ou se filtra.
+     A barra fica de pé, e com ela o campo e o foco. */
+  function cardLancamentos() {
+    var ui = App.components.ui;
+    var receita = aba === 'receber';
+
+    var tabela = lista.itens.length
+      ? '<div class="table-wrap"><table class="table"><thead><tr>' +
+          '<th>Descrição</th><th>Vencimento</th><th class="u-right">Valor</th>' +
+          '<th>Situação</th><th></th>' +
+        '</tr></thead><tbody>' + lista.itens.map(linhaLancamento).join('') +
+        '</tbody></table></div>'
+      : ui.EmptyState({ icone: '💰', titulo: 'Nenhum título neste filtro' });
+
+    return ui.Card({
       titulo: receita ? 'Contas a receber' : 'Contas a pagar',
       subtitulo: lista.total + ' título(s) · ' + moeda(lista.somaCentavos),
       acoes: ui.Button({ rotulo: 'Novo lançamento', tamanho: 'sm', variante: 'primary',
@@ -541,13 +566,15 @@
     App.dom.delegate(container, 'click', '[data-action="trocar-aba"]', function (evento, alvo) {
       aba = alvo.getAttribute('data-value');
       filtros = { tipo: 'receita', status: '', busca: '' };
-      carregar();
+      /* Trocar de aba refaz tudo: as abas, a barra e o corpo mudam juntos. */
+      carregar(true);
     });
 
     App.dom.delegate(container, 'click', '[data-action="trocar-regime"]',
       function (evento, alvo) {
         regime = alvo.getAttribute('data-value');
-        carregar();
+        carregar(true);   // o regime muda o painel inteiro, fora do miolo
+      
       });
 
     App.components.FilterBar.mount(container, {

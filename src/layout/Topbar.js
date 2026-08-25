@@ -23,7 +23,8 @@
          botão era a única forma de reabri-lo. */
 
       '<div class="topbar__search">' +
-        '<span class="topbar__search-icon" aria-hidden="true">⌕</span>' +
+        '<span class="topbar__search-icon" aria-hidden="true">' +
+          App.icones.de('lupa') + '</span>' +
         '<input type="search" id="busca-global" autocomplete="off"' +
           ' placeholder="Buscar processo, cliente ou número CNJ…"' +
           ' aria-label="Busca global">' +

@@ -121,14 +121,27 @@ const esperar = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('\nFiltros repetidos não duplicam requisições de página');
   await ir('#/processos?visao=tabela', 1000);
+  /* O filtro da barra deixou de ser um `<select>` nativo e virou o combo com
+     painel próprio — a lista de um select é desenhada pelo sistema e não
+     aceita estilo. O teste passa a dirigir os dois cliques que a pessoa dá:
+     abrir e escolher. */
+  const comboArea = () => d.querySelector('.combo[data-combo="areaId"]');
+  ok('o filtro de área virou combo', !!comboArea());
+
   for (let i = 0; i < 5; i++) {
-    const sel = d.querySelector('select[data-filtro="areaId"]');
-    sel.value = i % 2 ? 'civel' : '';
-    disparar(sel, 'change');
+    clicar(comboArea().querySelector('.combo__trigger'));
+    await esperar(80);
+    const alvo = i % 2 ? 'civel' : '';
+    const item = comboArea()
+      .querySelector('.combo__item[data-combo-valor="' + alvo + '"]');
+    ok('opção do combo existe na volta ' + (i + 1), !!item, alvo || '(vazio)');
+    clicar(item);
     await esperar(450);
   }
   ok('tabela continua consistente após 5 trocas de filtro',
      d.querySelectorAll('table.table tbody tr').length > 0);
+  ok('o painel do combo fecha depois de escolher',
+     comboArea().querySelector('.combo__painel').classList.contains('u-hidden'));
   ok('sem erro após filtros repetidos', erros.length === 0,
      erros.slice(0, 2).join(' | '));
 

@@ -24,13 +24,13 @@
     container = elemento;
     container.innerHTML = App.components.ui.Skeleton({ linhas: 8 });
     ligarEventos();
-    carregar();
+    carregar(true);
   }
 
-  function carregar() {
+  function carregar(completo) {
     App.services.auditoriaService.listar(filtros).then(function (r) {
       resultado = r;
-      desenhar();
+      if (completo || !atualizarMiolo()) desenhar();
     }).catch(function (erro) {
       container.innerHTML = App.components.ui.EmptyState({
         icone: '⚠', titulo: 'Erro ao carregar a trilha', texto: erro.message
@@ -130,7 +130,7 @@
       '</li>';
   }
 
-  function desenhar() {
+  function miolo() {
     var ui = App.components.ui;
 
     var lista = resultado.itens.length
@@ -142,6 +142,19 @@
                  'os dados do seed não geram eventos.'
         });
 
+    return ui.Card({ conteudo: lista, semPadding: true }) +
+      ui.Pagination({
+        pagina: resultado.pagina,
+        totalPaginas: resultado.totalPaginas,
+        total: resultado.total,
+        info: resultado.total + ' ' + App.format.plural(resultado.total, 'evento')
+      });
+  }
+
+  /* Só o miolo muda a cada busca. Cabeçalho e barra de filtros ficam de pé,
+     e com eles o campo, o cursor e o foco de quem está digitando — sem isso
+     a tela pisca a cada tecla e o `<input>` é destruído debaixo dos dedos. */
+  function desenhar() {
     container.innerHTML =
       cabecalho() +
       App.components.SeloSimulado({
@@ -150,13 +163,13 @@
         naFase3: 'tabela de auditoria separada, somente-inserção, fora do alcance da aplicação.'
       }) +
       barraFiltros() +
-      ui.Card({ conteudo: lista, semPadding: true }) +
-      ui.Pagination({
-        pagina: resultado.pagina,
-        totalPaginas: resultado.totalPaginas,
-        total: resultado.total,
-        info: resultado.total + ' ' + App.format.plural(resultado.total, 'evento')
-      });
+      '<div data-miolo>' + miolo() + '</div>';
+  }
+
+  function atualizarMiolo() {
+    return App.components.FilterBar.trocarMiolo(container, miolo(), {
+      totalAtivos: App.selectors.filtrosAtivos(filtros, ['pagina', 'porPagina'])
+    });
   }
 
   function exportar() {

@@ -101,11 +101,34 @@
       return;
     }
 
+    /* Recolher e expandir REDESENHA o menu — os rótulos somem, os títulos de
+       seção somem, o `title` de cada item aparece. E redesenhar um elemento
+       zera a rolagem dele: quem estava no fim da lista, com o menu longo,
+       voltava ao topo a cada clique no botão.
+
+       Então a posição é guardada antes e devolvida depois. Vale para
+       qualquer redesenho da casca, não só o do botão — trocar de rota
+       também repinta o menu para marcar o item ativo. */
+    var navAntes = document.querySelector('.sidebar__nav');
+    var rolagem = navAntes ? navAntes.scrollTop : 0;
+
     App.dom.render('#slot-sidebar', App.layout.Sidebar({
       rotaAtual: estado.rota && estado.rota.chave,
       recolhida: estado.sidebarRecolhida,
+      secoesAbertas: estado.sidebarSecoesAbertas,
       usuario: estado.usuarioAtual      // F2.1: o menu esconde o que o perfil não acessa
     }));
+
+    if (rolagem) {
+      var navDepois = document.querySelector('.sidebar__nav');
+      /* Só devolve o que ainda cabe: ao recolher, a lista fica mais curta —
+         sem rótulos e sem títulos de seção — e pedir uma posição maior que a
+         nova altura deixaria o menu no fim, e não onde estava. */
+      if (navDepois) {
+        navDepois.scrollTop = Math.min(
+          rolagem, navDepois.scrollHeight - navDepois.clientHeight);
+      }
+    }
 
     App.dom.render('#slot-topbar', App.layout.Topbar({
       usuario: estado.usuarioAtual,
@@ -150,6 +173,32 @@
   }
 
   function ligarEventos() {
+    /* Abre e fecha uma seção do menu.
+
+       Aqui NÃO se repinta a casca, ao contrário do botão de recolher. Um
+       elemento recém-criado já nasce no estado final, e transição nenhuma
+       acontece — para a abertura ser animada, é o mesmo nó que precisa mudar
+       de classe. O store é atualizado do mesmo jeito, e é dele que sai o
+       estado quando a casca for repintada por outro motivo (troca de rota,
+       por exemplo). */
+    App.dom.delegate(raiz, 'click', '[data-action="alternar-secao"]', function (evento, botao) {
+      var secao = botao.dataset.value;
+      var abertas = App.store.getState().sidebarSecoesAbertas || [];
+      var i = abertas.indexOf(secao);
+      var abrindo = i === -1;
+
+      App.store.setState({
+        sidebarSecoesAbertas: abrindo
+          ? abertas.concat([secao])
+          : abertas.slice(0, i).concat(abertas.slice(i + 1))
+      });
+      botao.classList.toggle('sidebar__section--dobrada', !abrindo);
+      botao.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
+
+      var grupo = botao.nextElementSibling;
+      if (grupo) grupo.classList.toggle('sidebar__grupo--dobrado', !abrindo);
+    });
+
     /* Um botão só, um estado só, nos dois degraus — e nada de salvar: o menu
        começa recolhido a cada abertura (ver o padrão em store.js). Expandir
        vale para esta sessão. */

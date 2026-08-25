@@ -63,23 +63,29 @@
 
 /* --- Sidebar -------------------------------------------------------------- */
 
-/* O menu ocupa a página inteira na vertical: a área `sidebar` cobre as duas
-   linhas da grade e o item estica por padrão, então a coluna vai do topo ao
-   fim do documento — e o documento cresce até caber o menu inteiro, porque um
-   item que atravessa as duas linhas entra no cálculo da altura delas.
+/* O menu é uma coluna FIXA de uma tela de altura, com rolagem própria.
 
-   Sem rolagem própria, de propósito. Uma barra dentro do menu obriga quem usa
-   a perceber que há duas rolagens na tela e a acertar o ponteiro na certa para
-   escolher entre elas. Sem ela o menu é parte da página: a lista simplesmente
-   segue abaixo da dobra e chega junto com o resto. O preço é que o menu sai de
-   vista numa página longa — aceito, porque a alternativa cobra atenção o tempo
-   todo, e não só quando se rola até o fim. */
+   Já foi de outro jeito: sem rolagem, esticando até o fim do documento e
+   descendo junto com a página. A ideia era não obrigar ninguém a perceber que
+   há duas rolagens e a acertar o ponteiro entre elas. O preço, e é ele que
+   pesa, era o menu sair de vista numa página longa — e uma lista de processos
+   é sempre longa. Trocar de tela passava por rolar de volta ao topo.
+
+   `sticky` com `height: 100vh` resolve os dois: o menu está sempre lá, e a
+   lista dele alcança o próprio fim sem mexer na página.
+
+   A rolagem fica no `.sidebar__nav`, e não aqui: assim a marca (com o botão
+   de recolher) e o rodapé ficam presos, e só a lista de itens corre. Rolar
+   uma lista longa sem perder o botão que a recolhe é metade do ganho. */
 .sidebar {
   grid-area: sidebar;
   display: flex;
   flex-direction: column;
   background: var(--color-sidebar);
   color: var(--color-sidebar-text);
+  position: sticky;
+  top: 0;
+  height: 100vh;
 }
 
 /* Três elementos em 232px de largura: sigla, identidade e o botão de recolher.
@@ -148,7 +154,7 @@
 /* Some tudo que só existe para explicar o ícone. O que fica é o próprio
    ícone, centrado, e o `title` que devolve o nome ao parar o ponteiro. */
 .sidebar--recolhida .sidebar__identidade,
-.sidebar--recolhida .sidebar__section-label,
+.sidebar--recolhida .sidebar__section,
 .sidebar--recolhida .nav-item__rotulo,
 .sidebar--recolhida .sidebar__footer {
   display: none;
@@ -208,9 +214,15 @@
    que encosta na borda do menu e aponta para o conteúdo. Um recuo aqui deixaria
    uma fresta entre a cápsula e a divisa, e a forma perderia justamente o que
    ela quer dizer — "é esta a página que está aberta ao lado". */
+/* `min-height: 0` junto com o `flex: 1`: um item de flex não encolhe abaixo
+   do conteúdo por padrão, então sem isto a lista empurra a altura do menu e
+   a barra de rolagem nunca aparece — ela é a peça que faz o `overflow-y`
+   valer alguma coisa aqui. */
 .sidebar__nav {
   padding: var(--space-4) 0 var(--space-4) var(--space-3);
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* A linha fecha o rótulo e separa uma seção da anterior. Vai até a borda
@@ -224,15 +236,182 @@
 
    `margin-bottom` porque o `padding-bottom` fica ACIMA da borda: sem ele o
    primeiro item encostaria na linha. */
-.sidebar__section-label {
+/* O rótulo virou BOTÃO — é ele que dobra a seção. A linha e o recuo saem do
+   texto e vêm para cá, senão a borda mediria só a largura da palavra.
+
+   `width: 100%` e `text-align: left` porque um `<button>` centraliza e se
+   encolhe ao conteúdo por padrão; sem os dois, a seção deixaria de parecer
+   um título e passaria a parecer um botão no meio da lista. */
+.sidebar__section {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
   padding: var(--space-4) var(--space-3) var(--space-2);
   margin-bottom: var(--space-1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.40);
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--transition);
+}
+
+/* A linha é um pseudo-elemento, e não `border-bottom`, porque borda não se
+   desenha aos poucos: ela existe inteira ou não existe. Assim ela pode ser
+   uma faixa de 1px que cresce da direita para a esquerda, no mesmo tempo em
+   que a lista desce — e recolhe no sentido inverso ao fechar.
+
+   `scaleX` e não `width`: escala roda na placa de vídeo e não obriga o
+   navegador a recalcular a régua da página a cada quadro.
+
+   O alfa escrito aqui não é o que se vê: o elemento inteiro tem
+   `opacity: 0.55`, e o pseudo herda essa translucidez — 0.40 chega à tela
+   como ~0.22. É o triplo da linha do rodapé, de propósito: aquela só fecha o
+   menu, esta marca onde uma seção começa. */
+.sidebar__section::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.40);
+  transform: scaleX(1);
+  /* Ancorada à DIREITA: é dali que o traço nasce e para lá que ele volta. */
+  transform-origin: right center;
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* No hover o título acende em vez de ganhar fundo: fundo aqui viraria uma
+   faixa do tamanho do menu, mais pesada que a cápsula do item ativo logo
+   abaixo — e o título passaria a chamar mais atenção que a navegação. */
+.sidebar__section:hover,
+.sidebar__section:focus-visible {
+  outline: none;
+  opacity: 0.9;
+}
+
+/* Só aparece com a seção dobrada — aberta, quem marca o lugar é a cápsula do
+   próprio item, e dois marcadores ao mesmo tempo dividiriam a atenção.
+
+   Ele DESCE ao aparecer: parte de cima, meio apagado, e assenta no lugar no
+   mesmo tempo em que a lista se recolhe. A leitura é a de que o ícone caiu da
+   lista que acabou de fechar — e ao reabrir ele sobe de volta para ela.
+
+   `display: none` não anima, então o elemento fica sempre no fluxo e o que
+   muda é a largura. E como o pai usa `gap`, a largura zero ainda deixaria os
+   8px do vão: a margem negativa engole exatamente esse vão, para o chevron
+   ficar na mesma vertical em todas as seções, com ícone ou sem. */
+.sidebar__section-atual {
+  display: flex;
+  flex-shrink: 0;
+  width: 0;
+  margin-left: calc(var(--space-2) * -1);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+              margin-left 220ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 220ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar__section--dobrada .sidebar__section-atual {
+  width: 15px;
+  margin-left: 0;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* A seção que guarda a tela atual acende um pouco. `opacity` vale para o
+   elemento inteiro, então não dá para clarear só o ícone — e clarear o
+   conjunto é justamente o que faz o título parar de ser mais um da lista. */
+.sidebar__section--dobrada.sidebar__section--tem-atual {
+  opacity: 0.85;
+}
+
+.sidebar__section-atual svg {
+  width: 15px;
+  height: 15px;
+}
+
+.sidebar__section-label {
+  flex: 1;
   font-size: var(--text-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  opacity: 0.55;
+}
+
+/* Mesmo chevron do combo: dois lados de uma caixa girados. Aponta para baixo
+   com a seção aberta e para a direita quando ela está dobrada — a direção
+   mostra para onde a lista foi, não para onde o clique leva. */
+.sidebar__section-seta {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--transition);
+}
+
+.sidebar__section--dobrada .sidebar__section-seta {
+  transform: rotate(-45deg);
+  margin-bottom: 0;
+}
+
+/* Fechada, a linha se recolhe até sumir — ela existe para separar o título
+   dos itens dele, e sem itens à vista não há o que separar. O tempo é o mesmo
+   da lista, então as duas coisas acontecem como um gesto só. */
+.sidebar__section--dobrada::after {
+  transform: scaleX(0);
+}
+
+/* Abertura animada pela GRADE.
+
+   `height: auto` não é interpolável, e `max-height` com um número mágico
+   entrega uma animação que corre rápido demais nas seções curtas e corta as
+   longas. Uma grade de uma linha, indo de `0fr` a `1fr`, resolve os dois: o
+   navegador interpola a fração, e a altura final é sempre a do conteúdo real,
+   qualquer que seja ele.
+
+   Por isso as duas camadas: a de fora é a grade que anima, a de dentro é o
+   que precisa de `overflow: hidden` para os itens não vazarem enquanto ela
+   encolhe. */
+.sidebar__grupo {
+  display: grid;
+  grid-template-rows: 1fr;
+  /* 220ms, e não os 140ms de `--transition`. Aquele tempo é de troca de cor,
+     que percorre distância nenhuma; aqui a lista atravessa a altura de vários
+     itens, e no mesmo tempo o movimento vira um salto. A curva é a mesma do
+     token, para o gesto continuar falando a língua do resto. */
+  transition: grid-template-rows 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar__grupo--dobrado {
+  grid-template-rows: 0fr;
+}
+
+.sidebar__grupo-interno {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Quem pediu menos movimento recebe a troca seca, sem perder a função. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar__grupo,
+  .sidebar__section,
+  .sidebar__section::after,
+  .sidebar__section-atual,
+  .sidebar__section-seta {
+    transition: none;
+  }
 }
 
 .nav-item {
@@ -325,29 +504,12 @@
   max-width: 460px;
 }
 
-.topbar__search-icon {
-  position: absolute;
-  left: var(--space-3);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-subtle);
-  pointer-events: none;
-}
-
+/* A APARÊNCIA do campo (cápsula, preenchimento, ícone, estados) mora em
+   `components.css`, no bloco "Caixa de busca", junto com a da barra de
+   filtros — são o mesmo componente em dois lugares e não podem divergir.
+   Aqui fica só o que é da topbar: quanto espaço ele ocupa. */
 .topbar__search input {
   width: 100%;
-  height: 34px;
-  padding: 0 var(--space-3) 0 var(--space-8);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-alt);
-  transition: border-color var(--transition), background var(--transition);
-}
-
-.topbar__search input:focus {
-  background: var(--color-surface);
-  border-color: var(--color-primary-400);
-  outline: none;
 }
 
 .topbar__actions {
@@ -558,6 +720,18 @@
     min-height: 100%;
     z-index: var(--z-modal);
     box-shadow: var(--shadow-xl);
+    /* Desfaz a coluna de uma tela do desktop: aqui a sobreposição desce até
+       o fim da PÁGINA e rola junto com ela, que é o que o comentário acima
+       explica. `height: 100vh` a cortaria no fim da janela e devolveria a
+       barra de rolagem só do menu — justamente o que se evitou. */
+    height: auto;
+  }
+
+  /* Pelo mesmo motivo, e SÓ na sobreposição: nela quem rola é a página.
+     A tira recolhida continua sendo a coluna de uma tela do desktop, e sem
+     a rolagem própria os ícones vazariam para fora da faixa colorida. */
+  .sidebar:not(.sidebar--recolhida) .sidebar__nav {
+    overflow-y: visible;
   }
 
   /* A topbar sai da grade e passa a se medir pela JANELA.
@@ -606,8 +780,9 @@
      "a busca ficou aberta para sempre" em muito sistema.
 
      O que a torna opaca é o fundo do próprio input no foco (`--color-surface`,
-     mais acima): ele tem a mesma altura dos botões que cobre, então a faixa
-     fica limpa sem precisar pintar o container.
+     declarado no bloco "Caixa de busca" de `components.css`): ele tem a mesma
+     altura dos botões que cobre, então a faixa fica limpa sem precisar pintar
+     o container.
 
      `.topbar` é `sticky`, logo posicionada — é ela o berço deste `absolute`.
      Sem `top`, o campo fica onde já estava na vertical. */

@@ -55,10 +55,10 @@
     // Delegação no container: liga UMA vez por rota. Os handlers de tabela e
     // de kanban convivem — os seletores simplesmente não casam na outra visão.
     ligarEventos();
-    carregar();
+    carregar(true);
   }
 
-  function carregar() {
+  function carregar(completo) {
     carregando = true;
 
     // No kanban não há paginação: o quadro precisa da carteira inteira.
@@ -68,7 +68,7 @@
     App.services.processoService.listar(consulta).then(function (r) {
       resultado = r;
       carregando = false;
-      desenhar();
+      if (completo || !atualizarMiolo()) desenhar();
     }).catch(function (erro) {
       carregando = false;
       container.innerHTML = cabecalho() + App.components.ui.EmptyState({
@@ -341,13 +341,22 @@
 
   // --- Render ---------------------------------------------------------------
 
-  function desenhar() {
-    var emKanban = visao() === 'kanban';
+  /* Só o miolo muda a cada busca. Cabeçalho e barra de filtros ficam de pé,
+     e com eles o campo, o cursor e o foco de quem está digitando — sem isso
+     a tela pisca a cada tecla e o `<input>` é destruído debaixo dos dedos. */
+  function miolo() {
+    return visao() === 'kanban' ? dicaKanban() + conteudoKanban() : conteudoTabela();
+  }
 
+  function desenhar() {
     container.innerHTML =
-      cabecalho() +
-      barraFiltros() +
-      (emKanban ? dicaKanban() + conteudoKanban() : conteudoTabela());
+      cabecalho() + barraFiltros() + '<div data-miolo>' + miolo() + '</div>';
+  }
+
+  function atualizarMiolo() {
+    return App.components.FilterBar.trocarMiolo(container, miolo(), {
+      totalAtivos: App.selectors.filtrosAtivos(filtros())
+    });
   }
 
   function atualizarFiltros(alteracoes) {
@@ -387,7 +396,9 @@
       if (nova === visao()) return;
       App.store.setState({ processosVisao: nova });
       App.preferencias.salvar();
-      carregar();
+      /* Trocar de visão mexe no alternador (cabeçalho) e no "Agrupar por"
+         (barra) — os dois fora do miolo. */
+      carregar(true);
     });
 
     // Agrupamento das colunas do kanban

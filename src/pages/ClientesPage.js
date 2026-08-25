@@ -17,13 +17,14 @@
     container = elemento;
     container.innerHTML = App.components.ui.Skeleton({ linhas: 6 });
     ligarEventos();   // delegação no container: uma vez por rota
-    carregar();
+    carregar(true);
   }
 
-  function carregar() {
+  /* `completo` só na entrada da rota; nas buscas seguintes troca-se a lista. */
+  function carregar(completo) {
     App.services.clienteService.listar(filtros()).then(function (r) {
       resultado = r;
-      desenhar();
+      if (completo || !atualizarMiolo()) desenharTudo();
     }).catch(function (erro) {
       container.innerHTML = App.components.ui.EmptyState({
         icone: '⚠', titulo: 'Erro ao carregar clientes', texto: erro.message
@@ -31,13 +32,21 @@
     });
   }
 
+  function textoContagem() {
+    return resultado.total + ' ' +
+           App.format.plural(resultado.total, 'cliente') + ' cadastrado(s)';
+  }
+
+  function filtrosAtivos() {
+    return App.selectors.filtrosAtivos(filtros(),
+      ['ordenarPor', 'direcao', 'pagina', 'porPagina']);
+  }
+
   function cabecalho() {
     return '<div class="page-header">' +
              '<div>' +
                '<h1 class="page-header__title">Clientes</h1>' +
-               '<p class="page-header__subtitle">' +
-                 resultado.total + ' ' + App.format.plural(resultado.total, 'cliente') + ' cadastrado(s)' +
-               '</p>' +
+               '<p class="page-header__subtitle">' + esc(textoContagem()) + '</p>' +
              '</div>' +
              '<div class="page-header__actions">' +
                App.components.ui.Button({
@@ -59,89 +68,145 @@
           opcoes: enums.opcoes([
             { id: 'PF', label: 'Pessoa física' },
             { id: 'PJ', label: 'Pessoa jurídica' }
-          ], f.tipo, 'Todos os tipos') },
-        { tipo: 'select', nome: 'ordenarPor', rotulo: 'Ordenar por',
-          opcoes: enums.opcoes([
-            { id: 'nome', label: 'Nome (A–Z)' },
-            { id: 'totalProcessos', label: 'Mais processos' },
-            { id: 'valorEnvolvido', label: 'Maior valor envolvido' }
-          ], f.ordenarPor) }
+          ], f.tipo, 'Todos os tipos') }
       ],
-      totalAtivos: App.selectors.filtrosAtivos(f, ['ordenarPor', 'pagina', 'porPagina'])
+      /* `ordenarPor` saiu da barra: quem ordena agora é o cabeçalho da
+         tabela, como em Processos. Dois lugares mandando na mesma coisa é
+         como um deles acaba mostrando o estado errado. */
+      totalAtivos: filtrosAtivos()
     });
   }
 
-  function cartaoCliente(cliente) {
-    var ui = App.components.ui;
+  // --- Visão tabela ---------------------------------------------------------
+  /* Mesma tabela de Processos: primeira coluna forte com o identificador e
+     uma segunda linha discreta embaixo, badges para o que é categoria,
+     número alinhado à direita. Cartão mostrava os mesmos seis campos em três
+     vezes mais altura — e comparar dois clientes exigia rolar. */
+
+  function colunasTabela() {
     var fmt = App.format;
 
-    return '<a class="card" href="#/clientes/' + esc(cliente.id) + '"' +
-             ' style="display:block;color:inherit;text-decoration:none">' +
-             '<div class="card__body">' +
-               '<div class="u-row" style="align-items:flex-start;gap:var(--space-3)">' +
-                 ui.Avatar({
-                   nome: cliente.nome, tamanho: 'lg',
-                   cor: cliente.tipo === 'PJ' ? 'var(--color-accent-500)' : 'var(--color-primary-500)'
-                 }) +
-                 '<div style="flex:1;min-width:0">' +
-                   '<div class="u-bold u-truncate">' + esc(cliente.nome) + '</div>' +
-                   '<div class="u-xs u-subtle">' +
-                     esc(cliente.tipo === 'PJ' ? 'CNPJ ' : 'CPF ') +
-                     esc(fmt.documento(cliente.documento)) +
-                   '</div>' +
-                   '<div class="u-xs u-subtle u-truncate">' +
-                     esc(cliente.endereco.cidade + '/' + cliente.endereco.uf) +
-                   '</div>' +
-                 '</div>' +
-                 ui.Badge({ rotulo: cliente.tipo, variante: cliente.tipo === 'PJ' ? 'accent' : 'primary' }) +
-               '</div>' +
+    return [
+      {
+        chave: 'nome', titulo: 'Cliente', largura: '26%',
+        render: function (c) {
+          /* Só a razão social. O nome fantasia é um apelido comercial: some
+             aqui e continua na ficha, onde há espaço para os dois. Numa
+             lista, a linha que identifica juridicamente é a que serve para
+             conferir com procuração e petição.
 
-               '<div class="divider" style="margin:var(--space-4) 0"></div>' +
-
-               '<div class="u-row" style="gap:var(--space-5)">' +
-                 '<div>' +
-                   '<div class="def-list__term">Processos</div>' +
-                   '<div class="u-bold">' + cliente.totalProcessos +
-                     ' <span class="u-xs u-subtle">(' + cliente.processosAtivos + ' ativos)</span></div>' +
-                 '</div>' +
-                 '<div>' +
-                   '<div class="def-list__term">Valor envolvido</div>' +
-                   '<div class="u-bold">' + esc(fmt.moedaCompacta(cliente.valorEnvolvido)) + '</div>' +
-                 '</div>' +
-               '</div>' +
-             '</div>' +
-           '</a>';
+             Uma fonte só na tabela inteira: mesma família, mesmo tamanho,
+             mesmo peso; o que ainda separa principal de secundário, nas
+             outras colunas, é a COR. */
+          return '<div class="u-truncate">' + esc(c.nome) + '</div>';
+        }
+      },
+      {
+        chave: 'tipo', titulo: 'Tipo',
+        render: function (c) {
+          /* Texto simples, e nao pastilha: PF/PJ e atributo do cadastro, nao
+             estado que precise saltar da linha. Badge aqui competia com o
+             nome do cliente pela atencao. */
+          return '<span class="u-nowrap">' +
+                   esc(c.tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física') +
+                 '</span>';
+        }
+      },
+      {
+        chave: 'documento', titulo: 'CPF / CNPJ',
+        render: function (c) {
+          return '<span class="u-nowrap">' + esc(fmt.documento(c.documento)) + '</span>';
+        }
+      },
+      {
+        chave: 'contato', titulo: 'Contato', ordenavel: false,
+        render: function (c) {
+          return '<div class="u-truncate">' + esc(c.email || '—') + '</div>' +
+                 '<div class="u-subtle u-nowrap">' +
+                   esc(fmt.telefone(c.celular || c.telefone)) + '</div>';
+        }
+      },
+      {
+        chave: 'cidade', titulo: 'Cidade',
+        render: function (c) {
+          return '<span class="u-truncate">' +
+                   esc(c.endereco.cidade + '/' + c.endereco.uf) + '</span>';
+        }
+      },
+      {
+        chave: 'totalProcessos', titulo: 'Processos', alinhamento: 'right',
+        render: function (c) {
+          if (!c.totalProcessos) return '<span class="u-subtle">—</span>';
+          return '<span class="u-nowrap">' + c.totalProcessos + '</span>' +
+                 '<div class="u-subtle u-nowrap">' + c.processosAtivos + ' ativos</div>';
+        }
+      },
+      {
+        chave: 'valorEnvolvido', titulo: 'Valor envolvido', alinhamento: 'right',
+        render: function (c) {
+          return '<span class="u-nowrap">' + esc(fmt.moeda(c.valorEnvolvido)) + '</span>';
+        }
+      }
+    ];
   }
 
-  function desenhar() {
+  function listaDeClientes() {
+    var f = filtros();
     var ui = App.components.ui;
 
-    var lista = resultado.itens.length
-      ? '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(290px,1fr))">' +
-          resultado.itens.map(cartaoCliente).join('') +
-        '</div>'
-      : ui.EmptyState({
-          icone: '👤',
-          titulo: 'Nenhum cliente encontrado',
-          texto: 'Ajuste a busca ou cadastre um novo cliente.',
-          acao: ui.Button({ rotulo: 'Limpar filtros', variante: 'secondary', acao: 'limpar-filtros' })
-        });
+    var tabela = App.components.DataTable({
+      colunas: colunasTabela(),
+      itens: resultado.itens,
+      ordenarPor: f.ordenarPor,
+      direcao: f.direcao,
+      hrefDe: function (c) { return '#/clientes/' + c.id; },
+      vazio: ui.EmptyState({
+        icone: '👤',
+        titulo: 'Nenhum cliente encontrado',
+        texto: 'Nenhum cliente corresponde aos filtros aplicados.',
+        acao: ui.Button({ rotulo: 'Limpar filtros', variante: 'secondary', acao: 'limpar-filtros' })
+      })
+    });
 
     var inicio = (resultado.pagina - 1) * resultado.porPagina + 1;
     var fim = Math.min(resultado.pagina * resultado.porPagina, resultado.total);
 
+    return ui.Card({
+      semPadding: true,
+      conteudo: tabela,
+      rodape: ui.Pagination({
+        pagina: resultado.pagina,
+        totalPaginas: resultado.totalPaginas,
+        total: resultado.total,
+        info: resultado.total
+          ? 'Exibindo ' + inicio + '–' + fim + ' de ' + resultado.total
+          : 'Nenhum registro'
+      })
+    });
+  }
+
+  /* Desenho COMPLETO — só ao entrar na rota.
+
+     A cada busca, refazer a tela inteira por `innerHTML` custa duas coisas
+     visíveis: o campo de texto é destruído debaixo dos dedos de quem digita,
+     e a tela pisca, porque cabeçalho, barra e tabela somem e voltam juntos a
+     cada tecla.
+
+     Então o que muda a cada busca é só o que realmente mudou: a lista e a
+     contagem. A barra de filtros fica quieta no lugar — e com ela o campo,
+     o cursor e o foco. */
+  function desenharTudo() {
     container.innerHTML =
       cabecalho() +
       barraFiltros() +
-      lista +
-      '<div style="margin-top:var(--space-4)">' +
-        ui.Pagination({
-          pagina: resultado.pagina,
-          totalPaginas: resultado.totalPaginas,
-          total: resultado.total,
-          info: resultado.total ? 'Exibindo ' + inicio + '–' + fim + ' de ' + resultado.total : ''
-        }) +
-      '</div>';
+      '<div data-miolo>' + listaDeClientes() + '</div>';
+  }
+
+  function atualizarMiolo() {
+    return App.components.FilterBar.trocarMiolo(container, listaDeClientes(), {
+      contagem: textoContagem(),
+      totalAtivos: filtrosAtivos()
+    });
   }
 
   function ligarEventos() {
@@ -154,7 +219,21 @@
       },
       aoLimpar: function () {
         App.store.setState({
-          clientesFiltros: { busca: '', tipo: '', ordenarPor: 'nome', pagina: 1, porPagina: 12 }
+          clientesFiltros: { busca: '', tipo: '', ordenarPor: 'nome',
+                             direcao: 'asc', pagina: 1, porPagina: 15 }
+        });
+        carregar();
+      }
+    });
+
+    App.components.DataTable.mount(container, {
+      aoOrdenar: function (chave) {
+        var f = filtros();
+        // Clicar de novo na mesma coluna inverte; coluna nova começa crescente.
+        var direcao = f.ordenarPor === chave && f.direcao === 'asc' ? 'desc' : 'asc';
+        App.store.setState({
+          clientesFiltros: Object.assign({}, f,
+            { ordenarPor: chave, direcao: direcao, pagina: 1 })
         });
         carregar();
       }

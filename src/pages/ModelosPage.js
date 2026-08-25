@@ -26,16 +26,16 @@
     container = elemento;
     container.innerHTML = App.components.ui.Skeleton({ linhas: 6 });
     ligarEventos();
-    carregar();
+    carregar(true);
   }
 
-  function carregar() {
+  function carregar(completo) {
     App.services.modeloPecaService.listar(filtros).then(function (lista) {
       modelos = lista;
       if (!lista.some(function (m) { return m.id === selecionado; })) {
         selecionado = lista.length ? lista[0].id : null;
       }
-      desenhar();
+      if (completo || !atualizarMiolo()) desenhar();
     }).catch(function (erro) {
       container.innerHTML = App.components.ui.EmptyState({
         icone: '⚠', titulo: 'Erro ao carregar os modelos', texto: erro.message
@@ -142,22 +142,38 @@
     '</div>';
   }
 
-  function desenhar() {
+  /* Só o miolo muda a cada busca. Cabeçalho e barra de filtros ficam de pé,
+     e com eles o campo, o cursor e o foco de quem está digitando — sem isso
+     a tela pisca a cada tecla e o `<input>` é destruído debaixo dos dedos. */
+  function miolo() {
     var ui = App.components.ui;
-    var enums = App.domain.enums;
-
     var lista = modelos.length
       ? '<div class="mod__lista">' + modelos.map(itemLista).join('') + '</div>'
       : ui.EmptyState({ icone: '📚', titulo: 'Nenhum modelo neste filtro' });
+    return lista + previa();
+  }
+
+  function textoContagem() {
+    return modelos.length + ' modelo(s) · as variáveis são preenchidas com os dados ' +
+           'do processo ao gerar o documento';
+  }
+
+  function atualizarMiolo() {
+    return App.components.FilterBar.trocarMiolo(container, miolo(), {
+      contagem: textoContagem(),
+      totalAtivos: App.selectors.filtrosAtivos(filtros, [])
+    });
+  }
+
+  function desenhar() {
+    var ui = App.components.ui;
+    var enums = App.domain.enums;
 
     container.innerHTML =
       '<div class="page-header">' +
         '<div>' +
           '<h1 class="page-header__title">Modelos de peça</h1>' +
-          '<p class="page-header__subtitle">' +
-            modelos.length + ' modelo(s) · as variáveis são preenchidas com os dados ' +
-            'do processo ao gerar o documento' +
-          '</p>' +
+          '<p class="page-header__subtitle">' + textoContagem() + '</p>' +
         '</div>' +
         '<div class="page-header__actions">' +
           ui.Button({ rotulo: 'Novo modelo', variante: 'primary', icone: '+',
@@ -181,7 +197,7 @@
         totalAtivos: App.selectors.filtrosAtivos(filtros, [])
       }) +
 
-      '<div class="mod">' + lista + previa() + '</div>';
+      '<div class="mod" data-miolo>' + miolo() + '</div>';
   }
 
   // --- Ações --------------------------------------------------------------------

@@ -288,16 +288,45 @@ a.kpi:hover {
   position: sticky;
   top: 0;
   padding: var(--space-3) var(--space-4);
-  background: var(--color-surface-alt);
-  border-bottom: 1px solid var(--color-border);
+  /* As MESMAS duas cores do menu, e não tons parecidos: o azul da barra
+     como fundo e o texto dela por cima. O par já vem aprovado da barra —
+     8,2:1 de contraste — e acompanha o tema escuro sozinho, porque os dois
+     tokens trocam juntos.
+
+     Sem `border-bottom`: a linha era de `--color-border`, clara, e sobre a
+     faixa escura ela virava um sublinhado pálido de fora do lugar. A troca
+     de claro para escuro já separa cabeçalho de conteúdo sozinha. */
+  background: var(--color-sidebar);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted);
+  color: var(--color-sidebar-text);
   text-align: left;
   white-space: nowrap;
   z-index: 1;
+}
+
+/* Canto de cima da tabela.
+
+   O `thead th` e sticky e pinta fundo proprio, entao ele cobre em QUADRADO o
+   canto arredondado do cartao. O rodape ja resolvia o de baixo
+   (`.card__footer`); faltava o de cima.
+
+   So vale quando a tabela e a PRIMEIRA coisa do cartao — `:first-child` no
+   corpo rente significa que nao houve `card__header`. Na ficha do cliente a
+   tabela fica embaixo de um titulo, e ali um canto arredondado apareceria no
+   meio do cartao.
+
+   O raio desconta 1px: o canto interno de uma borda de 1px e um pouco menor
+   que o externo, e igualar os dois deixa uma meia-lua clara aparecendo entre
+   a borda e o fundo do cabecalho. */
+.card__body--flush:first-child .table thead tr:first-child th:first-child {
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+}
+
+.card__body--flush:first-child .table thead tr:first-child th:last-child {
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
 }
 
 .table th[data-sort] {
@@ -305,8 +334,10 @@ a.kpi:hover {
   user-select: none;
 }
 
+/* Branco no hover, igual ao item do menu — `--color-text` é quase preto e
+   sumiria sobre o azul. */
 .table th[data-sort]:hover {
-  color: var(--color-text);
+  color: #fff;
 }
 
 .table th .sort-arrow {
@@ -327,6 +358,20 @@ a.kpi:hover {
 
 .table tbody tr {
   transition: background var(--transition);
+}
+
+/* Zebra. `--color-surface-alt` é o cinza mais claro do sistema — #f8fafc,
+   um passo do branco — e é o mesmo do rodapé de paginação, então a tabela
+   inteira fica na mesma escala.
+
+   Vem ANTES do hover de propósito: as duas regras têm a mesma
+   especificidade, e quem vier depois vence. Invertida a ordem, passar o
+   ponteiro sobre uma linha par não faria nada.
+
+   No tema escuro o token vira #1c2836, um passo mais CLARO que a superfície
+   — que é o que zebrar significa quando o fundo é escuro. */
+.table tbody tr:nth-child(even) {
+  background: var(--color-surface-alt);
 }
 
 .table tbody tr:hover {
@@ -527,14 +572,21 @@ a.kpi:hover {
 }
 
 /* --- Filtros -------------------------------------------------------------- */
-/* Gruda logo abaixo da topbar ao rolar — é onde moram os filtros e as ações
-   principais da tela (ex.: "Novo compromisso" na Agenda), e sem isso quem
-   rola a lista até o fim precisa voltar ao topo pra usar qualquer um dos
-   dois. `background` sólido porque o conteúdo passa por baixo; `top` bate
-   exatamente a altura da topbar, que também é sticky, pra uma colar onde a
-   outra termina. (Exige `.main { overflow-x: clip }`, não `hidden` — ver o
-   comentário lá: `hidden` força `overflow-y` a `auto` e quebra todo sticky
-   dentro de `<main>`.) */
+/* Rola junto com a página.
+
+   Ela já foi `sticky` (commit 2791fea), grudando abaixo da topbar com
+   `z-index: --z-sticky`. O motivo era bom — quem rola a lista até o fim não
+   precisava voltar ao topo para mexer num filtro — mas o preço é que a barra
+   passa POR CIMA de tudo o que desce por baixo dela, inclusive do cabeçalho
+   da tabela, que também é sticky e fica num nível bem menor.
+
+   Com a barra agora em cápsulas preenchidas e o cabeçalho da tabela em azul,
+   os dois flutuando um sobre o outro ficaram impossíveis de ignorar. Entre
+   perder o atalho e ter uma faixa cobrindo a tela, escolhemos o atalho.
+
+   Para trazer de volta, é devolver as três linhas — e aí vale subir o
+   `top` do `thead th` para `var(--topbar-height)` no mesmo movimento, senão
+   o cabeçalho da tabela continua sumindo debaixo dela. */
 .filter-bar {
   display: flex;
   align-items: center;
@@ -545,33 +597,226 @@ a.kpi:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-4);
-  position: sticky;
-  top: var(--topbar-height);
-  z-index: var(--z-sticky);
 }
 
+/* Largura FIXA, e não `flex: 1`.
+
+   Com `flex: 1` o campo era o único item elástico da barra e engolia todo o
+   espaço livre. Aí, ao digitar a primeira letra, `totalAtivos` deixa de ser
+   zero e a barra ganha dois itens novos: o `.u-spacer` (que também é
+   `flex: 1`) e o botão "Limpar filtros". De repente havia dois elásticos
+   dividindo a mesma folga, e o campo encolhia à metade no exato momento em
+   que a pessoa começava a escrever nele.
+
+   Fixo, o campo não participa dessa disputa: quem absorve a folga é o
+   spacer, que existe para isso. `max-width` cuida do celular, onde 520px
+   não cabem — e a barra tem `flex-wrap`, então o resto desce de linha. */
 .filter-bar__search {
   position: relative;
-  flex: 1;
-  min-width: 220px;
+  flex: 0 0 520px;
+  max-width: 100%;
 }
 
-.filter-bar__search input {
-  padding-left: var(--space-8);
+/* --- Caixa de busca -------------------------------------------------------
+
+   No feitio do Material 3 (search bar): CÁPSULA preenchida, sem contorno
+   visível, com o ícone dentro à esquerda. O que muda entre repouso, hover e
+   foco é o PREENCHIMENTO — no M3 são "state layers" —, e não a cor de uma
+   borda, que é como o resto dos campos deste sistema se comporta.
+
+   O que NÃO foi copiado, e por quê: o M3 especifica 56dp de altura. Aqui os
+   campos medem 34px, e um campo de busca com 56 ficaria maior que o botão
+   ao lado dele e desalinharia a barra de filtros inteira. Copia-se a forma,
+   não o número — a cápsula é o que faz o campo ser reconhecido como busca.
+
+   A borda continua declarada, transparente: sem ela o campo mudaria de
+   tamanho ao ganhar foco, porque a borda entra no cálculo da caixa. */
+.filter-bar__search input,
+.topbar__search input {
+  height: 34px;
+  padding: 0 var(--space-4) 0 2.375rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  transition: background var(--transition), border-color var(--transition),
+              box-shadow var(--transition);
 }
 
-.filter-bar__search-icon {
+.filter-bar__search input:hover,
+.topbar__search input:hover {
+  background: var(--color-surface-hover);
+}
+
+/* No foco o campo clareia em vez de escurecer: ele passa a ser a superfície
+   ativa da tela. O anel substitui a borda dura — é o mesmo halo dos outros
+   campos, para o foco do teclado não mudar de linguagem no meio do sistema. */
+.filter-bar__search input:focus,
+.topbar__search input:focus {
+  outline: none;
+  background: var(--color-surface);
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px rgba(79, 116, 160, 0.15);
+}
+
+.filter-bar__search input::placeholder,
+.topbar__search input::placeholder {
+  color: var(--color-text-subtle);
+}
+
+/* O ✕ que o navegador desenha em `type="search"`. Vem cinza-escuro e opaco
+   por padrão; aqui ele acompanha o texto de apoio e só ganha peso quando o
+   ponteiro chega — é a ação secundária do campo, não a principal. */
+.filter-bar__search input::-webkit-search-cancel-button,
+.topbar__search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  opacity: 0.45;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.filter-bar__search input::-webkit-search-cancel-button:hover,
+.topbar__search input::-webkit-search-cancel-button:hover {
+  opacity: 1;
+}
+
+.filter-bar__search-icon,
+.topbar__search-icon {
   position: absolute;
   left: var(--space-3);
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
   color: var(--color-text-subtle);
   pointer-events: none;
 }
 
-.filter-bar .select {
-  width: auto;
+/* 16px: um degrau acima dos 15px do menu. O ícone da busca é o único
+   elemento gráfico dentro do campo, e no menu ele divide a linha com um
+   rótulo — aqui, sozinho, some se ficar no mesmo tamanho. */
+.filter-bar__search-icon svg,
+.topbar__search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- Combo ----------------------------------------------------------------
+
+   O gatilho veste a mesma roupa da busca — cápsula preenchida, sem contorno,
+   estado pelo preenchimento —, e o painel veste a do resultado da busca
+   global. São os dois lados do mesmo gesto: um campo que se abre numa lista.
+
+   O `.combo` é `relative` porque o painel se pendura nele. Não sai da barra:
+   `.filter-bar` não corta o estouro, então a lista pode passar por baixo. */
+.combo {
+  position: relative;
+  display: inline-flex;
+}
+
+.combo__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 140px;
+  height: 34px;
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition),
+              box-shadow var(--transition);
+}
+
+.combo__valor {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A seta é desenhada em CSS, e não com um glifo: em ▾ o tamanho depende da
+   fonte instalada e o traço fica grosso demais neste corpo. Dois lados de
+   uma caixa girados 45° dão um chevron limpo em qualquer lugar. */
+.combo__seta {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  opacity: 0.6;
+  transition: transform var(--transition);
+}
+
+.combo__trigger[aria-expanded="true"] .combo__seta {
+  transform: rotate(-135deg);
+  margin-bottom: -2px;
+}
+
+.combo__trigger:hover {
+  background: var(--color-surface-hover);
+}
+
+.combo__trigger:focus-visible,
+.combo__trigger[aria-expanded="true"] {
+  outline: none;
+  background: var(--color-surface);
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px rgba(79, 116, 160, 0.15);
+}
+
+/* Mesmas medidas do `.global-results` da busca global — é de propósito que
+   pareçam a mesma coisa, porque são. */
+.combo__painel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+}
+
+.combo__item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.combo__item:hover,
+.combo__item:focus-visible {
+  outline: none;
+  background: var(--color-surface-hover);
+}
+
+/* A escolhida fica marcada pelo PESO e pela cor da marca, não por um fundo:
+   fundo aqui brigaria com o realce de quem está sob o ponteiro, e os dois
+   juntos deixam a lista sem foco. */
+.combo__item[aria-selected="true"] {
+  font-weight: 600;
+  color: var(--color-primary-600);
 }
 
 .filter-bar__divider {

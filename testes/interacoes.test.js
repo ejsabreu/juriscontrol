@@ -64,6 +64,40 @@ const esperar = ms => new Promise(r => setTimeout(r, ms));
     await esperar(ms);
   }
 
+  /* Espera uma CONDIÇÃO, não um prazo. Prazo fixo passa na máquina de quem
+     escreveu e cai quando as dezesseis suítes rodam em sequência e a
+     máquina está carregada — salvar encadeia navegação, requisição e
+     desenho, e 900ms nem sempre cobrem os três. */
+  async function ateQue(condicao, limite = 4000) {
+    const fim = Date.now() + limite;
+    while (Date.now() < fim) {
+      if (condicao()) return true;
+      await esperar(50);
+    }
+    return condicao();
+  }
+
+  /* `irPara` mexe no hash E dispara o evento — o router navega duas vezes, e
+     a página que carrega dados se redesenha duas vezes. Pegar um campo entre
+     as duas deixa na mão um nó já descartado: o clique vai para um elemento
+     fora do documento e não acontece nada.
+
+     Espera o seletor devolver o MESMO nó por algumas leituras seguidas, que
+     é como se sabe que ninguém redesenhou no intervalo. Uma leitura só não
+     bastou: com a máquina carregada, o segundo desenho às vezes chega
+     depois dela, e o clique vai para um nó já descartado. */
+  async function assentar(seletor, quietas = 6) {
+    let anterior = null;
+    let iguais = 0;
+    await ateQue(() => {
+      const atual = doc.querySelector(seletor);
+      iguais = (atual && atual === anterior) ? iguais + 1 : 0;
+      anterior = atual;
+      return iguais >= quietas;
+    });
+    return doc.querySelector(seletor);
+  }
+
   // ==================== DRAG & DROP — PROCESSOS ====================
   console.log('\nKanban de processos — drag & drop');
   App.store.setState({ processosVisao: 'kanban', processosAgruparPor: 'faseId' });
@@ -1213,6 +1247,274 @@ const esperar = ms => new Promise(r => setTimeout(r, ms));
   await esperar(900);
   ok('cliente com CPF válido é criado',
      App.services.db.get('pessoas').filter(p => p.ehCliente).length === clientesAntes + 1);
+
+  /* O cadastro coleta endereço completo, telefone fixo, nascimento e origem
+     — campos que a ficha sempre exibiu e que nenhum formulário preenchia. */
+  const criado = App.services.db.get('pessoas')
+    .filter(p => p.nome === 'Cliente de Teste')[0];
+  ok('o cadastro grava o documento em `documento`',
+     criado && criado.documento === '52998224725', criado && criado.documento);
+
+  // ==================== TELA DE EDIÇÃO DO CLIENTE ====================
+  console.log('\nTela de edição do cliente');
+
+  await irPara('#/clientes/' + criado.id, 200);
+  await assentar('.page-header__actions a');
+  const btnEditarCadastro = Array.from(doc.querySelectorAll('.page-header__actions a'))
+    .find(a => /Editar/.test(a.textContent));
+  ok('a ficha oferece "Editar cadastro"', !!btnEditarCadastro,
+     btnEditarCadastro && btnEditarCadastro.getAttribute('href'));
+
+  await irPara('#/clientes/' + criado.id + '/editar', 200);
+  await assentar('#form-cliente');
+  ok('a rota de edição abre o formulário', !!doc.querySelector('#form-cliente'));
+  ok('e vem preenchida com o cadastro atual',
+     doc.querySelector('#form-cliente [name="nome"]').value === 'Cliente de Teste',
+     doc.querySelector('#form-cliente [name="nome"]').value);
+  ok('o documento aparece formatado',
+     doc.querySelector('#form-cliente [name="documento"]').value === '529.982.247-25',
+     doc.querySelector('#form-cliente [name="documento"]').value);
+
+  const editar = (nome, valor) => {
+    const el = doc.querySelector('#form-cliente [name="' + nome + '"]');
+    el.value = valor;
+    disparar(el, 'input');
+    return el;
+  };
+
+  /* CPF inválido barra a edição — e o que já estava digitado permanece. */
+  editar('documento', '111.111.111-11');
+  editar('logradouro', 'Rua da Consolação');
+  clicar(doc.querySelector('#btn-salvar'));
+  await ateQue(() => !!doc.querySelector('#form-cliente .field--invalid'));
+  ok('CPF inválido barra a edição',
+     App.services.db.find('pessoas', criado.id).documento === '52998224725');
+  ok('e o que foi digitado NÃO se perde',
+     doc.querySelector('#form-cliente [name="logradouro"]').value === 'Rua da Consolação',
+     doc.querySelector('#form-cliente [name="logradouro"]').value);
+  ok('o campo com erro fica destacado',
+     !!doc.querySelector('#form-cliente .field--invalid [name="documento"]'));
+
+  editar('documento', '529.982.247-25');
+  editar('numero', '2200');
+  editar('rg', '12.345.678-9');
+  editar('dataNascimento', '1985-04-17');
+  editar('telefone', '1130001234');
+  editar('cep', '01302000');
+  editar('cidade', 'São Paulo');
+  doc.querySelector('#form-cliente [name="origem"]').value = 'parceria';
+  editar('observacoes', 'Atualizado pelo teste.');
+  clicar(doc.querySelector('#btn-salvar'));
+  await ateQue(() => window.location.hash === '#/clientes/' + criado.id);
+  await ateQue(() => /Rua da Consolação, 2200/
+    .test(doc.querySelector('main').textContent));
+
+  const editado = App.services.db.find('pessoas', criado.id);
+  ok('a edição salva o endereço',
+     editado.endereco.logradouro === 'Rua da Consolação' &&
+     editado.endereco.numero === '2200' && editado.endereco.cep === '01302000',
+     JSON.stringify(editado.endereco));
+  ok('a edição salva o telefone fixo', editado.telefone === '1130001234', editado.telefone);
+  ok('a edição salva a origem', editado.origem === 'parceria', editado.origem);
+  ok('a edição salva RG e nascimento da pessoa física',
+     editado.rg === '12.345.678-9' && editado.dataNascimento === '1985-04-17',
+     editado.rg + ' / ' + editado.dataNascimento);
+  ok('a edição salva as observações', /Atualizado pelo teste/.test(editado.observacoes));
+  ok('e o registro continua sendo o MESMO', editado.id === criado.id);
+  ok('salvar devolve para a ficha',
+     window.location.hash === '#/clientes/' + criado.id, window.location.hash);
+  ok('a ficha já mostra o endereço novo',
+     /Rua da Consolação, 2200/.test(doc.querySelector('main').textContent));
+
+  /* Trocar PF para PJ não pode deixar RG e nascimento pendurados no
+     registro: são campos que a ficha desenha, e desenharia dado de outra
+     natureza jurídica. */
+  await irPara('#/clientes/' + criado.id + '/editar', 200);
+  await assentar('#form-cliente');
+  const campoTipo = doc.querySelector('#form-cliente [name="tipo"]');
+  campoTipo.value = 'PJ';
+  disparar(campoTipo, 'change');
+  await esperar(150);
+  ok('ao virar PJ, o RG some da tela',
+     doc.querySelector('#form-cliente [name="rg"]').closest('.field')
+       .classList.contains('u-hidden'));
+  editar('documento', '11.222.333/0001-81');
+  editar('nomeFantasia', 'Teste Comércio');
+  clicar(doc.querySelector('#btn-salvar'));
+  await ateQue(() => App.services.db.find('pessoas', criado.id).tipo === 'PJ');
+  const virouPj = App.services.db.find('pessoas', criado.id);
+  ok('PJ guarda o nome fantasia', virouPj.nomeFantasia === 'Teste Comércio');
+  ok('e o RG do tempo de PF é descartado', virouPj.rg === '', JSON.stringify(virouPj.rg));
+  ok('assim como a data de nascimento', virouPj.dataNascimento === null,
+     JSON.stringify(virouPj.dataNascimento));
+
+  /* A busca global acha pelo CPF como ele é copiado de uma petição. */
+  const achadoPorDoc = await App.services.buscaService.buscar('11.222.333/0001-81');
+  ok('a busca global acha pelo documento pontuado',
+     achadoPorDoc.itens.some(i => i.entidadeId === criado.id),
+     String(achadoPorDoc.total));
+
+  // ==================== LISTA — CLIQUE ABRE O CADASTRO EDITÁVEL ====================
+  console.log('\nLista de clientes — clique na linha abre o cadastro já editável');
+
+  await irPara('#/clientes', 200);
+  await assentar('tbody tr[data-href]');
+
+  const linhaCliente = doc.querySelector('tbody tr[data-href]');
+  const idDaLinha = linhaCliente.dataset.id;
+  const registroDaLinha = App.services.db.find('pessoas', idDaLinha);
+
+  clicar(linhaCliente);
+  await ateQue(() => !!doc.querySelector('#form-cliente'));
+  ok('clicar na linha abre o modal', !!doc.querySelector('#form-cliente'));
+  ok('e NÃO navega para a ficha', window.location.hash === '#/clientes',
+     window.location.hash);
+  ok('o formulário já vem preenchido e editável',
+     doc.querySelector('#form-cliente [name="nome"]').value === registroDaLinha.nome &&
+     !doc.querySelector('#form-cliente [readonly], #form-cliente [disabled]'),
+     doc.querySelector('#form-cliente [name="nome"]').value);
+  ok('o modal guarda o caminho para a ficha completa',
+     !!doc.querySelector('[data-action="ver-ficha"]'));
+
+  const noModal = (nome, valor) => {
+    const el = doc.querySelector('#form-cliente [name="' + nome + '"]');
+    el.value = valor;
+    disparar(el, 'input');
+    return el;
+  };
+  const btnSalvarModal = Array.from(doc.querySelectorAll('.modal__footer .btn'))
+    .find(b => b.dataset.action === 'salvar');
+
+  /* Documento inválido destaca O CAMPO dentro do modal — antes o modal só
+     dava um toast, e quem tinha dezoito campos na frente não sabia qual. */
+  noModal('documento', '111.111.111-11');
+  noModal('bairro', 'Bairro Novo do Teste');
+  clicar(btnSalvarModal);
+  await ateQue(() => !!doc.querySelector('#form-cliente .field--invalid'));
+  ok('documento inválido destaca o campo no modal',
+     !!doc.querySelector('#form-cliente .field--invalid [name="documento"]'));
+  ok('o modal continua aberto', !!doc.querySelector('#form-cliente'));
+  ok('e o que já estava digitado permanece',
+     doc.querySelector('#form-cliente [name="bairro"]').value === 'Bairro Novo do Teste');
+
+  noModal('documento', App.format.documento(registroDaLinha.documento));
+  noModal('telefone', '1130009999');
+  clicar(btnSalvarModal);
+  await ateQue(() => !doc.querySelector('#form-cliente'));
+  ok('salvar fecha o modal', !doc.querySelector('#form-cliente'));
+
+  const salvoNoModal = App.services.db.find('pessoas', idDaLinha);
+  ok('a alteração feita no modal foi gravada',
+     salvoNoModal.endereco.bairro === 'Bairro Novo do Teste' &&
+     salvoNoModal.telefone === '1130009999',
+     JSON.stringify([salvoNoModal.endereco.bairro, salvoNoModal.telefone]));
+  ok('e a pessoa continua na lista, sem ter navegado',
+     window.location.hash === '#/clientes', window.location.hash);
+
+  /* "Novo cliente" usa o MESMO modal, vazio — é o mesmo componente de campos
+     nos dois casos, que é o que impede o cadastro de voltar a divergir da
+     ficha. */
+  clicar(doc.querySelector('[data-action="novo-cliente"]'));
+  await ateQue(() => !!doc.querySelector('#form-cliente'));
+  ok('"Novo cliente" reabre o mesmo formulário, vazio',
+     doc.querySelector('#form-cliente [name="nome"]').value === '');
+  ok('e sem o link de ficha, que só existe na edição',
+     !doc.querySelector('[data-action="ver-ficha"]'));
+  clicar(doc.querySelector('.modal__close'));
+  await ateQue(() => !doc.querySelector('#form-cliente'));
+
+  // ==================== OS COMBOS DO FORMULÁRIO DE CLIENTE ====================
+  console.log('\nCombos do cadastro de cliente — a roupa do filtro, dentro do formulário');
+
+  await assentar('tbody tr[data-href]');
+  clicar(doc.querySelector('tbody tr[data-href]'));
+  await ateQue(() => !!doc.querySelector('#form-cliente'));
+
+  const formCombos = doc.querySelector('#form-cliente');
+  ['tipo', 'uf', 'origem'].forEach(nome => {
+    ok('"' + nome + '" usa o combo da barra de filtros, não o <select> nativo',
+       !!formCombos.querySelector('.combo[data-combo="' + nome + '"]') &&
+       !formCombos.querySelector('select[name="' + nome + '"]'));
+    /* O combo não é um controle de formulário: quem carrega o `name` que o
+       `formToObject` lê é o input escondido que ele traz dentro. */
+    ok('e continua sendo um campo com `name` para o formulário ler',
+       !!formCombos.querySelector('input[type="hidden"][name="' + nome + '"]'));
+  });
+  ok('o rótulo aponta para o gatilho, que é um <button> de verdade',
+     !!doc.querySelector('label[for="tipo"]') &&
+     !!doc.querySelector('#tipo.combo__trigger'));
+
+  const comboTipoForm = formCombos.querySelector('.combo[data-combo="tipo"]');
+  const ocultoTipo = formCombos.querySelector('input[name="tipo"]');
+  const tipoAntes = ocultoTipo.value;
+  const outroTipo = tipoAntes === 'PJ' ? 'PF' : 'PJ';
+
+  clicar(comboTipoForm.querySelector('.combo__trigger'));
+  await ateQue(() =>
+    !comboTipoForm.querySelector('.combo__painel').classList.contains('u-hidden'));
+  ok('o painel do combo abre dentro do modal', true);
+
+  clicar(Array.from(comboTipoForm.querySelectorAll('.combo__item'))
+    .find(i => i.dataset.comboValor === outroTipo));
+  await ateQue(() => ocultoTipo.value === outroTipo);
+  ok('escolher grava o valor no campo escondido', ocultoTipo.value === outroTipo);
+  ok('o painel fecha depois da escolha',
+     comboTipoForm.querySelector('.combo__painel').classList.contains('u-hidden'));
+  ok('e o gatilho passa a mostrar o que foi escolhido',
+     /pessoa/i.test(comboTipoForm.querySelector('.combo__valor').textContent),
+     comboTipoForm.querySelector('.combo__valor').textContent);
+
+  /* O `change` disparado no campo escondido é o que mantém de pé a regra de
+     quais campos valem para cada tipo — sem ele, escolher PJ no combo
+     deixaria o RG na tela. */
+  const escondidoNoForm = n => formCombos.querySelector('[name="' + n + '"]')
+    .closest('.field').classList.contains('u-hidden');
+  ok('e o formulário reage à troca, como reagia ao <select>',
+     outroTipo === 'PJ'
+       ? (escondidoNoForm('rg') && !escondidoNoForm('nomeFantasia'))
+       : (!escondidoNoForm('rg') && escondidoNoForm('nomeFantasia')),
+     'tipo=' + outroTipo + ' rg=' + escondidoNoForm('rg') +
+     ' fantasia=' + escondidoNoForm('nomeFantasia'));
+
+  const comboUf = formCombos.querySelector('.combo[data-combo="uf"]');
+  clicar(comboUf.querySelector('.combo__trigger'));
+  await ateQue(() =>
+    !comboUf.querySelector('.combo__painel').classList.contains('u-hidden'));
+  clicar(Array.from(comboUf.querySelectorAll('.combo__item'))
+    .find(i => i.dataset.comboValor === 'MG'));
+  await ateQue(() => formCombos.querySelector('input[name="uf"]').value === 'MG');
+  ok('a UF escolhida no combo chega ao campo do formulário',
+     formCombos.querySelector('input[name="uf"]').value === 'MG');
+
+  /* Os campos de TEXTO usam o mesmo feitio da caixa de busca da barra de
+     filtros. A comparação é contra o campo de busca de verdade, e não contra
+     números escritos aqui: se o feitio da busca mudar, o do formulário tem de
+     mudar junto — é o ponto de os dois serem a mesma coisa.
+
+     `padding` fica de fora de propósito: a busca reserva a esquerda para a
+     lupa, e no formulário não há lupa. */
+  const feitio = (el) => {
+    const c = window.getComputedStyle(el);
+    /* Só o que o jsdom resolve de verdade. Ele não resolve `var()` nem
+       expande todo atalho de borda, então cor de fundo e largura de borda
+       voltam iguais para qualquer campo e não provariam nada. Raio e altura
+       bastam: sem o feitio de cápsula, o raio volta a ser o `--radius-md`
+       dos campos comuns e a altura deixa de ser fixa. */
+    return [c.borderRadius, c.height].join(' | ');
+  };
+  const campoBusca = doc.querySelector('.filter-bar__search input');
+  const campoNome = formCombos.querySelector('[name="nome"]');
+  ok('há um campo de busca para comparar', !!campoBusca);
+  ok('o campo de texto do formulário tem o feitio da caixa de busca',
+     !!campoBusca && feitio(campoNome) === feitio(campoBusca),
+     feitio(campoNome) + '  ≠  ' + (campoBusca ? feitio(campoBusca) : '—'));
+  ok('e vale para as quatro seções do formulário',
+     doc.querySelectorAll('#form-cliente .form-grid--capsula').length === 4 &&
+     doc.querySelectorAll('#form-cliente .form-grid:not(.form-grid--capsula)').length === 0,
+     String(doc.querySelectorAll('#form-cliente .form-grid--capsula').length));
+
+  clicar(doc.querySelector('.modal__close'));
+  await ateQue(() => !doc.querySelector('#form-cliente'));
 
   // ==================== SOFT DELETE ====================
   console.log('\nSoft delete');

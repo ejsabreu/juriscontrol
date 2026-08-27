@@ -194,7 +194,7 @@
     return {
       cliente: {
         nome: cliente.nome || '',
-        cpfCnpj: cliente.cpfCnpj ? fmt.documento(cliente.cpfCnpj) : '',
+        cpfCnpj: cliente.documento ? fmt.documento(cliente.documento) : '',
         email: cliente.email || '',
         telefone: cliente.telefone ? fmt.telefone(cliente.telefone) : '',
         endereco: enderecoCompleto

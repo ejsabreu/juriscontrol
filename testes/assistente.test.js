@@ -116,19 +116,19 @@ const ia = App.domain.assistente;
   secao('Detecção de duplicidade');
 
   const existentes = [
-    { id: 'A', nome: 'Maria da Silva Costa', cpfCnpj: '12345678901' },
-    { id: 'B', nome: 'João Pereira', cpfCnpj: '98765432100' },
-    { id: 'C', nome: 'Maria da Silva Cost', cpfCnpj: '' }
+    { id: 'A', nome: 'Maria da Silva Costa', documento: '12345678901' },
+    { id: 'B', nome: 'João Pereira', documento: '98765432100' },
+    { id: 'C', nome: 'Maria da Silva Cost', documento: '' }
   ];
 
   const porDocumento = ia.detectarDuplicidadePessoa(
-    { nome: 'Outra Pessoa', cpfCnpj: '123.456.789-01' }, existentes);
+    { nome: 'Outra Pessoa', documento: '123.456.789-01' }, existentes);
   ok('documento igual é CERTEZA', porDocumento[0].confianca === 'certeza');
   ok('e explica o porquê', porDocumento[0].porque === 'mesmo CPF/CNPJ');
   ok('a formatação do documento não atrapalha', porDocumento.length === 1);
 
   const porNome = ia.detectarDuplicidadePessoa(
-    { nome: 'Maria da Silva Costa', cpfCnpj: '' }, existentes);
+    { nome: 'Maria da Silva Costa', documento: '' }, existentes);
   ok('nome quase igual é SUSPEITA, não certeza',
      porNome.length > 0 && porNome[0].confianca !== 'certeza',
      JSON.stringify(porNome.map(p => p.confianca)));

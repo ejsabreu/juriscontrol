@@ -39,6 +39,7 @@
     R.registrar('/agenda',                 'agenda',    P.AgendaPage,           'Agenda');
     R.registrar('/tarefas',                'tarefas',   P.TarefasPage,          'Tarefas');
     R.registrar('/clientes',               'clientes',  P.ClientesPage,         'Clientes');
+    R.registrar('/clientes/:id/editar',    'clientes',  P.ClienteFormPage,      'Editar cliente');
     R.registrar('/clientes/:id',           'clientes',  P.ClienteDetalhePage,   'Cliente');
     // Aba própria: é para onde o botão "Editar" do visor de documento leva.
     R.registrar('/documentos/:id/editar',  'processos', P.DocumentoEditorPage,  'Editar documento',

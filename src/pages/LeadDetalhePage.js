@@ -251,8 +251,8 @@
                        { id: 'PF', label: 'Pessoa física' },
                        { id: 'PJ', label: 'Pessoa jurídica' }
                      ], d.pessoa.tipo) }) +
-          ui.Field({ nome: 'cpfCnpj', rotulo: 'CPF / CNPJ', largura: 8,
-                     valor: d.pessoa.cpfCnpj,
+          ui.Field({ nome: 'documento', rotulo: 'CPF / CNPJ', largura: 8,
+                     valor: d.pessoa.documento,
                      dica: 'Conferido pelo dígito verificador. Se já houver cliente com ' +
                            'este documento, ele é reaproveitado em vez de duplicado.' }) +
           ui.Field({ nome: 'email', rotulo: 'E-mail', largura: 6, valor: d.pessoa.email }) +
@@ -312,7 +312,7 @@
     return '<dl class="def-list">' +
       '<div><dt class="def-list__term">Cliente</dt>' +
         '<dd class="def-list__desc">' + esc(d.pessoa.nome) +
-        (d.pessoa.cpfCnpj ? ' · ' + esc(App.format.documento(d.pessoa.cpfCnpj)) : '') +
+        (d.pessoa.documento ? ' · ' + esc(App.format.documento(d.pessoa.documento)) : '') +
         '</dd></div>' +
       '<div><dt class="def-list__term">Contrato</dt>' +
         '<dd class="def-list__desc">' +
@@ -361,7 +361,7 @@
     etapaConversao = 0;
     dadosConversao = {
       pessoa: {
-        nome: lead.nome, tipo: 'PF', cpfCnpj: '',
+        nome: lead.nome, tipo: 'PF', documento: '',
         email: (lead.contato || {}).email || '',
         telefone: (lead.contato || {}).telefone || ''
       },

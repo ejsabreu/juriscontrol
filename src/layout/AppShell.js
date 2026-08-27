@@ -25,6 +25,20 @@
   var naoLidas = 0;
   var notificacoesAbertas = false;
 
+  /* Quando o próximo desenho do menu deve ser ANIMADO.
+
+     A animação de entrada dos rótulos (`menu-entra`, em layout.css) dispara na
+     criação do elemento — e o menu inteiro é recriado a cada desenho da casca.
+     Sem esta trava, qualquer coisa que repinte a casca fazia o menu piscar:
+     trocar de rota, trocar de tema, e principalmente a volta do sino, que roda
+     sozinha de tempos em tempos. Voltar para a janela depois de um tempo em
+     outro programa caía justamente nisso — os avisos se atualizavam e o menu
+     dava um pulo sem que ninguém tivesse tocado nele.
+
+     Quem levanta a bandeira é só quem EXPANDE o menu de propósito. Ela cai no
+     desenho seguinte: a animação vale para aquele quadro, não para o estado. */
+  var animarExpansao = false;
+
   /* O degrau do menu, pela MESMA consulta que o CSS usa.
 
      Ler `window.innerWidth` uma vez na abertura parecia bastar, e não bastava:
@@ -57,8 +71,9 @@
     if (!CONSULTA_ESTREITO) return;
 
     function aoCruzar() {
-      aplicarPadraoDoMenu();
-      renderizarCasca();
+      // Cruzar para o largo abre o menu — e abrir o menu é o único caso em
+      // que a entrada dos rótulos deve ser animada.
+      definirMenuRecolhido(telaEstreita());
     }
 
     // `addListener` é o nome antigo; Safari só ganhou `addEventListener`
@@ -84,22 +99,37 @@
     atualizarNotificacoes();
   }
 
-  function renderizarCasca() {
+  /* As duas metades da casca se desenham SEPARADAS, e é de propósito.
+
+     Menu e topbar não dependem um do outro: o menu muda quando a rota, o
+     perfil ou o estado de recolhido mudam; a topbar muda quando o sino, o tema
+     ou o usuário mudam. Redesenhar os dois juntos fazia o mais barulhento
+     arrastar o outro — o sino se atualiza sozinho a cada cinco minutos, e
+     junto com ele o menu inteiro era jogado fora e reconstruído.
+
+     Quem precisa dos dois chama `renderizarCasca()`. Quem mexe só no sino
+     chama `renderizarTopbar()`, e o menu nem fica sabendo. */
+  function atualizarClasseDoApp() {
     var estado = App.store.getState();
     var app = raiz && raiz.querySelector('.app');
-    if (app) {
-      app.className = 'app' +
-        (cascaVisivel ? '' : ' app--nu') +
-        // A largura da coluna é da GRADE, não da sidebar: estreitar só o
-        // <aside> deixaria a coluna larga e um vão vazio ao lado dele.
-        (cascaVisivel && estado.sidebarRecolhida ? ' app--menu-recolhido' : '');
-    }
+    if (!app) return;
+
+    app.className = 'app' +
+      (cascaVisivel ? '' : ' app--nu') +
+      // A largura da coluna é da GRADE, não da sidebar: estreitar só o
+      // <aside> deixaria a coluna larga e um vão vazio ao lado dele.
+      (cascaVisivel && estado.sidebarRecolhida ? ' app--menu-recolhido' : '');
+  }
+
+  function renderizarSidebar() {
+    atualizarClasseDoApp();
 
     if (!cascaVisivel) {
       App.dom.render('#slot-sidebar', '');
-      App.dom.render('#slot-topbar', '');
       return;
     }
+
+    var estado = App.store.getState();
 
     /* Recolher e expandir REDESENHA o menu — os rótulos somem, os títulos de
        seção somem, o `title` de cada item aparece. E redesenhar um elemento
@@ -107,7 +137,7 @@
        voltava ao topo a cada clique no botão.
 
        Então a posição é guardada antes e devolvida depois. Vale para
-       qualquer redesenho da casca, não só o do botão — trocar de rota
+       qualquer redesenho do menu, não só o do botão — trocar de rota
        também repinta o menu para marcar o item ativo. */
     var navAntes = document.querySelector('.sidebar__nav');
     var rolagem = navAntes ? navAntes.scrollTop : 0;
@@ -116,8 +146,11 @@
       rotaAtual: estado.rota && estado.rota.chave,
       recolhida: estado.sidebarRecolhida,
       secoesAbertas: estado.sidebarSecoesAbertas,
-      usuario: estado.usuarioAtual      // F2.1: o menu esconde o que o perfil não acessa
+      usuario: estado.usuarioAtual,     // F2.1: o menu esconde o que o perfil não acessa
+      animarExpansao: animarExpansao
     }));
+
+    animarExpansao = false;
 
     if (rolagem) {
       var navDepois = document.querySelector('.sidebar__nav');
@@ -129,6 +162,17 @@
           rolagem, navDepois.scrollHeight - navDepois.clientHeight);
       }
     }
+  }
+
+  function renderizarTopbar() {
+    atualizarClasseDoApp();
+
+    if (!cascaVisivel) {
+      App.dom.render('#slot-topbar', '');
+      return;
+    }
+
+    var estado = App.store.getState();
 
     App.dom.render('#slot-topbar', App.layout.Topbar({
       usuario: estado.usuarioAtual,
@@ -139,6 +183,22 @@
     }));
 
     App.layout.Topbar.mount(document);
+  }
+
+  function renderizarCasca() {
+    renderizarSidebar();
+    renderizarTopbar();
+  }
+
+  /* Recolhe ou expande o menu — o único caminho para isso, de propósito.
+
+     Concentrar aqui é o que garante que a animação de entrada só rode quando
+     o menu de fato abriu. Mexer no store e chamar o desenho por fora voltaria
+     a piscar em silêncio; ver `animarExpansao` lá em cima. */
+  function definirMenuRecolhido(recolhida) {
+    animarExpansao = !recolhida;
+    App.store.setState({ sidebarRecolhida: recolhida });
+    renderizarSidebar();
   }
 
   /**
@@ -165,7 +225,9 @@
       .then(function (r) {
         notificacoes = r.itens;
         naoLidas = r.naoLidas;
-        renderizarCasca();
+        // SÓ a topbar: o sino não é assunto do menu, e arrastá-lo junto era o
+        // que fazia o menu piscar a cada volta do avaliador de alertas.
+        renderizarTopbar();
       })
       .catch(function (erro) {
         console.warn('[shell] Falha ao carregar notificações:', erro.message);
@@ -192,6 +254,11 @@
           ? abertas.concat([secao])
           : abertas.slice(0, i).concat(abertas.slice(i + 1))
       });
+      /* Grava na hora, e não ao sair: sob `file://` não existe "sair" — a
+         aba é fechada e nenhum evento chega a tempo. Um item de preferência
+         por clique é escrita barata o bastante para não valer adiar. */
+      App.preferencias.salvar();
+
       botao.classList.toggle('sidebar__section--dobrada', !abrindo);
       botao.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
 
@@ -203,8 +270,7 @@
        começa recolhido a cada abertura (ver o padrão em store.js). Expandir
        vale para esta sessão. */
     App.dom.delegate(raiz, 'click', '[data-action="alternar-menu"]', function () {
-      App.store.setState({ sidebarRecolhida: !App.store.getState().sidebarRecolhida });
-      renderizarCasca();
+      definirMenuRecolhido(!App.store.getState().sidebarRecolhida);
     });
 
     /* Clique fora recolhe — só no estreito, e só quando está expandido.
@@ -224,8 +290,7 @@
       if (App.store.getState().sidebarRecolhida) return;
       if (evento.target.closest && evento.target.closest('.sidebar')) return;
 
-      App.store.setState({ sidebarRecolhida: true });
-      renderizarCasca();
+      definirMenuRecolhido(true);
     });
 
     App.dom.delegate(raiz, 'click', '[data-action="alternar-tema"]', function () {
@@ -233,7 +298,9 @@
       App.store.setState({ tema: novo });
       aplicarTema(novo);
       App.preferencias.salvar();
-      renderizarCasca();
+      // O tema mora no atributo do <html> e no ícone do botão; o menu não tem
+      // uma linha de HTML que dependa dele. Repintá-lo era piscada de graça.
+      renderizarTopbar();
     });
 
     App.dom.delegate(raiz, 'click', '[data-action="sair"]', function () {
@@ -247,7 +314,7 @@
       evento.stopPropagation();
       notificacoesAbertas = !notificacoesAbertas;
       if (notificacoesAbertas) atualizarNotificacoes();
-      else renderizarCasca();
+      else renderizarTopbar();
     });
 
     App.dom.delegate(raiz, 'click', '[data-action="marcar-todas-lidas"]', function (evento) {
@@ -282,7 +349,7 @@
       notificacoesAbertas = false;
       App.services.notificacaoService.marcarLida(alvo.getAttribute('data-value'))
         .then(atualizarNotificacoes)
-        .catch(function () { renderizarCasca(); });
+        .catch(function () { renderizarTopbar(); });
     });
 
     // Clique fora fecha o painel — sem isso ele fica preso aberto.
@@ -290,7 +357,7 @@
       if (!notificacoesAbertas) return;
       if (evento.target.closest('.topbar__notif')) return;
       notificacoesAbertas = false;
-      renderizarCasca();
+      renderizarTopbar();
     });
 
     App.dom.delegate(raiz, 'click', '[data-action="restaurar-dados"]', function () {
@@ -312,8 +379,7 @@
        tela para onde o clique acabou de levar. Navegar recolhe. */
     App.dom.delegate(raiz, 'click', '.sidebar .nav-item', function () {
       if (telaEstreita() && !App.store.getState().sidebarRecolhida) {
-        App.store.setState({ sidebarRecolhida: true });
-        renderizarCasca();
+        definirMenuRecolhido(true);
       }
     });
   }
@@ -399,6 +465,7 @@
     conteudo: conteudo,
     trocarConteudo: trocarConteudo,
     renderizarCasca: renderizarCasca,
+    renderizarTopbar: renderizarTopbar,
     aplicarTema: aplicarTema,
     atualizarNotificacoes: atualizarNotificacoes,
     aoTrocarRota: aoTrocarRota

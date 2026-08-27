@@ -33,19 +33,34 @@
   background: var(--color-primary-500);
 }
 
+/* Botão neutro veste a MESMA roupa do campo de busca em repouso: cápsula
+   preenchida com `--color-surface-alt`, contorno transparente, e o estado
+   dito pelo PREENCHIMENTO — não pela cor de uma borda.
+
+   Antes eram três linguagens na mesma barra de filtros: a busca e os combos
+   em cápsula cinza, o `secondary` branco com borda dura, o `ghost` sem fundo
+   nenhum. Agora os neutros são um bloco só, e a única cor que sobra na tela
+   é a do botão que importa — `primary` e `danger` seguem intactos, porque
+   neles a cor não é acabamento: diz qual é a ação principal e qual destrói.
+
+   A borda continua declarada, transparente: sem ela o botão mudaria de
+   tamanho ao ganhar um contorno, porque a borda entra no cálculo da caixa. */
 .btn--secondary {
-  background: var(--color-surface);
-  border-color: var(--color-border-strong);
+  background: var(--btn-neutro, var(--color-surface-alt));
+  border-color: transparent;
   color: var(--color-text);
 }
 
 .btn--secondary:not(:disabled):hover {
   background: var(--color-surface-hover);
-  border-color: var(--color-text-subtle);
 }
 
+/* O `ghost` continua sendo o irmão mais discreto: mesmo fundo, texto mais
+   apagado. O que os separa deixou de ser a presença do fundo e passou a ser
+   o peso do rótulo. */
 .btn--ghost {
-  background: transparent;
+  background: var(--btn-neutro, var(--color-surface-alt));
+  border-color: transparent;
   color: var(--color-text-muted);
 }
 
@@ -86,6 +101,31 @@
   display: block;
   width: 1em;
   height: 1em;
+}
+
+/* --- A válvula do botão neutro ------------------------------------------
+
+   Botão cinza sobre painel cinza é botão invisível: sem contorno, o `secondary`
+   e o `ghost` sumiriam dentro de tudo o que já usa `--color-surface-alt` — o
+   rodapé de formulário, a barra do explorador de documentos, a linha PAR da
+   tabela zebrada, onde moram "Excluir" e "Anonimizar".
+
+   Nesses lugares o botão INVERTE: fica branco sobre o cinza, mantendo o mesmo
+   contraste de sempre, só que do outro lado. A troca é por herança — quem
+   declara é o container, e todo botão dentro dele obedece sem saber de nada.
+
+   Painel cinza NOVO que receba botão entra nesta lista. É o preço de o neutro
+   não ter contorno próprio, que é justamente o que o faz parecer com a busca. */
+.table tbody tr:nth-child(even),
+.table tbody tr:hover,
+.form-actions,
+.doc-explorer__toolbar,
+.editor-doc__status,
+.painel__divisor,
+.kanban__column,
+.vinculo,
+.preench {
+  --btn-neutro: var(--color-surface);
 }
 
 .btn--block {
@@ -195,10 +235,21 @@
   padding: 0;
 }
 
+/* Fundo do cartão, e não o cinza `--color-surface-alt`.
+
+   O cinza era o mesmo do preenchimento de `.combo__trigger` — e desde que a
+   paginação passou a levar o seletor de quantidade, a cápsula ficava
+   invisível dentro do rodapé: cinza sobre cinza idêntico, sem contorno. É a
+   MESMA relação que a cápsula tem na barra de filtros (que também é
+   `--color-surface`), e é o que faz o combo ser o mesmo controle nos dois
+   lugares em vez de só ter o mesmo nome.
+
+   O que separa o rodapé do corpo continua sendo a borda de cima — que já era
+   quem fazia esse trabalho; o cinza era reforço. */
 .card__footer {
   padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--color-border);
-  background: var(--color-surface-alt);
+  background: var(--color-surface);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
@@ -391,27 +442,64 @@ a.kpi:hover {
   color: var(--color-text);
 }
 
-/* --- Paginação ------------------------------------------------------------ */
+/* --- Paginação ------------------------------------------------------------
+
+   Duas peças: a faixa ("1 a 15 de 40 registros", entre as duas setas) à
+   esquerda e o seletor de quantidade à direita. O `space-between` separa as
+   duas; quando não couberem lado a lado, a segunda desce inteira — daí o
+   `flex-wrap` na linha de fora e a ausência dele na de dentro, que precisa
+   manter setas e faixa juntas para as setas continuarem sendo dela. */
 .pagination {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: space-between;
+  gap: var(--space-3);
   flex-wrap: wrap;
+}
+
+.pagination__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .pagination__info {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
-  margin-right: auto;
+  /* A faixa muda de largura ao trocar de página ("9 a 9 de 9" é mais curta
+     que "10 a 24 de 40"), e com ela as setas dançariam de lugar debaixo do
+     ponteiro de quem está clicando em "próxima". A largura mínima segura as
+     setas paradas nos tamanhos usuais. */
+  min-width: 15ch;
+  text-align: center;
 }
 
+/* 27px — 20% menos que os 34px do `.combo__trigger` ao lado.
+
+   As setas deixam de ter a altura do seletor de propósito: elas não são um
+   campo, são um passo. Menores, param de disputar peso com o combo e a faixa
+   entre elas passa a ser a parte mais forte do rodapé, que é o que a pessoa
+   está lendo. O `align-items: center` de `.pagination__nav` mantém as três
+   coisas na mesma linha de base visual apesar da diferença de altura.
+
+   Não há mais `--active`: sem botões numerados, nenhuma seta representa a
+   página em que se está.
+
+   A cor é a do botão neutro, que é a do campo de busca em repouso: cápsula
+   preenchida, contorno transparente, estado pelo PREENCHIMENTO. No rodapé isso
+   fecha a conta — as setas, o combo da quantidade e a busca lá em cima passam
+   a ser o mesmo cinza, e a borda dura que as setas tinham era o último traço
+   da linguagem antiga sobrando na tela.
+
+   O TAMANHO e o raio não mudam: 27px quadrados continuam sendo o que separa um
+   passo de um campo (ver acima). Elas herdam a cor do botão neutro, não a
+   forma dele. */
 .pagination__btn {
-  min-width: 30px;
-  height: 30px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-border);
+  width: 27px;
+  height: 27px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: var(--btn-neutro, var(--color-surface-alt));
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   transition: background var(--transition), border-color var(--transition);
@@ -419,19 +507,52 @@ a.kpi:hover {
 
 .pagination__btn:not(:disabled):hover {
   background: var(--color-surface-hover);
-  border-color: var(--color-border-strong);
-}
-
-.pagination__btn--active {
-  background: var(--color-primary-600);
-  border-color: var(--color-primary-600);
-  color: #fff;
-  font-weight: 600;
+  color: var(--color-text);
 }
 
 .pagination__btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* No toque, a área clicável cresce sem que o botão cresça.
+
+   27px de lado é confortável para um ponteiro e apertado para um polegar —
+   e "próxima página" é justamente o gesto que se repete dezenas de vezes
+   percorrendo uma lista. O `::after` estende o alvo até 44px a partir do
+   centro; o botão continua desenhado em 27px.
+
+   É invisível e não empurra nada: `position: absolute` sai do fluxo, e o
+   retângulo que ele cobre de cada lado é a folga entre a seta e a faixa de
+   texto, que não é clicável. */
+@media (hover: none) {
+  .pagination__btn {
+    position: relative;
+  }
+
+  .pagination__btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* O combo da quantidade NÃO é redecorado aqui: é a mesma cápsula do filtro de
+   tipo de pessoa, mesma altura, mesmo raio, mesmo preenchimento. Um combo
+   menor e quadrado no rodapé leria como outro controle — e é o mesmo gesto.
+
+   O que muda é só a DIREÇÃO do painel: a paginação é a última linha do
+   cartão, e uma lista descendo dali cairia fora da tela em qualquer tabela
+   cheia. */
+.pagination .combo__painel {
+  top: auto;
+  bottom: calc(100% + 4px);
+  right: 0;
+  left: auto;
 }
 
 /* --- Formulários ---------------------------------------------------------- */
@@ -521,6 +642,62 @@ a.kpi:hover {
 
 .field--valid .input {
   border-color: var(--color-success);
+}
+
+/* --- Formulário no feitio da caixa de busca -------------------------------
+
+   `form-grid--capsula` veste os campos como `.filter-bar__search`: cápsula
+   preenchida, sem contorno visível em repouso, e o que muda entre repouso,
+   hover e foco é o PREENCHIMENTO — não a cor de uma borda.
+
+   Sem a lupa, o texto começa na mesma margem dos dois lados.
+
+   A borda continua declarada, transparente: sem ela o campo mudaria de
+   tamanho ao ganhar foco, porque a borda entra no cálculo da caixa. */
+.form-grid--capsula .input,
+.form-grid--capsula .textarea {
+  border-color: transparent;
+  background: var(--color-surface-alt);
+  transition: background var(--transition), border-color var(--transition),
+              box-shadow var(--transition);
+}
+
+.form-grid--capsula .input {
+  height: 34px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+}
+
+/* A caixa de várias linhas NÃO vira cápsula: o raio inteiro num bloco alto
+   desenha um estádio, e as primeiras letras de cada linha encostam na
+   curva. Fica o preenchimento, que é o que a identifica como o mesmo
+   sistema dos vizinhos. */
+.form-grid--capsula .textarea {
+  padding: var(--space-2) var(--space-4);
+}
+
+.form-grid--capsula .input:hover,
+.form-grid--capsula .textarea:hover {
+  background: var(--color-surface-hover);
+}
+
+/* No foco o campo clareia em vez de escurecer: ele passa a ser a superfície
+   ativa da tela — o mesmo halo dos demais campos, para o foco do teclado não
+   mudar de linguagem no meio do sistema. */
+.form-grid--capsula .input:focus,
+.form-grid--capsula .textarea:focus {
+  outline: none;
+  background: var(--color-surface);
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px rgba(79, 116, 160, 0.15);
+}
+
+/* Precisa vir DEPOIS e com mais peso: `.form-grid--capsula .input` apaga a
+   borda, e sem este acerto o campo com erro ficaria sem marca nenhuma. */
+.form-grid--capsula .field--invalid .input,
+.form-grid--capsula .field--invalid .textarea,
+.form-grid--capsula .field--invalid .combo__trigger {
+  border-color: var(--color-danger);
 }
 
 .checkbox {
@@ -789,6 +966,33 @@ a.kpi:hover {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-dropdown);
+}
+
+/* --- Combo dentro de formulário ------------------------------------------
+   Mesma pílula da barra de filtros — é o mesmo gesto, escolher um entre
+   poucos valores conhecidos. O que muda é a medida: numa grade de
+   formulário, um gatilho de 140px boiando na célula lê como campo
+   quebrado, então ele ocupa a coluna e ganha a altura dos vizinhos. */
+.combo--campo,
+.combo--campo .combo__trigger {
+  width: 100%;
+}
+
+.combo--campo .combo__trigger {
+  height: auto;
+  min-height: 34px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.field--invalid .combo__trigger {
+  border-color: var(--color-danger);
+}
+
+/* Perto do rodapé de um modal não sobra espaço embaixo, e o corpo que rola
+   recortaria a lista pela metade — ver `abrir`, em Combo.js. */
+.combo__painel--acima {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 
 .combo__item {

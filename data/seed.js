@@ -277,7 +277,8 @@
           uf: cidade.uf
         },
         ehCliente: ehCliente,
-        origem: ehCliente ? f.escolher(['Indicação', 'Site', 'Cliente antigo', 'Parceria']) : '',
+        // Ids de ORIGENS_CLIENTE — o rótulo quem resolve é a ficha.
+        origem: ehCliente ? f.escolher(['indicacao', 'site', 'cliente_antigo', 'parceria']) : '',
         observacoes: '',
         ativo: true,
         criadoEm: agora,

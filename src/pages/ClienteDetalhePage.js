@@ -48,7 +48,13 @@
   function heroi() {
     var ui = App.components.ui;
     var fmt = App.format;
+    var enums = App.domain.enums;
     var end = cliente.endereco || {};
+
+    /* `origem` é id de ORIGENS_CLIENTE. O `||` cobre a ficha antiga, que
+       guardava o rótulo direto — registro velho não fica ilegível por causa
+       de uma mudança de formato. */
+    var origem = enums.achar(enums.ORIGENS_CLIENTE, cliente.origem);
 
     var enderecoCompleto = [
       end.logradouro && end.numero ? end.logradouro + ', ' + end.numero : end.logradouro,
@@ -66,9 +72,14 @@
         }).replace('class="avatar avatar--lg"', 'class="avatar avatar--lg cliente-hero__avatar"') +
         '<div style="flex:1;min-width:0">' +
           '<h2>' + esc(cliente.nome) + '</h2>' +
+          /* Na lista só cabe a razão social; aqui cabem as duas, que é o que
+             a coluna de Clientes promete ao deixar o fantasia de fora. */
+          (cliente.nomeFantasia
+            ? '<div class="u-sm">' + esc(cliente.nomeFantasia) + '</div>' : '') +
           '<div class="u-sm u-muted">' +
             esc(cliente.tipo === 'PJ' ? 'CNPJ ' : 'CPF ') + esc(fmt.documento(cliente.documento)) +
-            (cliente.origem ? ' · origem: ' + esc(cliente.origem) : '') +
+            (cliente.origem
+              ? ' · origem: ' + esc(origem ? origem.label : cliente.origem) : '') +
           '</div>' +
         '</div>' +
         ui.Badge({
@@ -86,8 +97,18 @@
           item('Endereço', esc(enderecoCompleto || '—')) +
           (cliente.dataNascimento
             ? item('Nascimento', esc(fmt.data(cliente.dataNascimento))) : '') +
+          (cliente.rg ? item('RG', esc(cliente.rg)) : '') +
           item('Cadastro', esc(fmt.data(String(cliente.criadoEm).slice(0, 10)))) +
         '</div>' +
+        /* Observações fora da grade de definições: é texto corrido, e texto
+           corrido espremido em coluna de rótulo não se lê. `pre-line`
+           preserva as quebras de quem digitou em tópicos. */
+        (cliente.observacoes
+          ? '<div class="divider"></div>' +
+            '<div class="fieldset__legend">Observações</div>' +
+            '<p class="u-sm" style="white-space:pre-line">' +
+              esc(cliente.observacoes) + '</p>'
+          : '') +
       '</div>' +
     '</div>';
 
@@ -199,6 +220,10 @@
           '<p class="page-header__subtitle">Ficha do cliente e carteira de processos</p>' +
         '</div>' +
         '<div class="page-header__actions">' +
+          App.components.ui.Button({
+            rotulo: 'Editar cadastro', variante: 'secondary',
+            href: '#/clientes/' + cliente.id + '/editar'
+          }) +
           App.components.ui.Button({
             rotulo: 'Novo processo', variante: 'primary', icone: '+', href: '#/processos/novo'
           }) +

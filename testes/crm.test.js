@@ -237,7 +237,7 @@ const { ok, secao, encerrar } = criarPlacar();
   const conversao = await leadService.converter(novo.id, {
     pessoa: {
       nome: 'Construtora Teste Ltda', tipo: 'PJ',
-      cpfCnpj: '11222333000181', email: 'contato@teste.com'
+      documento: '11222333000181', email: 'contato@teste.com'
     },
     contrato: {
       modalidade: 'misto', valorFixoCentavos: 800000,
@@ -298,7 +298,7 @@ const { ok, secao, encerrar } = criarPlacar();
   let documentoRuim = false;
   try {
     await leadService.converter(outroLead.id, {
-      pessoa: { nome: 'Fulano', cpfCnpj: '11111111111' }, contrato: {}
+      pessoa: { nome: 'Fulano', documento: '11111111111' }, contrato: {}
     });
   } catch (e) { documentoRuim = e.codigo === 400; }
   ok('CPF inválido barra a conversão', documentoRuim);
@@ -308,7 +308,7 @@ const { ok, secao, encerrar } = criarPlacar();
   const maisUm = await leadService.criar({ nome: 'Construtora Teste Ltda (2º caso)' });
   const pessoasAntesDup = db.get('pessoas').length;
   const semDuplicar = await leadService.converter(maisUm.id, {
-    pessoa: { nome: 'Construtora Teste Ltda', tipo: 'PJ', cpfCnpj: '11222333000181' },
+    pessoa: { nome: 'Construtora Teste Ltda', tipo: 'PJ', documento: '11222333000181' },
     contrato: { modalidade: 'fixo', valorFixoCentavos: 100000, numParcelas: 1 }
   });
   ok('cliente com o mesmo CNPJ é reaproveitado, não duplicado',

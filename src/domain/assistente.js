@@ -293,12 +293,12 @@
   function detectarDuplicidadePessoa(candidato, existentes) {
     var c = candidato || {};
     var achados = [];
-    var docCandidato = String(c.cpfCnpj || '').replace(/\D/g, '');
+    var docCandidato = String(c.documento || '').replace(/\D/g, '');
 
     (existentes || []).forEach(function (p) {
       if (p.id && p.id === c.id) return;
 
-      var docExistente = String(p.cpfCnpj || '').replace(/\D/g, '');
+      var docExistente = String(p.documento || '').replace(/\D/g, '');
       if (docCandidato && docExistente && docCandidato === docExistente) {
         achados.push({
           registro: p, tipo: 'documento', confianca: 'certeza', similaridade: 100,

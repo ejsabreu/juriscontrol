@@ -298,7 +298,9 @@
       aoMudar: function (nome, valor) { filtros[nome] = valor; carregar(); },
       aoLimpar: function () {
         filtros = { busca: '', responsavelId: '', origem: '', apenasAtrasados: false };
-        carregar();
+        /* Completo: os campos da barra ficam FORA do miolo — trocar só o
+           miolo limpava o filtro e deixava escrito o que estava neles. */
+        carregar(true);
       }
     });
 

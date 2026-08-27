@@ -184,7 +184,7 @@
         var pessoas = db().get('pessoas');
         validas.forEach(function (l) {
           var achados = App.domain.assistente.detectarDuplicidadePessoa(
-            { nome: l.nome, cpfCnpj: l.cpfCnpj }, pessoas);
+            { nome: l.nome, documento: l.cpfCnpj }, pessoas);
           var certeza = achados.filter(function (a) { return a.confianca === 'certeza'; })[0];
           if (certeza) {
             avisos.push({ linha: l.__linha, campo: 'cpfCnpj',
@@ -232,7 +232,7 @@
           db().insert('pessoas', {
             nome: linha.nome,
             tipo: (linha.tipo || '').toUpperCase() === 'PJ' ? 'PJ' : 'PF',
-            cpfCnpj: String(linha.cpfCnpj || '').replace(/\D/g, ''),
+            documento: String(linha.cpfCnpj || '').replace(/\D/g, ''),
             email: linha.email || '',
             telefone: String(linha.telefone || '').replace(/\D/g, ''),
             endereco: linha.cidade
@@ -248,7 +248,7 @@
         var documento = String(linha.clienteCpfCnpj || '').replace(/\D/g, '');
         var cliente = documento
           ? db().get('pessoas').filter(function (p) {
-              return String(p.cpfCnpj || '').replace(/\D/g, '') === documento;
+              return String(p.documento || '').replace(/\D/g, '') === documento;
             })[0]
           : null;
 
@@ -256,7 +256,7 @@
           cliente = db().insert('pessoas', {
             nome: linha.clienteNome,
             tipo: documento.length === 14 ? 'PJ' : 'PF',
-            cpfCnpj: documento,
+            documento: documento,
             ehCliente: true,
             observacoes: 'Criado na importação de processos.'
           }, 'PES');

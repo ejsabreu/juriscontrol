@@ -147,7 +147,8 @@
         pagina: resultado.pagina,
         totalPaginas: resultado.totalPaginas,
         total: resultado.total,
-        info: resultado.total + ' ' + App.format.plural(resultado.total, 'evento')
+        porPagina: resultado.porPagina,
+        singular: 'evento'
       });
   }
 
@@ -225,8 +226,11 @@
         carregar();
       },
       aoLimpar: function () {
-        filtros = { pagina: 1, porPagina: 30 };
-        carregar();
+        // O tamanho da página não é filtro — ver ClientesPage.
+        filtros = { pagina: 1, porPagina: filtros.porPagina };
+        /* Completo: os campos da barra ficam FORA do miolo — trocar só o
+           miolo limpava o filtro e deixava escrito o que estava neles. */
+        carregar(true);
       }
     });
   }

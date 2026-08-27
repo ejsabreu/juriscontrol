@@ -58,7 +58,7 @@
         tipo: 'pessoa',
         entidadeId: p.id,
         titulo: p.nome,
-        texto: [p.email, p.cpfCnpj, p.observacoes].filter(Boolean).join(' '),
+        texto: [p.email, p.documento, p.observacoes].filter(Boolean).join(' '),
         rotulo: p.nome,
         sublinha: p.ehCliente ? 'Cliente' : 'Parte',
         destino: p.ehCliente ? '#/clientes/' + p.id : null

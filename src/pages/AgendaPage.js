@@ -21,6 +21,12 @@
   var LIMIAR_SWIPE_PX = 60;
   var toqueInicio = null;
 
+  /* Arrastar prazo ou compromisso para outro dia (grade do calendário,
+     telas largas) — mesmo padrão de KanbanBoard.mount: estado em módulo,
+     não só `dataTransfer`, porque nem todo navegador devolve o payload
+     no `drop` do mesmo jeito. */
+  var itemArrastado = null;   // { id, elemento }
+
   function esc(v) { return App.dom.esc(v); }
   function filtros() { return App.store.getState().agendaFiltros; }
 
@@ -210,6 +216,60 @@
     carregar(true);
   }
 
+  /** Solta um evento arrastado em outro dia. `eventos.itens` é o snapshot
+      já carregado — o arrasto começa e termina sem sair da tela, então
+      não há corrida com um `carregar()` no meio. Compromisso e prazo têm
+      caminhos diferentes a partir daqui: só o segundo pede confirmação. */
+  function moverEvento(id, novaData) {
+    if (!novaData) return;
+
+    var item = eventos.itens.filter(function (ev) { return ev.id === id; })[0];
+    if (!item || item.data === novaData) return;   // soltou no mesmo dia
+
+    if (item.categoria === 'compromisso') moverCompromisso(item, novaData);
+    else if (item.categoria === 'prazo') confirmarMoverPrazo(item, novaData);
+  }
+
+  /** Compromisso não tem cálculo por trás — troca só a DATA, mantém a hora. */
+  function moverCompromisso(item, novaData) {
+    App.services.agendaService.atualizarCompromisso(item.id, {
+      dataHora: novaData + 'T' + (item.hora || '00:00')
+    }).then(function () {
+      App.components.Toast.sucesso('Compromisso remarcado',
+        item.titulo + ' — ' + App.format.dataExtenso(novaData));
+      carregar();
+    }).catch(function (erro) {
+      App.components.Toast.erro('Não foi possível remarcar', erro.message);
+    });
+  }
+
+  /** Prazo tem cálculo por trás (motor do CPC): arrastar sobrescreve a
+      data fatal calculada por uma escolhida à mão, e isso é grave demais
+      pra acontecer num solto de mouse sem aviso — um dia errado aqui é
+      prazo perdido de verdade, não desorganização de agenda. */
+  function confirmarMoverPrazo(item, novaData) {
+    App.components.Modal.confirmar({
+      titulo: 'Mover prazo manualmente?',
+      mensagem: 'A data fatal de "' + item.titulo + '" foi calculada pelo motor de ' +
+                'prazos do CPC. Movê-la para ' + App.format.dataExtenso(novaData) +
+                ' substitui esse cálculo por uma data escolhida à mão.',
+      detalhe: 'Confira o prazo processual antes de confirmar — a contagem original ' +
+               'se perde e não volta sozinha se você arrastar de volta.',
+      rotuloConfirmar: 'Mover mesmo assim',
+      variante: 'danger'
+    }).then(function (confirmado) {
+      if (!confirmado) return;
+
+      App.services.prazoService.atualizar(item.id, { dataFatal: novaData }).then(function () {
+        App.components.Toast.sucesso('Prazo movido manualmente',
+          item.titulo + ' — ' + App.format.dataExtenso(novaData));
+        carregar();
+      }).catch(function (erro) {
+        App.components.Toast.erro('Não foi possível mover o prazo', erro.message);
+      });
+    });
+  }
+
   function aoTocarInicio(evento) {
     var toque = evento.touches[0];
     toqueInicio = { x: toque.clientX, y: toque.clientY };
@@ -259,6 +319,56 @@
     App.dom.delegate(container, 'touchstart', '.calendar', aoTocarInicio);
     App.dom.delegate(container, 'touchend', '.calendar', aoTocarFim);
 
+    App.dom.delegate(container, 'dragstart', '.calendar__event[draggable="true"]', function (evento, botao) {
+      itemArrastado = { id: botao.dataset.id, elemento: botao };
+      botao.classList.add('calendar__event--dragging');
+
+      if (evento.dataTransfer) {
+        evento.dataTransfer.effectAllowed = 'move';
+        // Alguns navegadores exigem algum payload para iniciar o arrasto.
+        try { evento.dataTransfer.setData('text/plain', botao.dataset.id); } catch (e) { /* ignora */ }
+      }
+    });
+
+    App.dom.delegate(container, 'dragend', '.calendar__event', function (evento, botao) {
+      botao.classList.remove('calendar__event--dragging');
+      App.dom.qsa('.calendar__day--dragover', container).forEach(function (dia) {
+        dia.classList.remove('calendar__day--dragover');
+      });
+      itemArrastado = null;
+    });
+
+    App.dom.delegate(container, 'dragover', '.calendar__day', function (evento, dia) {
+      if (!itemArrastado) return;
+      evento.preventDefault();   // sem isso o navegador não permite o drop
+      if (evento.dataTransfer) evento.dataTransfer.dropEffect = 'move';
+
+      if (!dia.classList.contains('calendar__day--dragover')) {
+        App.dom.qsa('.calendar__day--dragover', container).forEach(function (d) {
+          d.classList.remove('calendar__day--dragover');
+        });
+        dia.classList.add('calendar__day--dragover');
+      }
+    });
+
+    App.dom.delegate(container, 'dragleave', '.calendar__day', function (evento, dia) {
+      // Só limpa quando o ponteiro sai de fato do dia, não ao cruzar filhos.
+      if (dia.contains(evento.relatedTarget)) return;
+      dia.classList.remove('calendar__day--dragover');
+    });
+
+    App.dom.delegate(container, 'drop', '.calendar__day', function (evento, dia) {
+      evento.preventDefault();
+      dia.classList.remove('calendar__day--dragover');
+      if (!itemArrastado) return;
+
+      var item = itemArrastado;
+      itemArrastado = null;
+      if (item.elemento) item.elemento.classList.remove('calendar__event--dragging');
+
+      moverEvento(item.id, dia.dataset.dia);
+    });
+
     App.dom.delegate(container, 'click', '[data-action="cumprir-prazo"]', function (evento, botao) {
       App.services.prazoService.cumprir(botao.dataset.value).then(function (prazo) {
         App.components.Toast.sucesso('Prazo baixado', prazo.titulo);
@@ -273,12 +383,23 @@
       if (item) abrirResumoEvento(item);
     });
 
-    App.dom.delegate(container, 'click', '[data-action="novo-compromisso"]', abrirNovoCompromisso);
+    App.dom.delegate(container, 'click', '[data-action="novo-compromisso"]', function () {
+      abrirNovoCompromisso();
+    });
+
+    // Dia sem prazo nem compromisso: clicar oferece criar um dos dois já
+    // com a data preenchida. Só existe na grade (só ela marca dia como
+    // `--vago` — ver Calendar.js), então não interfere na lista de tela
+    // estreita, que não tem essa classe pra selecionar.
+    App.dom.delegate(container, 'click', '.calendar__day--vago', function (evento, dia) {
+      abrirEscolhaNovoEvento(dia.dataset.dia);
+    });
   }
 
   /** Modal de cadastro — compromisso avulso (reunião, diligência...), com ou
-      sem processo vinculado. A agenda não fica limitada a prazo processual. */
-  function abrirNovoCompromisso() {
+      sem processo vinculado. A agenda não fica limitada a prazo processual.
+      @param {string} [dataInicial]  ISO — pré-preenche a data (padrão: hoje) */
+  function abrirNovoCompromisso(dataInicial) {
     var ui = App.components.ui;
     var enums = App.domain.enums;
     var pessoas = App.services.db.get('pessoas');
@@ -303,7 +424,7 @@
                      usuarios.map(function (u) { return { id: u.id, label: u.nome }; }),
                      App.store.getState().usuarioAtual.id) }) +
         ui.Field({ nome: 'data', rotulo: 'Data', tipo: 'date', largura: 6, obrigatorio: true,
-                   valor: App.domain.prazos.hojeISO() }) +
+                   valor: dataInicial || App.domain.prazos.hojeISO() }) +
         ui.Field({ nome: 'hora', rotulo: 'Hora', tipo: 'time', largura: 6, obrigatorio: true,
                    valor: '09:00' }) +
         ui.Field({ nome: 'duracaoMin', rotulo: 'Duração (min)', tipo: 'number', largura: 6,
@@ -346,6 +467,51 @@
         }).catch(function (erro) {
           App.components.Toast.erro('Não foi possível agendar', erro.message);
         });
+      }
+    });
+  }
+
+  /** Modal de cadastro — prazo processual. Ao contrário do compromisso, pede
+      o processo (prazo sem processo não existe) e não fixa a data fatal: o
+      dia clicado vira a DISPONIBILIZAÇÃO, e o motor do CPC calcula a fatal
+      a partir dela — quem clicou num dia "querendo o prazo ali" só vê o
+      resultado de verdade na prévia do próprio formulário, antes de salvar.
+      @param {string} [dataInicial]  ISO — pré-preenche a disponibilização */
+  function abrirNovoPrazo(dataInicial) {
+    App.components.PrazoFormModal.abrir({
+      dataDisponibilizacao: dataInicial,
+      responsavelPadrao: App.store.getState().usuarioAtual.id,
+      aoCriar: function () { carregar(); }
+    });
+  }
+
+  /** Dia vago: pergunta o que entra ali antes de abrir o formulário certo. */
+  function abrirEscolhaNovoEvento(dataIso) {
+    var fmt = App.format;
+
+    App.components.Modal.abrir({
+      titulo: 'Novo em ' + fmt.dataExtenso(dataIso),
+      conteudo:
+        '<div class="escolha-evento">' +
+          '<button type="button" class="escolha-evento__opcao" data-action="escolher-compromisso">' +
+            '<span class="escolha-evento__icone" aria-hidden="true">' + App.icones.de('agenda') + '</span>' +
+            '<span class="escolha-evento__texto">' +
+              '<strong>Compromisso</strong>' +
+              '<span class="u-sm u-muted">Reunião, audiência, diligência…</span>' +
+            '</span>' +
+          '</button>' +
+          '<button type="button" class="escolha-evento__opcao" data-action="escolher-prazo">' +
+            '<span class="escolha-evento__icone" aria-hidden="true">⏱</span>' +
+            '<span class="escolha-evento__texto">' +
+              '<strong>Prazo</strong>' +
+              '<span class="u-sm u-muted">Data fatal calculada pelo motor do CPC</span>' +
+            '</span>' +
+          '</button>' +
+        '</div>',
+      acoes: [{ rotulo: 'Cancelar', variante: 'secondary', acao: 'cancelar', fechar: true }],
+      aoAcao: function (acao, corpo, fechar) {
+        if (acao === 'escolher-compromisso') { fechar(); abrirNovoCompromisso(dataIso); }
+        else if (acao === 'escolher-prazo') { fechar(); abrirNovoPrazo(dataIso); }
       }
     });
   }

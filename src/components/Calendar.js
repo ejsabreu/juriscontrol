@@ -88,8 +88,13 @@
       if (!contavel) classes.push('calendar__day--nonworking');
       if (feriado) classes.push('calendar__day--holiday');
       if (iso === hoje) classes.push('calendar__day--today');
+      // Dia sem nada marcado abre o "novo prazo/compromisso" ao clicar (ver
+      // AgendaPage.js). Só na GRADE — a lista abaixo já só existe pros dias
+      // que TÊM evento, então "vago" não se aplica lá.
+      if (!eventos.length) classes.push('calendar__day--vago');
 
-      html += '<div class="' + classes.join(' ') + '" data-dia="' + iso + '">' +
+      html += '<div class="' + classes.join(' ') + '" data-dia="' + iso + '"' +
+                (eventos.length ? '' : ' title="Adicionar prazo ou compromisso"') + '>' +
                 '<span class="calendar__day-number">' + cursor.getDate() + '</span>';
 
       if (feriado) {
@@ -99,13 +104,28 @@
         html += '<span class="calendar__holiday-label" title="Recesso forense — art. 220 do CPC">recesso</span>';
       }
 
+      /* Compromisso sempre arrasta; prazo arrasta só se ainda estiver em
+         aberto (pendente/em andamento) — cumprido, perdido e cancelado
+         são fato consumado, não fazem mais sentido soltos noutro dia (é
+         a mesma regra que já esconde o botão "Baixar" no PrazoCard). A
+         data fatal do prazo vem do motor do CPC (App.domain.prazos): o
+         drop de um prazo não a sobrescreve direto, pede confirmação
+         primeiro (ver `confirmarMoverPrazo` em AgendaPage.js).
+
+         E só aqui, na GRADE: a lista de telas estreitas (mais abaixo)
+         nunca ganha `draggable`, então a interação nem existe lá —
+         arrastar exige o mouse que a grade pressupõe. */
       eventos.slice(0, MAX_EVENTOS_POR_DIA).forEach(function (evento) {
         var modificador = evento.categoria === 'prazo'
           ? (evento.semaforo || 'ok')
           : 'compromisso';
+        var arrastavel = evento.categoria === 'compromisso' ||
+          (evento.categoria === 'prazo' &&
+            (evento.status === 'pendente' || evento.status === 'em_andamento'));
 
         html += '<button type="button" class="calendar__event calendar__event--' + modificador + '"' +
                   ' data-action="ver-evento" data-id="' + esc(evento.id) + '"' +
+                  (arrastavel ? ' draggable="true"' : '') +
                   ' title="' + esc((evento.hora ? evento.hora + ' — ' : '') +
                                    evento.titulo + (evento.subtitulo ? ' · ' + evento.subtitulo : '')) + '">' +
                   (evento.hora ? '<strong>' + esc(evento.hora) + '</strong> ' : '') +

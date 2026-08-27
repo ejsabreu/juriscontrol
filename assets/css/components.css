@@ -977,6 +977,60 @@ a.kpi:hover {
   to   { opacity: 1; }
 }
 
+/* --- Escolha de novo evento (dia vago da Agenda) --------------------------
+   Duas opções grandes, não um <select> — é uma bifurcação de fluxo (dois
+   formulários bem diferentes), não uma lista de valores. `auto-fit` empilha
+   sozinho no celular, sem media query. */
+.escolha-evento {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.escolha-evento__opcao {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.escolha-evento__opcao:hover,
+.escolha-evento__opcao:focus-visible {
+  border-color: var(--color-primary-400);
+  background: var(--color-surface-hover);
+  outline: none;
+}
+
+.escolha-evento__icone {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+  font-size: var(--text-lg);
+}
+
+[data-theme="dark"] .escolha-evento__icone { background: var(--color-surface-hover); }
+
+.escolha-evento__icone svg { width: 18px; height: 18px; }
+
+.escolha-evento__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 @keyframes modal-in {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
   to   { opacity: 1; transform: none; }
@@ -1578,6 +1632,34 @@ a.kpi:hover {
 .calendar__day--outside { background: var(--color-surface-alt); opacity: 0.55; }
 .calendar__day--nonworking { background: var(--color-surface-alt); }
 
+/* Dia sem prazo nem compromisso: clicar abre "novo prazo/compromisso" (ver
+   AgendaPage.js). O "+" só aparece no hover — de propósito: 42 células
+   pintadas de convite o tempo todo brigam com o resto da grade, e o `title`
+   já dá a dica pra quem navega por teclado ou toque, onde não existe hover. */
+.calendar__day--vago { position: relative; cursor: pointer; }
+
+.calendar__day--vago::after {
+  content: "+";
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-100);
+  color: var(--color-primary-600);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar__day--vago:hover::after { display: flex; }
+
+[data-theme="dark"] .calendar__day--vago::after { background: var(--color-surface-hover); }
+
 .calendar__day--today .calendar__day-number {
   background: var(--color-primary-600);
   color: #fff;
@@ -1633,6 +1715,37 @@ a.kpi:hover {
 .calendar__event--critico { --event-accent: var(--color-prazo-critico); background: var(--color-prazo-critico-bg); }
 .calendar__event--vencido { --event-accent: var(--color-prazo-vencido); background: var(--color-prazo-vencido-bg); }
 .calendar__event--compromisso { --event-accent: var(--color-info); }
+
+/* Prazo cumprido (ou cancelado — `avaliar()` mapeia os dois pro mesmo
+   semáforo) só aparece na grade com "Somente prazos em aberto"
+   desmarcado. Sem esta regra ele caía no `--event-accent` padrão
+   (`--color-primary-400`) — a MESMA cor do fallback sem classe nenhuma,
+   pixel a pixel — e um prazo baixado ficava com a cara de "sem
+   categoria" em vez de "resolvido". Mesma receita do `.prazo-card--
+   cumprido`: acento neutro e opacidade reduzida, pra combinar com o
+   selo que a Agenda já usa pra prazo cumprido fora da grade. */
+.calendar__event--cumprido { --event-accent: var(--color-border-strong); opacity: 0.65; }
+
+/* Arrastar prazo ou compromisso para outro dia — mesma linguagem visual
+   do Kanban (`.kanban-card--dragging` / `.kanban__column--dragover`), pro
+   arrasto parecer a mesma interação em vez de duas implementações
+   diferentes. Escopado à GRADE de propósito: é onde `draggable="true"`
+   existe (ver Calendar.js) — na lista de telas estreitas o atributo nunca
+   é escrito, então estas regras não têm o que selecionar lá. */
+.calendar__grid .calendar__event[draggable="true"] { cursor: grab; }
+
+.calendar__event--dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.calendar__day--dragover {
+  background: var(--color-primary-50);
+}
+
+[data-theme="dark"] .calendar__day--dragover {
+  background: rgba(45, 85, 128, 0.15);
+}
 
 .calendar__more {
   font-size: 9px;

@@ -175,6 +175,14 @@
   --content-max:     1600px;
   --z-dropdown: 100;
   --z-sticky:   200;
+  /* Acima de qualquer sticky de página (ex.: `.editor-doc__barra`): a
+     topbar é chrome global e hospeda popovers (busca, notificações) que
+     precisam flutuar por cima de todo o resto. Em empate de z-index quem
+     vence é a ordem do DOM, e `<main>` vem depois da topbar — sem este
+     degrau a mesma cota de `--z-sticky` deixava um sticky de página cobrir
+     o painel de notificações (era o caso do `.filter-bar`, antes de ele
+     perder o sticky). */
+  --z-topbar:   300;
   --z-modal:    900;
   --z-toast:    1000;
 }

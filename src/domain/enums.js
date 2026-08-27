@@ -236,6 +236,19 @@
     { id: 'outro',     label: 'Outro' }
   ];
 
+  /* Origem do cliente. Existia só como texto solto no seed — a ficha
+     imprimia o que estivesse lá. Virou lista para o cadastro poder oferecer
+     as mesmas opções que a ficha sabe exibir. */
+  var ORIGENS_CLIENTE = [
+    { id: 'indicacao',      label: 'Indicação' },
+    { id: 'site',           label: 'Site' },
+    { id: 'redes',          label: 'Redes sociais' },
+    { id: 'evento',         label: 'Evento' },
+    { id: 'cliente_antigo', label: 'Cliente antigo' },
+    { id: 'parceria',       label: 'Parceria' },
+    { id: 'outro',          label: 'Outro' }
+  ];
+
   var TIPOS_INTERACAO = [
     { id: 'ligacao',  label: 'Ligação',   icone: '📞' },
     { id: 'email',    label: 'E-mail',    icone: '✉' },
@@ -431,6 +444,7 @@
     STATUS_BOLETO: STATUS_BOLETO,
     ETAPAS_FUNIL: ETAPAS_FUNIL,
     ORIGENS_LEAD: ORIGENS_LEAD,
+    ORIGENS_CLIENTE: ORIGENS_CLIENTE,
     TIPOS_INTERACAO: TIPOS_INTERACAO,
     STATUS_PROPOSTA: STATUS_PROPOSTA,
     STATUS_PUBLICACAO: STATUS_PUBLICACAO,

@@ -43,13 +43,41 @@
     return minusculo.normalize('NFD').replace(ACENTOS, '');
   }
 
+  /* Quantidade de dígitos dos identificadores que este sistema escreve
+     pontuados: CPF, CNPJ e número do CNJ. */
+  var DIGITOS_DE_IDENTIFICADOR = [11, 14, 20];
+
+  /**
+   * '529.982.247-25' → '52998224725'.
+   *
+   * O tokenizador quebra em qualquer pontuação, então o CPF copiado de uma
+   * petição virava '529', '982', '247' e '25' — e nenhum deles casava com o
+   * dígito puro guardado no cadastro. Como a consulta e o índice passam
+   * pelos MESMOS tokens, colapsar dos dois lados faz as duas grafias
+   * chegarem ao mesmo termo.
+   *
+   * Só colapsa o que tem pontuação E tem a quantidade de dígitos de um
+   * identificador conhecido. Sem essa trava, 'ADV-2024-0001' viraria um
+   * único termo e procurar '2024' deixaria de achá-lo. O casamento por
+   * prefixo cobre o resto: '0001234' continua achando o CNJ inteiro.
+   */
+  function juntarIdentificadores(texto) {
+    return String(texto || '').replace(/\d[\d.\-/]*\d/g, function (trecho) {
+      var digitos = trecho.replace(/\D/g, '');
+      if (digitos.length === trecho.length) return trecho;   // já era puro
+      return DIGITOS_DE_IDENTIFICADOR.indexOf(digitos.length) === -1
+        ? trecho
+        : digitos;
+    });
+  }
+
   /**
    * Texto → lista de termos indexáveis.
    * Remove marcação HTML antes: o acervo tem documento em texto rico, e
    * indexar `<strong>` faria a tag competir com a palavra.
    */
   function tokenizar(texto) {
-    var limpo = String(texto || '').replace(/<[^>]*>/g, ' ');
+    var limpo = juntarIdentificadores(String(texto || '').replace(/<[^>]*>/g, ' '));
 
     return normalizar(limpo)
       .replace(/[^a-z0-9\s]/g, ' ')
@@ -243,6 +271,7 @@
     VAZIAS: VAZIAS,
     TAMANHO_MINIMO: TAMANHO_MINIMO,
     normalizar: normalizar,
+    juntarIdentificadores: juntarIdentificadores,
     tokenizar: tokenizar,
     indexar: indexar,
     buscar: buscar,

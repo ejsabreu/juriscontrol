@@ -237,7 +237,7 @@
       var pessoaId = d.pessoaId || lead.pessoaId || null;
 
       if (!pessoaId) {
-        var documento = String(dadosPessoa.cpfCnpj || '').replace(/\D/g, '');
+        var documento = String(dadosPessoa.documento || '').replace(/\D/g, '');
         if (documento) {
           var valido = documento.length === 11
             ? App.domain.validators.cpf(documento).valido
@@ -246,7 +246,7 @@
 
           // Cliente já cadastrado com o mesmo documento não vira duplicata.
           var existente = db().get('pessoas').filter(function (p) {
-            return String(p.cpfCnpj || '').replace(/\D/g, '') === documento;
+            return String(p.documento || '').replace(/\D/g, '') === documento;
           })[0];
           if (existente) pessoaId = existente.id;
         }
@@ -256,7 +256,7 @@
         var pessoa = db().insert('pessoas', {
           nome: dadosPessoa.nome || lead.nome,
           tipo: dadosPessoa.tipo || 'PF',
-          cpfCnpj: dadosPessoa.cpfCnpj || '',
+          documento: dadosPessoa.documento || '',
           email: dadosPessoa.email || (lead.contato && lead.contato.email) || '',
           telefone: dadosPessoa.telefone || (lead.contato && lead.contato.telefone) || '',
           endereco: dadosPessoa.endereco || null,

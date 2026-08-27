@@ -50,7 +50,7 @@
     var termo = busca.toLowerCase().trim();
     return dados.pessoas.filter(function (p) {
       if (!termo) return true;
-      return (p.nome + ' ' + (p.cpfCnpj || '') + ' ' + (p.email || ''))
+      return (p.nome + ' ' + (p.documento || '') + ' ' + (p.email || ''))
         .toLowerCase().indexOf(termo) !== -1;
     }).slice(0, 40);
   }
@@ -62,7 +62,7 @@
     return '<tr>' +
       '<td>' +
         '<div class="u-bold">' + esc(pessoa.nome) + '</div>' +
-        '<div class="u-xs u-subtle">' + esc(App.format.documento(pessoa.cpfCnpj)) + '</div>' +
+        '<div class="u-xs u-subtle">' + esc(App.format.documento(pessoa.documento)) + '</div>' +
       '</td>' +
       '<td class="u-sm">' + esc(pessoa.email || '—') + '</td>' +
       '<td>' +
@@ -324,7 +324,7 @@
           '</div>' +
           '<dl class="def-list" style="margin-top:var(--space-4)">' +
             '<div><dt class="def-list__term">Documento</dt>' +
-            '<dd class="def-list__desc">' + esc(App.format.documento(d.titular.cpfCnpj)) + '</dd></div>' +
+            '<dd class="def-list__desc">' + esc(App.format.documento(d.titular.documento)) + '</dd></div>' +
             '<div><dt class="def-list__term">Gerado em</dt>' +
             '<dd class="def-list__desc">' + esc(App.format.dataHora(d.geradoEm)) + '</dd></div>' +
           '</dl>',

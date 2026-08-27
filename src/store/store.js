@@ -102,7 +102,7 @@
        nenhuma aberta. Também vale para seção nova — ela nasce fechada, junto
        com as outras, em vez de aparecer aberta sozinha.
 
-       Não é gravada entre sessões: ver `salvarPreferencias`. */
+       É gravada entre sessões: ver `salvarPreferencias`. */
     sidebarSecoesAbertas: [],
 
     // Filtros da tela de Processos — sobrevivem à troca tabela ⇄ kanban
@@ -138,7 +138,19 @@
   function carregarPreferencias() {
     try {
       var bruto = window.localStorage.getItem(CHAVE_PREFS);
-      if (bruto) store.setState(JSON.parse(bruto));
+      if (!bruto) return;
+
+      var prefs = JSON.parse(bruto);
+
+      /* As seções abertas viram lista de rótulos no menu, e lá elas são
+         percorridas com `indexOf`. Storage é texto que qualquer um edita —
+         um valor de outro tipo derrubaria o desenho do menu inteiro, e com
+         ele a navegação. Fora do formato, vale o padrão: tudo dobrado. */
+      if (prefs && !Array.isArray(prefs.sidebarSecoesAbertas)) {
+        delete prefs.sidebarSecoesAbertas;
+      }
+
+      store.setState(prefs);
     } catch (e) { /* storage indisponível — segue com o padrão */ }
   }
 
@@ -147,14 +159,16 @@
       var s = store.getState();
       window.localStorage.setItem(CHAVE_PREFS, JSON.stringify({
         tema: s.tema,
-        // `sidebarRecolhida` NÃO entra aqui: o menu começa recolhido a cada
-        // abertura, por decisão de projeto. Gravar o estado faria a segunda
-        // sessão abrir expandida.
+        // `sidebarRecolhida` NÃO entra aqui: recolhido ou expandido depende
+        // da LARGURA da janela, e quem decide é o AppShell na montagem —
+        // gravar a escolha feita no desktop faria o celular abrir com a
+        // cortina do menu por cima do conteúdo.
         //
-        // `sidebarSecoesAbertas` fica de fora pela MESMA razão: entrar no
-        // sistema é sempre o mesmo começo — a tela inicial é Meu painel e o
-        // menu está todo fechado. Guardar as seções abertas faria a segunda
-        // sessão herdar a arrumação da primeira e deixar de ser um começo.
+        // `sidebarSecoesAbertas` entra: dobrar seção é arrumação de quem usa,
+        // não estado de uma sessão. Quem abriu Financeiro para trabalhar o
+        // dia inteiro nele não deve reabrir a cada F5 — e o padrão de tudo
+        // fechado continua valendo para quem nunca tocou nas seções.
+        sidebarSecoesAbertas: s.sidebarSecoesAbertas,
         processosVisao: s.processosVisao,
         processosAgruparPor: s.processosAgruparPor
       }));

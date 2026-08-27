@@ -32,11 +32,6 @@
     });
   }
 
-  function textoContagem() {
-    return resultado.total + ' ' +
-           App.format.plural(resultado.total, 'cliente') + ' cadastrado(s)';
-  }
-
   function filtrosAtivos() {
     return App.selectors.filtrosAtivos(filtros(),
       ['ordenarPor', 'direcao', 'pagina', 'porPagina']);
@@ -46,7 +41,6 @@
     return '<div class="page-header">' +
              '<div>' +
                '<h1 class="page-header__title">Clientes</h1>' +
-               '<p class="page-header__subtitle">' + esc(textoContagem()) + '</p>' +
              '</div>' +
              '<div class="page-header__actions">' +
                App.components.ui.Button({
@@ -161,26 +155,28 @@
       direcao: f.direcao,
       hrefDe: function (c) { return '#/clientes/' + c.id; },
       vazio: ui.EmptyState({
-        icone: '👤',
+        /* O mesmo desenho do item Clientes no menu — o 👤 era outra
+           figura para a mesma coisa. A cor não vem com ele: o ícone herda
+           por `currentColor` a do estado vazio, apagada de propósito para
+           não competir com a frase. */
+        icone: App.icones.de('pessoa'),
         titulo: 'Nenhum cliente encontrado',
         texto: 'Nenhum cliente corresponde aos filtros aplicados.',
         acao: ui.Button({ rotulo: 'Limpar filtros', variante: 'secondary', acao: 'limpar-filtros' })
       })
     });
 
-    var inicio = (resultado.pagina - 1) * resultado.porPagina + 1;
-    var fim = Math.min(resultado.pagina * resultado.porPagina, resultado.total);
-
     return ui.Card({
       semPadding: true,
       conteudo: tabela,
+      /* A faixa e o seletor de quantidade saem do próprio resultado — quem
+         sabe montar "1 a 15 de 40 clientes" é a paginação, não a tela. */
       rodape: ui.Pagination({
         pagina: resultado.pagina,
         totalPaginas: resultado.totalPaginas,
         total: resultado.total,
-        info: resultado.total
-          ? 'Exibindo ' + inicio + '–' + fim + ' de ' + resultado.total
-          : 'Nenhum registro'
+        porPagina: resultado.porPagina,
+        singular: 'cliente'
       })
     });
   }
@@ -203,8 +199,11 @@
   }
 
   function atualizarMiolo() {
+    /* Sem `contagem`: o cabeçalho não tem mais subtítulo. O total continua no
+       rodapé da tabela ("Exibindo 1–15 de 40"), que é onde ele responde a
+       pergunta de quem está lendo a lista — e que é redesenhado junto com o
+       miolo, sem precisar de acerto à parte. */
     return App.components.FilterBar.trocarMiolo(container, listaDeClientes(), {
-      contagem: textoContagem(),
       totalAtivos: filtrosAtivos()
     });
   }
@@ -218,15 +217,26 @@
         carregar();
       },
       aoLimpar: function () {
+        /* `porPagina` sobrevive ao "limpar": não é filtro, é o tamanho da
+           janela que a pessoa escolheu para ler a lista. Devolvê-lo a 15 aqui
+           desfazia uma escolha que ninguém pediu para desfazer. */
         App.store.setState({
           clientesFiltros: { busca: '', tipo: '', ordenarPor: 'nome',
-                             direcao: 'asc', pagina: 1, porPagina: 15 }
+                             direcao: 'asc', pagina: 1,
+                             porPagina: filtros().porPagina }
         });
-        carregar();
+        /* Completo: os campos da barra ficam FORA do miolo — trocar só o
+           miolo limpava o filtro e deixava escrito o que estava neles. */
+        carregar(true);
       }
     });
 
     App.components.DataTable.mount(container, {
+      /* Clicar na linha abre o cadastro JÁ EDITÁVEL. Ir para a ficha e de lá
+         clicar em "Editar" eram dois passos para a coisa mais comum de se
+         fazer com um cliente: corrigir um telefone, completar o endereço.
+         A ficha continua a um clique, pelo link dentro do próprio modal. */
+      aoClicarLinha: function (id) { abrirEdicaoCliente(id); },
       aoOrdenar: function (chave) {
         var f = filtros();
         // Clicar de novo na mesma coluna inverte; coluna nova começa crescente.
@@ -249,79 +259,81 @@
     App.dom.delegate(container, 'click', '[data-action="novo-cliente"]', abrirNovoCliente);
   }
 
+  /* O cadastro cobre o que a ficha do cliente sabe mostrar.
+
+     Enquanto ele pedia sete campos, a ficha desenhava linha de telefone
+     fixo, endereço completo, nascimento e origem que ninguém tinha como
+     preencher — e o endereço saía pela metade, só "São Paulo/SP", numa tela
+     que existe para conferir com procuração.
+
+     Os campos vivem em `components/ClienteForm`, junto com os da tela de
+     edição. Dois formulários escritos à mão para os mesmos dados foi o que
+     produziu a divergência acima. */
   function abrirNovoCliente() {
-    var ui = App.components.ui;
-    var enums = App.domain.enums;
-    var validators = App.domain.validators;
+    abrirCadastro(null);
+  }
+
+  function abrirEdicaoCliente(id) {
+    App.services.clienteService.obter(id).then(function (cliente) {
+      abrirCadastro(cliente);
+    }).catch(function (erro) {
+      App.components.Toast.erro('Não foi possível abrir o cliente', erro.message);
+    });
+  }
+
+  /** @param {Object|null} cliente  null cadastra; com `id`, edita. */
+  function abrirCadastro(cliente) {
+    var ClienteForm = App.components.ClienteForm;
+    var edicao = !!(cliente && cliente.id);
 
     App.components.Modal.abrir({
-      titulo: 'Novo cliente',
+      titulo: edicao ? 'Cadastro de ' + cliente.nome : 'Novo cliente',
       tamanho: 'lg',
-      conteudo: '<form id="form-cliente" class="form-grid">' +
-        ui.Field({ nome: 'tipo', rotulo: 'Tipo de pessoa', tipo: 'select', largura: 4,
-                   opcoes: enums.opcoes([
-                     { id: 'PF', label: 'Pessoa física' },
-                     { id: 'PJ', label: 'Pessoa jurídica' }
-                   ], 'PF') }) +
-        ui.Field({ nome: 'nome', rotulo: 'Nome / Razão social', largura: 8, obrigatorio: true }) +
-        ui.Field({ nome: 'documento', rotulo: 'CPF / CNPJ', largura: 4, obrigatorio: true,
-                   placeholder: '000.000.000-00', atributos: ' inputmode="numeric"' }) +
-        ui.Field({ nome: 'email', rotulo: 'E-mail', tipo: 'email', largura: 4 }) +
-        ui.Field({ nome: 'celular', rotulo: 'Celular', largura: 4,
-                   placeholder: '(11) 90000-0000', atributos: ' inputmode="numeric"' }) +
-        ui.Field({ nome: 'cidade', rotulo: 'Cidade', largura: 8 }) +
-        ui.Field({ nome: 'uf', rotulo: 'UF', tipo: 'select', largura: 4,
-                   opcoes: enums.opcoes(
-                     validators.UFS.map(function (uf) { return { id: uf, label: uf }; }), 'SP') }) +
-      '</form>',
+      conteudo:
+        /* O caminho para a ficha sai daqui: processos, financeiro e histórico
+           de contato não cabem num modal, e sem este link eles ficariam sem
+           porta de entrada a partir da lista. */
+        (edicao
+          ? '<p class="u-sm u-muted" style="margin-bottom:var(--space-4)">' +
+              '<a href="#/clientes/' + esc(cliente.id) + '" data-action="ver-ficha">' +
+                'Ver ficha completa</a>' +
+              ' — processos, financeiro e histórico de contato.' +
+            '</p>'
+          : '') +
+        '<form id="' + ClienteForm.ID + '" novalidate>' +
+          ClienteForm({ cliente: cliente }) +
+        '</form>',
       acoes: [
         { rotulo: 'Cancelar', variante: 'secondary', acao: 'cancelar', fechar: true },
-        { rotulo: 'Cadastrar', variante: 'primary', acao: 'salvar' }
+        { rotulo: edicao ? 'Salvar alterações' : 'Cadastrar',
+          variante: 'primary', acao: 'salvar' }
       ],
-      aoAbrir: function (corpo) {
-        var campoDoc = App.dom.qs('[name="documento"]', corpo);
-        var campoTipo = App.dom.qs('[name="tipo"]', corpo);
-        var campoCelular = App.dom.qs('[name="celular"]', corpo);
-
-        App.mask.aplicar(campoDoc, App.mask.documento);
-        App.mask.aplicar(campoCelular, App.mask.telefone);
-
-        campoTipo.addEventListener('change', function () {
-          campoDoc.placeholder = campoTipo.value === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00';
-        });
-      },
+      aoAbrir: function (corpo) { ClienteForm.mount(corpo); },
       aoAcao: function (acao, corpo, fechar) {
+        // O link navega sozinho; o modal é que precisa sair da frente.
+        if (acao === 'ver-ficha') return fechar();
         if (acao !== 'salvar') return;
 
-        var dados = App.dom.formToObject(App.dom.qs('#form-cliente', corpo));
-
-        var validacao = validators.validarFormulario(dados, {
-          nome: function (v) { return validators.obrigatorio(v, 'Nome'); },
-          documento: function (v) { return validators.documento(v, dados.tipo); }
-        });
-
-        if (!validacao.valido) {
-          var primeiroErro = validacao.erros[Object.keys(validacao.erros)[0]];
-          App.components.Toast.aviso('Dados inválidos', primeiroErro);
+        var leitura = ClienteForm.ler(corpo);
+        if (!leitura.valido) {
+          ClienteForm.marcarErros(corpo, leitura.erros);
+          App.components.Toast.aviso('Verifique os campos destacados', leitura.primeiroErro);
           return;
         }
 
-        App.services.clienteService.criar({
-          tipo: dados.tipo,
-          nome: dados.nome.trim(),
-          documento: App.mask.so(dados.documento),
-          email: dados.email,
-          celular: App.mask.so(dados.celular),
-          telefone: '',
-          ehCliente: true,
-          endereco: { cidade: dados.cidade, uf: dados.uf, cep: '', logradouro: '',
-                      numero: '', complemento: '', bairro: '' }
-        }).then(function (cliente) {
+        var operacao = edicao
+          ? App.services.clienteService.atualizar(cliente.id, leitura.dados)
+          : App.services.clienteService.criar(
+              Object.assign({ ehCliente: true }, leitura.dados));
+
+        operacao.then(function (salvo) {
           fechar();
-          App.components.Toast.sucesso('Cliente cadastrado', cliente.nome);
+          App.components.Toast.sucesso(
+            edicao ? 'Cliente atualizado' : 'Cliente cadastrado', salvo.nome);
           carregar();
         }).catch(function (erro) {
-          App.components.Toast.erro('Erro ao cadastrar', erro.message);
+          App.components.Toast.erro(
+            edicao ? 'Erro ao salvar' : 'Erro ao cadastrar', erro.message);
         });
       }
     });

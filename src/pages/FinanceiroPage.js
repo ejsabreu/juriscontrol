@@ -579,7 +579,12 @@
 
     App.components.FilterBar.mount(container, {
       aoMudar: function (nome, valor) { filtros[nome] = valor; carregar(); },
-      aoLimpar: function () { filtros = { tipo: 'receita', status: '', busca: '' }; carregar(); }
+      aoLimpar: function () {
+        filtros = { tipo: 'receita', status: '', busca: '' };
+        /* Completo: os campos da barra ficam FORA do miolo — trocar só o
+           miolo limpava o filtro e deixava escrito o que estava neles. */
+        carregar(true);
+      }
     });
 
     App.dom.delegate(container, 'click', '[data-action="baixar"]', function (evento, alvo) {

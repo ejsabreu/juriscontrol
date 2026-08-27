@@ -604,7 +604,8 @@ const FINANCEIRO = { id: 'U5', nome: 'Elis',  perfil: 'financeiro' };
   const anonima = await privacidade.anonimizarTitular(pessoa.id, false);
   ok('anonimizar mascara o nome', anonima.nome !== nomeOriginal && anonima.nome.indexOf('*') !== -1,
      anonima.nome);
-  ok('anonimizar mascara o documento', anonima.cpfCnpj.indexOf('*') !== -1, anonima.cpfCnpj);
+  ok('anonimizar mascara o documento', anonima.documento.indexOf('*') !== -1,
+     anonima.documento);
   ok('anonimizar carimba a data', !!anonima.anonimizadoEm);
   ok('o REGISTRO permanece (não é delete)', !!db.find('pessoas', pessoa.id));
 

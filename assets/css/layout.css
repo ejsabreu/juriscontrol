@@ -26,6 +26,16 @@
     "sidebar topbar"
     "sidebar main";
   min-height: 100vh;
+  /* Recolher e expandir o menu deslizam a coluna em vez de saltar.
+
+     Funciona apesar de a casca ser redesenhada porque quem anima é o
+     `.app` — ele permanece; o que o `render` troca é o conteúdo dos slots
+     lá dentro. Se a transição estivesse na `.sidebar`, ela nasceria já no
+     tamanho final e não haveria o que interpolar.
+
+     240ms: a coluna percorre 168px (232 → 64), bem mais que a altura de
+     uma lista dobrando, e nos 220ms das seções o movimento fica apressado. */
+  transition: grid-template-columns 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Rota nua (F2.1 entrada, F2.3 portal): sem sidebar e sem topbar, o conteúdo
@@ -35,6 +45,9 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 1fr;
   grid-template-areas: "main";
+  /* Entrar e sair do sistema não é recolher menu: aqui a coluna deixa de
+     existir, e animar isso faria a tela de entrada nascer deslizando. */
+  transition: none;
 }
 
 /* "Ocupa a tela inteira" só vale se o <main> parar de se comportar como área
@@ -86,6 +99,10 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  /* Durante o deslize a coluna fica mais estreita que o conteúdo por um
+     instante. Sem isto, o rótulo do item vaza por cima da área de trabalho
+     enquanto o menu fecha. */
+  overflow-x: hidden;
 }
 
 /* Três elementos em 232px de largura: sigla, identidade e o botão de recolher.
@@ -158,6 +175,49 @@
 .sidebar--recolhida .nav-item__rotulo,
 .sidebar--recolhida .sidebar__footer {
   display: none;
+}
+
+/* Ao EXPANDIR, o que reaparece entra deslizando junto com a coluna.
+
+   É `animation` e não `transition` de propósito: o menu é redesenhado ao
+   recolher, então os rótulos são elementos NOVOS — não há estado anterior de
+   onde partir, e uma transição não teria o que interpolar. Uma animação
+   dispara na criação do elemento, que é exatamente o momento.
+
+   No sentido inverso não há o que animar: ao recolher, os rótulos deixam de
+   existir no mesmo quadro. Quem cobre esse instante é a própria coluna, que
+   passa por cima deles enquanto estreita.
+
+   E é `.sidebar--expandindo`, e não `:not(.sidebar--recolhida)`, porque
+   "animação dispara na criação do elemento" corta dos dois lados: o menu é
+   recriado a CADA desenho da casca, e com a condição escrita no estado a
+   animação voltava a rodar em desenho que não tinha nada a ver com abrir
+   menu — trocar de rota, trocar de tema, e o sino se atualizando sozinho de
+   cinco em cinco minutos. Quem estivesse com a janela em outro programa
+   voltava para ela e via o menu piscar sem ter tocado em nada.
+
+   A classe só é escrita no quadro da expansão (ver `animarExpansao` no
+   AppShell). Nos outros, o menu simplesmente aparece pronto — que é o que
+   ele deve fazer. */
+.sidebar--expandindo .nav-item__rotulo,
+.sidebar--expandindo .sidebar__identidade,
+.sidebar--expandindo .sidebar__section {
+  animation: menu-entra 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes menu-entra {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app,
+  .sidebar--expandindo .nav-item__rotulo,
+  .sidebar--expandindo .sidebar__identidade,
+  .sidebar--expandindo .sidebar__section {
+    transition: none;
+    animation: none;
+  }
 }
 
 /* Na faixa da marca sobra só o botão: a sigla e ele lado a lado não cabem em

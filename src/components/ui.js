@@ -266,7 +266,16 @@
                 (p.atributos || '');
 
     var controle;
-    if (p.tipo === 'select') {
+    if (p.tipo === 'combo') {
+      /* Mesmo gesto do filtro da lista — escolher um entre poucos valores
+         conhecidos — e por isso a mesma roupa. O `<label for>` aponta para o
+         gatilho, que é um `<button>` de verdade; quem carrega o `name` que o
+         `formToObject` lê é o input escondido dentro do combo. */
+      controle = App.components.Combo({
+        nome: p.nome, rotulo: p.rotulo, opcoes: p.opcoes,
+        campo: true, id: idCampo, desabilitado: p.desabilitado
+      });
+    } else if (p.tipo === 'select') {
       controle = '<select class="select" ' + comum + '>' + (p.opcoes || '') + '</select>';
     } else if (p.tipo === 'textarea') {
       controle = '<textarea class="textarea" ' + comum + ' rows="' + (p.linhas || 3) + '">' +
@@ -352,42 +361,83 @@
   }
 
   // --- Pagination -----------------------------------------------------------
-  function Pagination(props) {
-    var p = props || {};
-    var pagina = p.pagina || 1;
-    var totalPaginas = p.totalPaginas || 1;
-    if (totalPaginas <= 1 && !p.sempreVisivel) {
-      return '<div class="pagination"><span class="pagination__info">' +
-             e(p.info || (p.total + ' ' + App.format.plural(p.total, 'registro'))) +
-             '</span></div>';
+  /* Faixa em vez de numeração.
+
+     A fileira de páginas numeradas respondia à pergunta errada. Quem está
+     numa tabela de trabalho quer saber ONDE ESTÁ e QUANTO FALTA — "1 a 15 de
+     40 registros" — e andar um passo por vez. Escolher a página 7 de cabeça é
+     gesto raro, e custava uma fileira de botões que crescia com o resultado e
+     era a primeira coisa a estourar no telefone.
+
+     O seletor de quantidade é o MESMO `.combo` da barra de filtros, de
+     propósito: é o mesmo gesto — escolher um entre poucos valores conhecidos
+     —, e duas roupas diferentes para o mesmo gesto na mesma tela é o que faz
+     uma das duas parecer defeito. Ele também vem de graça com o clique fora,
+     o teclado e o `listbox` que a barra já resolveu.
+
+     Quem escuta o combo é `FilterBar.mount`, ligado por delegação no
+     container da página — a paginação mora dentro dele, então o filtro
+     `porPagina` chega no mesmo `aoMudar` dos outros. */
+  var TAMANHOS_DE_PAGINA = [10, 15, 25, 50, 100];
+
+  function comboTamanho(porPagina) {
+    var tamanhos = TAMANHOS_DE_PAGINA.slice();
+
+    /* A tela pode paginar fora da escala — a auditoria vai de 30 em 30. Sem
+       isto o valor em uso não teria opção na lista, e o combo exibiria o
+       primeiro tamanho como se fosse o escolhido. */
+    if (tamanhos.indexOf(porPagina) === -1) {
+      tamanhos.push(porPagina);
+      tamanhos.sort(function (a, b) { return a - b; });
     }
+
+    return App.components.Combo({
+      nome: 'porPagina',
+      rotulo: 'Itens por página',
+      numerico: true,
+      opcoes: tamanhos.map(function (n) {
+        return '<option value="' + n + '"' + (n === porPagina ? ' selected' : '') + '>' +
+               n + ' por página</option>';
+      }).join('')
+    });
+  }
+
+  /**
+   * @param {Object} p  { pagina, totalPaginas, total, porPagina, singular }
+   *                    `singular` nomeia o que está sendo contado
+   *                    ("registro" por padrão; "evento" na auditoria).
+   */
+  function Pagination(p) {
+    var props = p || {};
+    var pagina = props.pagina || 1;
+    var totalPaginas = props.totalPaginas || 1;
+    var total = props.total || 0;
+    var porPagina = Number(props.porPagina) || 0;
+    var nome = App.format.plural(total, props.singular || 'registro');
+
+    var inicio = (pagina - 1) * porPagina + 1;
+    var fim = Math.min(pagina * porPagina, total);
+
+    /* Sem `porPagina` a tela não pagina de verdade (o kanban, o painel): aí a
+       faixa não existe e só o total faz sentido. */
+    var info = !total ? 'Nenhum ' + (props.singular || 'registro')
+             : porPagina ? inicio + ' a ' + fim + ' de ' + total + ' ' + nome
+             : total + ' ' + nome;
 
     var html = '<div class="pagination">' +
-      '<span class="pagination__info">' + e(p.info || '') + '</span>' +
-      '<button class="pagination__btn" data-action="pagina" data-value="' + (pagina - 1) + '"' +
-        (pagina <= 1 ? ' disabled' : '') + ' aria-label="Página anterior">‹</button>';
+      '<div class="pagination__nav">' +
+        '<button class="pagination__btn" data-action="pagina" data-value="' + (pagina - 1) + '"' +
+          (pagina <= 1 ? ' disabled' : '') + ' aria-label="Página anterior">‹</button>' +
+        /* `aria-live`: quem navega pelo teclado troca de página sem que nada
+           mais mude na tela — a faixa é o único aviso de que algo aconteceu. */
+        '<span class="pagination__info" aria-live="polite">' + e(info) + '</span>' +
+        '<button class="pagination__btn" data-action="pagina" data-value="' + (pagina + 1) + '"' +
+          (pagina >= totalPaginas ? ' disabled' : '') + ' aria-label="Próxima página">›</button>' +
+      '</div>';
 
-    // Janela de páginas em torno da atual, com elipses nas pontas.
-    var janela = [];
-    for (var i = 1; i <= totalPaginas; i++) {
-      if (i === 1 || i === totalPaginas || Math.abs(i - pagina) <= 1) janela.push(i);
-      else if (janela[janela.length - 1] !== '…') janela.push('…');
-    }
+    if (porPagina) html += comboTamanho(porPagina);
 
-    janela.forEach(function (item) {
-      if (item === '…') {
-        html += '<span class="u-subtle u-sm">…</span>';
-      } else {
-        html += '<button class="pagination__btn' + (item === pagina ? ' pagination__btn--active' : '') +
-                '" data-action="pagina" data-value="' + item + '">' + item + '</button>';
-      }
-    });
-
-    html += '<button class="pagination__btn" data-action="pagina" data-value="' + (pagina + 1) + '"' +
-            (pagina >= totalPaginas ? ' disabled' : '') + ' aria-label="Próxima página">›</button>' +
-            '</div>';
-
-    return html;
+    return html + '</div>';
   }
 
   // Os ícones desenhados moram em `components/icones.js` — moldura, registro

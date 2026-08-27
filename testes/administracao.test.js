@@ -259,7 +259,7 @@ const { ok, secao, encerrar } = criarPlacar();
   ok('o importado é marcado como cliente',
      db.get('pessoas').filter(p => p.nome === 'Aurora Tecidos Ltda')[0].ehCliente === true);
   ok('o CPF/CNPJ é gravado só com dígitos',
-     db.get('pessoas').filter(p => p.nome === 'Aurora Tecidos Ltda')[0].cpfCnpj ===
+     db.get('pessoas').filter(p => p.nome === 'Aurora Tecidos Ltda')[0].documento ===
      '19131243000197');
   ok('a importação deixa rastro na auditoria',
      db.get('logsAuditoria').some(l => /Importação por CSV/.test(l.resumo || '')));

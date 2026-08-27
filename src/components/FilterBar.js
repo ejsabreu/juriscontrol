@@ -12,64 +12,10 @@
 
   function esc(v) { return App.dom.esc(v); }
 
-  /* As opções chegam como HTML de `<option>`, que é o que `enums.opcoes()`
-     produz e o que todas as telas já passam. Ler de volta essa string é
-     seguro porque a origem é UMA função conhecida — não é HTML arbitrário
-     de usuário. Trocar a API para receber array obrigaria a mexer em toda
-     tela que tem filtro, e o ganho seria só de forma. */
-  var OPCAO = /<option value="([^"]*)"([^>]*)>([\s\S]*?)<\/option>/g;
-
-  function lerOpcoes(html) {
-    var itens = [];
-    var m;
-    OPCAO.lastIndex = 0;
-    while ((m = OPCAO.exec(html || '')) !== null) {
-      itens.push({
-        valor: m[1],
-        selecionado: m[2].indexOf('selected') !== -1,
-        label: m[3].replace(/<[^>]*>/g, '')
-      });
-    }
-    return itens;
-  }
-
-  /**
-   * Combo com lista PRÓPRIA, no lugar do `<select>` nativo.
-   *
-   * A lista de um `<select>` é desenhada pelo sistema operacional e não
-   * aceita CSS — não há como fazê-la parecer o painel da busca global. Para
-   * ter o mesmo painel, a lista precisa ser HTML nosso.
-   *
-   * O que se perde: o seletor nativo do celular (o rolete do iOS, a folha do
-   * Android). Em troca, o painel é o mesmo em todo lugar, e para três a seis
-   * opções curtas a lista simples resolve bem no toque.
-   *
-   * O gatilho é um `<button>` de verdade e o painel um `listbox` — assim o
-   * teclado e o leitor de tela continuam entendendo o que é isto.
-   */
-  function Combo(campo) {
-    var itens = lerOpcoes(campo.opcoes);
-    var atual = itens.filter(function (i) { return i.selecionado; })[0] || itens[0];
-
-    return '<div class="combo" data-combo="' + esc(campo.nome) + '">' +
-             '<button type="button" class="combo__trigger" data-action="abrir-combo"' +
-               ' aria-haspopup="listbox" aria-expanded="false"' +
-               ' aria-label="' + esc(campo.rotulo) + '">' +
-               '<span class="combo__valor">' + esc(atual ? atual.label : '') + '</span>' +
-               '<span class="combo__seta" aria-hidden="true"></span>' +
-             '</button>' +
-             '<div class="combo__painel u-hidden" role="listbox"' +
-               ' aria-label="' + esc(campo.rotulo) + '">' +
-               itens.map(function (i) {
-                 return '<button type="button" class="combo__item" role="option"' +
-                          ' data-combo-valor="' + esc(i.valor) + '"' +
-                          ' aria-selected="' + (i.selecionado ? 'true' : 'false') + '">' +
-                          esc(i.label) +
-                        '</button>';
-               }).join('') +
-             '</div>' +
-           '</div>';
-  }
+  /* O combo saiu daqui para `components/Combo.js` quando o formulário de
+     cliente virou o terceiro a precisar dele. `FilterBar.Combo` continua
+     existindo porque a paginação, em `ui.js`, chama por este nome. */
+  var Combo = function (campo) { return App.components.Combo(campo); };
 
   function FilterBar(props) {
     var p = props || {};
@@ -192,52 +138,9 @@
       h.aoMudar(campo.dataset.filtro, campo.value);
     });
 
-    App.dom.delegate(root, 'click', '[data-action="abrir-combo"]', function (evento, botao) {
-      evento.preventDefault();
-      evento.stopPropagation();
-      var combo = botao.parentNode;
-      var aberto = botao.getAttribute('aria-expanded') === 'true';
-      fecharCombos(root);
-      if (!aberto) abrirCombo(combo);
-    });
-
-    App.dom.delegate(root, 'click', '.combo__item', function (evento, item) {
-      evento.preventDefault();
-      var combo = item.closest('.combo');
-      fecharCombos(root);
-      h.aoMudar(combo.dataset.combo, item.dataset.comboValor);
-    });
-
-    /* Setas andam pela lista. O `<button>` já trata Enter e Espaço sozinho,
-       e Tab sai do painel — só a navegação vertical precisa de código. */
-    App.dom.delegate(root, 'keydown', '.combo__painel', function (evento) {
-      if (evento.key !== 'ArrowDown' && evento.key !== 'ArrowUp') return;
-      evento.preventDefault();
-      var painel = evento.target.closest('.combo__painel');
-      var itens = Array.prototype.slice.call(painel.querySelectorAll('.combo__item'));
-      var i = itens.indexOf(evento.target);
-      var passo = evento.key === 'ArrowDown' ? 1 : -1;
-      var proximo = itens[(i + passo + itens.length) % itens.length];
-      if (proximo) proximo.focus();
-    });
-
-    App.dom.delegate(root, 'keydown', '.combo', function (evento) {
-      if (evento.key !== 'Escape') return;
-      var combo = evento.target.closest('.combo');
-      fecharCombos(root);
-      var gatilho = combo.querySelector('.combo__trigger');
-      if (gatilho) gatilho.focus();
-    });
-
-    /* Clique fora fecha. Precisa morar no DOCUMENTO, porque o clique pode
-       cair em qualquer lugar da tela — e por isso é registrado UMA VEZ para
-       todo o módulo, não por container.
-
-       O router troca o `<main>` a cada rota e descarta os listeners dele
-       junto; um listener de documento não é descartado, então registrar por
-       chamada de `mount` acumularia um por rota visitada. Como ele fecha
-       qualquer combo do documento, um só serve para todos. */
-    ligarFechaFora();
+    /* Abrir, escolher, teclado e clique-fora são do combo; a barra só diz o
+       que fazer com o valor que sair de lá. */
+    App.components.Combo.mount(root, { aoMudar: h.aoMudar });
 
     App.dom.delegate(root, 'change', 'input[type="checkbox"][data-filtro]', function (evento, campo) {
       h.aoMudar(campo.dataset.filtro, campo.checked);
@@ -249,39 +152,6 @@
       });
     }
   };
-
-  /* Registrado uma vez por carga da página — ver o porquê em `mount`. */
-  var fechaForaLigado = false;
-
-  function ligarFechaFora() {
-    if (fechaForaLigado) return;
-    fechaForaLigado = true;
-    document.addEventListener('click', function () { fecharCombos(document); });
-  }
-
-  function fecharCombos(root) {
-    App.dom.qsa('.combo__painel', root).forEach(function (painel) {
-      painel.classList.add('u-hidden');
-    });
-    App.dom.qsa('.combo__trigger', root).forEach(function (gatilho) {
-      gatilho.setAttribute('aria-expanded', 'false');
-    });
-  }
-
-  function abrirCombo(combo) {
-    var gatilho = combo.querySelector('.combo__trigger');
-    var painel = combo.querySelector('.combo__painel');
-    if (!painel) return;
-
-    painel.classList.remove('u-hidden');
-    gatilho.setAttribute('aria-expanded', 'true');
-
-    /* O foco vai para a opção ATUAL, e não para a primeira: quem abre um
-       filtro quase sempre quer o vizinho do que já está escolhido. */
-    var alvo = painel.querySelector('.combo__item[aria-selected="true"]') ||
-               painel.querySelector('.combo__item');
-    if (alvo) alvo.focus();
-  }
 
   /**
    * Troca só o MIOLO da tela — a parte que depende do que foi carregado.
@@ -367,6 +237,12 @@
       acao: 'limpar-filtros'
     }));
   };
+
+  /* Exposto porque a paginação monta o mesmo combo fora da barra — e o que
+     faz um combo ser combo é ESTE HTML, casado com a delegação de `mount`.
+     Duplicar a marcação lá seria criar um segundo combo que envelhece
+     sozinho. */
+  FilterBar.Combo = Combo;
 
   App.components.FilterBar = FilterBar;
 })(window.App = window.App || {});

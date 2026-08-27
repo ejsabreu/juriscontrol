@@ -103,7 +103,7 @@ const busca = App.domain.busca;
     processo: { numeroCnj: '0001234-56.2024.8.26.0100', vara: '1ª Vara Cível',
                 comarca: 'São Paulo', valorCausa: 5000000, areaId: 'civel',
                 tribunalId: 'tjsp', papelCliente: 'autor' },
-    cliente: { nome: 'Construtora Alfa', cpfCnpj: '11222333000181' },
+    cliente: { nome: 'Construtora Alfa', documento: '11222333000181' },
     advogado: { nome: 'André Tavares', oab: { uf: 'SP', numero: '284917' } },
     contrato: { valorFixoCentavos: 800000, percentualExito: 20 },
     parteContraria: 'Empresa Beta',
@@ -137,6 +137,38 @@ const busca = App.domain.busca;
   ok('remove marcação HTML antes de indexar',
      busca.tokenizar('<strong>petição</strong> inicial').join(' ') === 'peticao inicial',
      busca.tokenizar('<strong>petição</strong> inicial').join(' '));
+
+  /* CPF, CNPJ e CNJ pontuados. O cadastro guarda só os dígitos; quem procura
+     copia da petição, com pontos e traço. Colapsar dos DOIS lados — índice e
+     consulta — é o que faz as duas grafias chegarem ao mesmo termo. */
+  ok('colapsa CPF pontuado num termo só',
+     busca.tokenizar('529.982.247-25').join(' ') === '52998224725',
+     busca.tokenizar('529.982.247-25').join(' '));
+  ok('colapsa CNPJ pontuado',
+     busca.tokenizar('11.222.333/0001-81').join(' ') === '11222333000181',
+     busca.tokenizar('11.222.333/0001-81').join(' '));
+  ok('colapsa o número do CNJ',
+     busca.tokenizar('0001234-56.2024.8.26.0100').join(' ') === '00012345620248260100',
+     busca.tokenizar('0001234-56.2024.8.26.0100').join(' '));
+  ok('dígito puro chega ao mesmo termo do pontuado',
+     busca.tokenizar('52998224725').join(' ') === busca.tokenizar('529.982.247-25').join(' '));
+
+  /* A trava: só colapsa o que tem a quantidade de dígitos de um
+     identificador conhecido. Sem ela, o número interno da pasta viraria um
+     termo só e procurar pelo ano deixaria de achá-lo. */
+  ok('NÃO colapsa número que não é identificador',
+     busca.tokenizar('ADV-2024-0001').join(' ') === 'adv 2024 0001',
+     busca.tokenizar('ADV-2024-0001').join(' '));
+  ok('NÃO colapsa CEP pontuado', busca.tokenizar('01310-930').join(' ') === '01310 930',
+     busca.tokenizar('01310-930').join(' '));
+
+  const indiceDoc = busca.indexar([
+    { id: 'p1', tipo: 'pessoa', titulo: 'Joana Ribeiro Prado', texto: '52998224725' }
+  ]);
+  ok('acha a pessoa pelo CPF pontuado',
+     busca.buscar(indiceDoc, '529.982.247-25').length === 1);
+  ok('e continua achando pelo CPF em dígitos',
+     busca.buscar(indiceDoc, '52998224725').length === 1);
 
   const acervo = [
     { id: 'd1', tipo: 'documento', titulo: 'Petição inicial',

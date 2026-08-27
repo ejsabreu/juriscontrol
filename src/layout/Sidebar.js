@@ -85,12 +85,18 @@
    * @param {boolean} props.recolhida  menu na tira de ícones, em qualquer largura
    * @param {Array}  [props.secoesAbertas]  rótulos das seções abertas
    * @param {Object} props.usuario  define quais itens aparecem
+   * @param {boolean} [props.animarExpansao]  este desenho é o de uma expansão
    */
   function Sidebar(props) {
     var p = props || {};
 
+    /* A classe existe por UM quadro: quem a pede é só o AppShell, e só quando
+       o menu acabou de ser expandido de propósito. É ela que libera a animação
+       de entrada dos rótulos — sem ela, todo redesenho do menu (troca de rota,
+       volta do sino) reanimaria os rótulos, e o menu piscava sozinho. */
     var html = '<aside class="sidebar' +
-                 (p.recolhida ? ' sidebar--recolhida' : '') + '">';
+                 (p.recolhida ? ' sidebar--recolhida' : '') +
+                 (!p.recolhida && p.animarExpansao ? ' sidebar--expandindo' : '') + '">';
 
     /* Recolhido, o rótulo sai do lado do ícone e vira `title` — é o que
        devolve o nome do item a quem parou o ponteiro em cima. O `aria-label`

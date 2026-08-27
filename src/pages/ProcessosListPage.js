@@ -291,9 +291,6 @@
       })
     });
 
-    var inicio = (resultado.pagina - 1) * resultado.porPagina + 1;
-    var fim = Math.min(resultado.pagina * resultado.porPagina, resultado.total);
-
     return ui.Card({
       semPadding: true,
       conteudo: tabela,
@@ -301,9 +298,8 @@
         pagina: resultado.pagina,
         totalPaginas: resultado.totalPaginas,
         total: resultado.total,
-        info: resultado.total
-          ? 'Exibindo ' + inicio + '–' + fim + ' de ' + resultado.total
-          : 'Nenhum registro'
+        porPagina: resultado.porPagina,
+        singular: 'processo'
       })
     });
   }
@@ -381,7 +377,9 @@
             busca: '', status: '', faseId: '', areaId: '', responsavelId: '', risco: '', pagina: 1
           })
         });
-        carregar();
+        /* Completo: os campos da barra ficam FORA do miolo — trocar só o
+           miolo limpava o filtro e deixava escrito o que estava neles. */
+        carregar(true);
       }
     });
 

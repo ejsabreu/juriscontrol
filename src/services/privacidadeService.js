@@ -261,7 +261,7 @@
       var tk = App.token;
       var atualizada = db().update('pessoas', pessoaId, {
         nome: tk.anonimizarNome(pessoa.nome, irreversivel),
-        cpfCnpj: tk.anonimizarDocumento(pessoa.cpfCnpj),
+        documento: tk.anonimizarDocumento(pessoa.documento),
         email: pessoa.email ? tk.anonimizarEmail(pessoa.email) : pessoa.email,
         telefone: pessoa.telefone ? '(**) *****-**' + String(pessoa.telefone).slice(-2) : pessoa.telefone,
         endereco: null,

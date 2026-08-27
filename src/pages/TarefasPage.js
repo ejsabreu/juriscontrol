@@ -125,7 +125,9 @@
       },
       aoLimpar: function () {
         App.store.setState({ tarefasFiltros: { busca: '', responsavelId: '', prioridade: '' } });
-        carregar();
+        /* Completo: os campos da barra ficam FORA do miolo — trocar só o
+           miolo limpava o filtro e deixava escrito o que estava neles. */
+        carregar(true);
       }
     });
 
